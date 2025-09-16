@@ -1,0 +1,91 @@
+---
+title: "A fully replicable, multilingual financial risk factor library"
+format:
+    jss-pdf:
+        keep-tex: false
+author:
+  - name: Stefan Voigt
+    affiliation:
+      - name: University of Copenhagen
+    orcid: 0000-0001-5619-3161
+    email: stefan.voigt@econ.ku.dk
+  - name: Patrick Weiss
+    affiliation: Reykjavík University 
+    orcid: 0000-0002-9282-5872
+  - name: Christoph Frey
+    affiliation: Lancaster University
+  - name: Christoph Scheuch
+    affiliation: Tidy Intelligence
+
+
+abstract: |
+  Financial risk factor time series are essential for empirical asset pricing research, yet existing factor libraries suffer from limited reproducibility, lack of modularity, and language-specific implementations. This paper presents a comprehensive solution addressing these limitations through a fully replicable, multilingual financial risk factor library. We provide a systematic framework for risk factor construction that encompasses modular components for data gathering, cleaning, and aggregation processes. The library offers both an application programming interface (API) and implementation code in Python and R, enabling researchers to work within their preferred computational environment. Our approach ensures reproducibility through transparent methodologies while maintaining flexibility through adjustable, modular design components. The multilingual implementation facilitates broader adoption across diverse research communities and promotes standardization in financial risk factor research. All code and data processing workflows are made publicly available to support reproducible research practices in empirical finance.
+
+keywords: [financial risk factors, reproducible research, multilingual programming, asset pricing, API design, R, Python]
+keywords-formatted: [financial risk factors, reproducible research, multilingual programming, asset pricing, API, "[R]{.proglang}", "[Python]{.proglang}"]
+
+bibliography: bibliography.bib  
+---
+
+## Introduction: Constructing financial risk factors {#sec-intro}
+
+-   Define financial risk factors and their importance in empirical asset pricing research.
+
+-   Risk factors require aggregation of raw financial data
+
+-   Existing factor libraries suffer from limited reproducibility, lack of modularity, and language-specific implementations.
+
+-   Yet, a substantial amount of academic research relies on such published data sources without addressing reproducibility or the specifics of data construction.
+
+-   This paper presents a comprehensive solution addressing these limitations through a fully replicable, multilingual financial risk factor library.
+
+-   We provide a systematic framework for risk factor construction that encompasses modular components for data gathering, cleaning, and aggregation processes.
+
+-   Reproducibility through transparent methodologies, flexibility through adjustable, modular design components.
+
+-   Multilingual implementation facilitates broader adoption across diverse research communities and promotes standardization in financial risk factor research.
+
+-   All code and data processing workflows are made publicly available to support reproducible research practices in empirical finance. API offers easy access to aggregated risk factor data for financial research.
+
+-   Existing literature and data sources: Kenneth French's data library, Portfolio sort package in R, Open Source Asset Pricing, Heje Lasse Pedersens library, individual researchers homepage, Tidy Finance books.
+
+-   @scheuch2023 @jensen2023
+
+## Data sources and aggregation {#sec-data}
+
+-   Describe data sources: CRSP, Compustat, etc and easy access via tidyfinance packages.
+-   Describe the data cleaning process: handling missing values, outliers, and data inconsistencies.
+-   Describe available sorting variables.
+
+## Portfolio sorts {#sec-sorts}
+
+-   Describe the portfolio sort process: defining breakpoints, forming portfolios, and calculating returns.
+-   Discuss the modular components of the portfolio sort process, allowing for customization and flexibility.
+-   Provide examples of different portfolio sort configurations and their implications for risk factor construction.
+-   Describe in depth the details of sorting: Bunching of sorting variables, aggregation, etc.
+-   Univariate and bivariate sorts. (Bivariate sorts require standardized data output for stock characteristics and can be retrieved from the API). Give a code snippet on how to perform arbitrary wild sorts.
+-   The API also allows to retrieve univariate sorted portfolios.
+
+## Illustrations {#sec-illustrations}
+
+-   Summary statistics for sorting variables
+-   Summary statistics for risk factor time series
+-   Example with difference in estimation of risk premia using different portfolio sort configurations.
+
+## Summary and discussion {#sec-summary}
+
+## Computational details {.unnumbered}
+
+-   The results in this paper were obtained using [R]{.proglang}\~4.5.0 with the [MASS]{.pkg}\~7.3.47 package. [R]{.proglang} itself and all packages used are available from the Comprehensive [R]{.proglang} Archive Network (CRAN) at
+-   \[https://CRAN.R-project.org/\]. Python environment details.
+
+## Acknowledgments {.unnumbered}
+
+## References {.unnumbered}
+
+::: {#refs}
+:::
+
+{{< pagebreak >}}
+
+## Technical details {#sec-techdetails .unnumbered}
