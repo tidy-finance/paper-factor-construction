@@ -4,6 +4,10 @@ format:
     jss-pdf:
         keep-tex: false
 author:
+  - name: Christoph Frey
+    affiliation: Lancaster University
+  - name: Christoph Scheuch
+    affiliation: Tidy Intelligence
   - name: Stefan Voigt
     affiliation:
       - name: University of Copenhagen
@@ -12,11 +16,6 @@ author:
   - name: Patrick Weiss
     affiliation: Reykjavík University 
     orcid: 0000-0002-9282-5872
-  - name: Christoph Frey
-    affiliation: Lancaster University
-  - name: Christoph Scheuch
-    affiliation: Tidy Intelligence
-
 
 abstract: |
   Financial risk factor time series are essential for empirical asset pricing research, yet existing factor libraries suffer from limited reproducibility, lack of modularity, and language-specific implementations. This paper presents a comprehensive solution addressing these limitations through a fully replicable, multilingual financial risk factor library. We provide a systematic framework for risk factor construction that encompasses modular components for data gathering, cleaning, and aggregation processes. The library offers both an application programming interface (API) and implementation code in Python and R, enabling researchers to work within their preferred computational environment. Our approach ensures reproducibility through transparent methodologies while maintaining flexibility through adjustable, modular design components. The multilingual implementation facilitates broader adoption across diverse research communities and promotes standardization in financial risk factor research. All code and data processing workflows are made publicly available to support reproducible research practices in empirical finance.
