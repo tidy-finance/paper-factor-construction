@@ -1,5 +1,5 @@
 ---
-title: "A fully replicable financial risk factor library"
+title: "A transparent financial risk factor library"
 format:
     jss-pdf:
         keep-tex: false
