@@ -1,5 +1,5 @@
 ---
-title: "A fully replicable, multilingual financial risk factor library"
+title: "A transparent financial risk factor library"
 format:
     jss-pdf:
         keep-tex: false
@@ -28,6 +28,10 @@ bibliography: bibliography.bib
 
 ## Introduction: Constructing financial risk factors {#sec-intro}
 
+- $\square$ Only R?  
+- $\square$ Exact scope (factor library from raw data with portfolio sorts, few adjustment examples))
+- $\square$ Write a proper introduction presenting sorts, data sources, tidyfinance package and the API 
+
 -   Define financial risk factors and their importance in empirical asset pricing research.
 
 -   Risk factors require aggregation of raw financial data
@@ -52,6 +56,8 @@ bibliography: bibliography.bib
 
 ## Data sources and aggregation {#sec-data}
 
+- $\square$ Pin down sorting variables (in my view we have the most important ones except for market and risk-free)
+
 -   Describe data sources: CRSP, Compustat, etc and easy access via tidyfinance packages.
 -   Describe the data cleaning process: handling missing values, outliers, and data inconsistencies.
 -   Describe available sorting variables.
@@ -65,11 +71,17 @@ bibliography: bibliography.bib
 -   Univariate and bivariate sorts. (Bivariate sorts require standardized data output for stock characteristics and can be retrieved from the API). Give a code snippet on how to perform arbitrary wild sorts.
 -   The API also allows to retrieve univariate sorted portfolios.
 
+- $\square$ Tidy finance functions require Bali adjustment and capped value weighting to replace Kelly et al. 
+- $\square$ API needs to be constructed
+
+
 ## Illustrations {#sec-illustrations}
 
 -   Summary statistics for sorting variables
 -   Summary statistics for risk factor time series
 -   Example with difference in estimation of risk premia using different portfolio sort configurations.
+
+- $\square$ Shiny app for simple download [https://app-download-center.cloud.sdu.dk/](https://app-download-center.cloud.sdu.dk/)
 
 ## Summary and discussion {#sec-summary}
 
