@@ -1,121 +1,71 @@
-library(tidyr)
-library(dplyr)
-library(tibble)
-library(forcats)
+library(tidyverse)
 library(arrow)
+library(here)
 
 source("factor-library-code/00_global_options.R")
 
-sorting_variable_directions <- tibble::tribble(
-  ~sorting_variable,
-  ~direction,
-  "mom",
-  "top_minus_bottom",
-  "rmom",
-  "top_minus_bottom",
-  "rs",
-  "top_minus_bottom",
-  "sue",
-  "top_minus_bottom",
-  "52w",
-  "top_minus_bottom",
-  "me",
-  "bottom_minus_top",
-  "cbop",
-  "top_minus_bottom",
-  "gpa",
-  "top_minus_bottom",
-  "o",
-  "bottom_minus_top",
-  "ope",
-  "top_minus_bottom",
-  "roa",
-  "top_minus_bottom",
-  "roe",
-  "top_minus_bottom",
-  "tbi",
-  "top_minus_bottom",
-  "bm",
-  "top_minus_bottom",
-  "cfm",
-  "top_minus_bottom",
-  "dm",
-  "top_minus_bottom",
-  "ebm",
-  "top_minus_bottom",
-  "em",
-  "top_minus_bottom",
-  "ndm",
-  "bottom_minus_top",
-  "npy",
-  "top_minus_bottom",
-  "ocm",
-  "top_minus_bottom",
-  "rev",
-  "bottom_minus_top",
-  "sm",
-  "top_minus_bottom",
-  "aci",
-  "bottom_minus_top",
-  "ag",
-  "bottom_minus_top",
-  "dinv",
-  "bottom_minus_top",
-  "dnoa",
-  "bottom_minus_top",
-  "dpia",
-  "bottom_minus_top",
-  "dwc",
-  "bottom_minus_top",
-  "ig",
-  "bottom_minus_top",
-  "noa",
-  "bottom_minus_top",
-  "oa",
-  "bottom_minus_top",
-  "cdi",
-  "bottom_minus_top",
-  "csi",
-  "bottom_minus_top",
-  "dbe",
-  "bottom_minus_top",
-  "dcol",
-  "bottom_minus_top",
-  "dfnl",
-  "bottom_minus_top",
-  "ndf",
-  "bottom_minus_top",
-  "nef",
-  "bottom_minus_top",
-  "nxf",
-  "bottom_minus_top",
-  "hr",
-  "bottom_minus_top",
-  "ol",
-  "top_minus_bottom",
-  "rer",
-  "top_minus_bottom",
-  "ami",
-  "top_minus_bottom",
-  "beta",
-  "top_minus_bottom",
-  "dtv",
-  "bottom_minus_top",
-  "iskew",
-  "bottom_minus_top",
-  "ivol",
-  "bottom_minus_top",
-  "mdr",
-  "bottom_minus_top",
-  "tur",
-  "bottom_minus_top"
+sorting_variable_information <- tibble::tribble(
+  ~sorting_variable , ~full_name                                , ~direction         ,
+  "mom"             , "Momentum"                                , "top_minus_bottom" ,
+  "rmom"            , "Residual Momentum"                       , "top_minus_bottom" ,
+  "rs"              , "Relative Strength"                       , "top_minus_bottom" ,
+  "sue"             , "Standardized Unexpected Earnings"        , "top_minus_bottom" ,
+  "52w"             , "52-Week High"                            , "top_minus_bottom" ,
+  "me"              , "Market Equity"                           , "bottom_minus_top" ,
+  "cbop"            , "Cash-Based Operating Profitability"      , "top_minus_bottom" ,
+  "gpa"             , "Gross Profit Asset"                      , "top_minus_bottom" ,
+  "o"               , "Operating Leverage"                      , "bottom_minus_top" ,
+  "ope"             , "Operating Efficiency"                    , "top_minus_bottom" ,
+  "roa"             , "Return on Assets"                        , "top_minus_bottom" ,
+  "roe"             , "Return on Equity"                        , "top_minus_bottom" ,
+  "tbi"             , "Total Accruals to Book Income"           , "bottom_minus_top" ,
+  "bm"              , "Book-to-Market"                          , "top_minus_bottom" ,
+  "cfm"             , "Cash Flow to Market"                     , "top_minus_bottom" ,
+  "dm"              , "Dividend to Market"                      , "top_minus_bottom" ,
+  "ebm"             , "Earnings-to-Book-to-Market"              , "top_minus_bottom" ,
+  "em"              , "Earnings to Market"                      , "top_minus_bottom" ,
+  "ndm"             , "Net Debt to Market"                      , "bottom_minus_top" ,
+  "npy"             , "Net Payout Yield"                        , "top_minus_bottom" ,
+  "ocm"             , "Operating Cash Flow to Market"           , "top_minus_bottom" ,
+  "rev"             , "Reversals"                               , "bottom_minus_top" ,
+  "sm"              , "Sales to Market"                         , "top_minus_bottom" ,
+  "aci"             , "Accruals"                                , "bottom_minus_top" ,
+  "ag"              , "Asset Growth"                            , "bottom_minus_top" ,
+  "dinv"            , "Change in Inventory"                     , "bottom_minus_top" ,
+  "dnoa"            , "Change in Net Operating Assets"          , "bottom_minus_top" ,
+  "dpia"            , "Change in PPE and Intangibles"           , "bottom_minus_top" ,
+  "dwc"             , "Change in Working Capital"               , "bottom_minus_top" ,
+  "ig"              , "Investment Growth"                       , "bottom_minus_top" ,
+  "noa"             , "Net Operating Assets"                    , "bottom_minus_top" ,
+  "oa"              , "Order Accruals"                          , "bottom_minus_top" ,
+  "cdi"             , "Change in Debt and Issuance"             , "bottom_minus_top" ,
+  "csi"             , "Change in Shares Issued"                 , "bottom_minus_top" ,
+  "dbe"             , "Change in Book Equity"                   , "bottom_minus_top" ,
+  "dcol"            , "Change in Current Operating Liabilities" , "bottom_minus_top" ,
+  "dfnl"            , "Change in Financial Liabilities"         , "bottom_minus_top" ,
+  "ndf"             , "Net Debt Financing"                      , "bottom_minus_top" ,
+  "nef"             , "Net Equity Financing"                    , "bottom_minus_top" ,
+  "nxf"             , "Net External Financing"                  , "bottom_minus_top" ,
+  "hr"              , "Hiring Rate"                             , "bottom_minus_top" ,
+  "ol"              , "Operating Leverage"                      , "top_minus_bottom" ,
+  "rer"             , "Revenue Reversals"                       , "top_minus_bottom" ,
+  "ami"             , "Asset Maturity Index"                    , "top_minus_bottom" ,
+  "beta"            , "Beta"                                    , "top_minus_bottom" ,
+  "dtv"             , "Debt-to-Value"                           , "bottom_minus_top" ,
+  "iskew"           , "Idiosyncratic Skewness"                  , "bottom_minus_top" ,
+  "ivol"            , "Idiosyncratic Volatility"                , "bottom_minus_top" ,
+  "mdr"             , "Maximum Daily Return"                    , "bottom_minus_top" ,
+  "tur"             , "Turnover"                                , "bottom_minus_top"
 )
 
-sorting_variable_directions |>
-  write_parquet(here::here(data_folder, "sorting_variables_directions.parquet"))
+sorting_variable_information |>
+  write_parquet(here(
+    data_folder,
+    "sorting_variable_information.parquet"
+  ))
 
 full_grid <- expand_grid(
-  sorting_variable = unique(sorting_variable_directions$sorting_variable),
+  sorting_variable = unique(sorting_variable_information$sorting_variable),
   exclude_size = c(0, 0.2),
   exclude_financials = c(TRUE, FALSE),
   exclude_utilities = c(TRUE, FALSE),
@@ -130,7 +80,7 @@ full_grid <- expand_grid(
   ),
   breakpoints_secondary = c(2, 5),
   breakpoints_exchanges = c("NYSE", "AMEX|NASDAQ|NYSE"),
-  weighting_scheme = c("EW", "VW") # Weighting scheme at last position ensures that running ID even for EW and uneven for VW
+  weighting_scheme = c("EW", "VW")
 )
 
 # Revise breakpoints_secondary
@@ -158,31 +108,12 @@ grid <- grid |>
 grid <- grid |>
   filter(!(sorting_variable == "sv_em" & exclude_negative_earnings == FALSE))
 
-
-# Sort grid ---------------------------------------------------------------
 grid <- grid |>
   arrange(sorting_variable_lag, sorting_variable) |>
-  rowid_to_column(var = "ID")
-
-# Add sequencer ID
-
-grid <- grid |>
-  left_join(
-    grid |>
-      mutate(
-        across(-c(ID, sorting_variable), \(x) {
-          fct_na_value_to_level(as.factor(x))
-        }),
-        across(where(is.factor), \(x) as.integer(fct_inorder(x)) - 1)
-      ) |>
-      unite("ID_sequence", -c(ID, sorting_variable), sep = "") |>
-      select(ID, ID_sequence),
-    join_by(ID)
-  ) |>
-  select(ID, ID_sequence, everything())
+  rowid_to_column(var = "id")
 
 grid |>
-  write_parquet(here::here(
+  write_parquet(here(
     data_folder,
     "portfolio_sort_grid.parquet"
   ))

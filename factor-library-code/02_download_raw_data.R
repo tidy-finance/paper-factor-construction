@@ -1,37 +1,25 @@
-library(dplyr)
-library(tidyr)
+library(tidyverse)
 library(tidyfinance)
+library(here)
 library(arrow)
 
-source("00_global_options.R")
+source("factor-library-code/00_global_options.R")
 
-# French data -------------------------------------------------------------
-# Fama-French data
-factors_ff_3_monthly <- download_data(
-  "factors_ff_3_monthly",
-  start_date = date_start_data,
-  end_date = date_end_data
-)
+download_data(
+  "factors_ff_3_monthly"
+) |>
+  write_parquet(here(data_folder, "factors_ff_3_monthly.parquet"))
 
-factors_ff_3_monthly |>
-  write_feather(paste0(data_raw_folder, "factors_ff_3_monthly.feather"))
-
-factors_ff_3_daily <- download_data(
-  "factors_ff_3_daily",
-  start_date = date_start_data,
-  end_date = date_end_data
-)
-
-factors_ff_3_daily |>
-  write_feather(paste0(data_raw_folder, "factors_ff_3_daily.feather"))
+download_data(
+  "factors_ff_3_daily"
+) |>
+  write_parquet(here(data_folder, "factors_ff_3_daily.parquet"))
 
 # CRSP Compustat linking table --------------------------------------------
 ccm_link <- download_data_wrds_ccm_links(
   linktype = c("LU", "LC"),
   linkprim = c("P", "C")
 )
-
-# CRSP monthly ------------------------------------------------------------
 
 crsp_monthly <- download_data_wrds_crsp(
   type = "crsp_monthly",
@@ -41,11 +29,6 @@ crsp_monthly <- download_data_wrds_crsp(
   additional_columns = c("retx", "cfacpr")
 )
 
-stopifnot(
-  crsp_monthly |> distinct(permno, date) |> nrow() == nrow(crsp_monthly)
-)
-
-# Create adjusted price
 crsp_monthly <- crsp_monthly |>
   drop_na(mktcap_lag) |>
   mutate(
@@ -68,19 +51,9 @@ ccm_link <- crsp_monthly |>
 crsp_monthly <- crsp_monthly |>
   left_join(ccm_link, join_by(permno, date))
 
-# Check for duplicates
-stopifnot(
-  crsp_monthly |> drop_na(gvkey) |> distinct(gvkey, date) |> nrow() ==
-    nrow(crsp_monthly |> drop_na(gvkey))
-)
-
-# Save data
 crsp_monthly |>
-  write_feather(paste0(data_raw_folder, "crsp_monthly.feather"))
+  write_parquet(here(data_folder, "crsp_monthly.parquet"))
 
-
-# CRSP daily --------------------------------------------------------------
-# CRSP daily download
 crsp_daily <- download_data_wrds_crsp(
   type = "crsp_daily",
   version = "v1",
@@ -89,9 +62,6 @@ crsp_daily <- download_data_wrds_crsp(
   batch_size = 500,
   additional_columns = c("shrout", "prc", "vol", "cfacpr", "ret", "exchcd")
 )
-
-# Check for duplicates
-stopifnot(crsp_daily |> distinct(permno, date) |> nrow() == nrow(crsp_daily))
 
 # Gao and Ritter volume adjustment
 gr_date_1 <- as.Date("2001-02-01")
@@ -116,13 +86,9 @@ crsp_daily <- crsp_daily |>
   ) |>
   select(-exchcd, -vol)
 
-# Save data
 crsp_daily |>
-  write_feather(paste0(data_raw_folder, "crsp_daily.feather"))
+  write_parquet(here(data_folder, "crsp_daily.parquet"))
 
-
-# Compustat ---------------------------------------------------------------
-# Load Compustat
 compustat_annual <- download_data_wrds_compustat(
   type = "wrds_compustat_annual",
   start_date = date_start_data,
@@ -188,11 +154,6 @@ compustat_annual <- download_data_wrds_compustat(
   )
 )
 
-stopifnot(
-  compustat_annual |> distinct(gvkey, datadate) |> nrow() ==
-    nrow(compustat_annual)
-)
-
 # Remove Canadian observations
 compustat_annual <- compustat_annual |>
   filter(curcd == "USD") |>
@@ -207,11 +168,8 @@ compustat_annual <- compustat_annual |>
 
 # Save data
 compustat_annual |>
-  write_feather(paste0(data_raw_folder, "compustat_annual.feather"))
+  write_parqet(here(data_folder, "compustat_annual.parquet"))
 
-
-# Compustat quarterly -----------------------------------------------------
-# Load Compustat quarterly
 compustat_quarterly <- download_data_wrds_compustat(
   type = "wrds_compustat_quarterly",
   start_date = date_start_data,
@@ -237,11 +195,6 @@ compustat_quarterly <- download_data_wrds_compustat(
   )
 )
 
-stopifnot(
-  compustat_quarterly |> distinct(gvkey, date) |> nrow() ==
-    nrow(compustat_quarterly)
-)
-
 # Remove Canadian observations
 compustat_quarterly <- compustat_quarterly |>
   filter(curcdq == "USD") |>
@@ -256,4 +209,4 @@ compustat_quarterly <- compustat_quarterly |>
 
 # Save data
 compustat_quarterly |>
-  write_feather(paste0(data_raw_folder, "compustat_quarterly.feather"))
+  write_parquet(here(data_folder, "compustat_quarterly.parquet"))
