@@ -18,43 +18,35 @@ author:
     orcid: 0000-0002-9282-5872
 
 abstract: |
-  Financial risk factor time series are essential for empirical asset pricing research, yet existing factor libraries suffer from limited reproducibility, lack of modularity, and language-specific implementations. This paper presents a comprehensive solution addressing these limitations through a fully replicable, multilingual financial risk factor library. We provide a systematic framework for risk factor construction that encompasses modular components for data gathering, cleaning, and aggregation processes. The library offers both an application programming interface (API) and implementation code in Python and R, enabling researchers to work within their preferred computational environment. Our approach ensures reproducibility through transparent methodologies while maintaining flexibility through adjustable, modular design components. The multilingual implementation facilitates broader adoption across diverse research communities and promotes standardization in financial risk factor research. All code and data processing workflows are made publicly available to support reproducible research practices in empirical finance.
+  Financial risk factor time series are essential for empirical asset pricing research, yet existing factor libraries suffer from limited reproducibility, lack of modularity, and language-specific implementations. This paper presents a comprehensive, fully replicable multilingual financial risk factor library that addresses these limitations. We provide a modular framework for constructing risk factors from raw data, encompassing data acquisition, cleaning, and portfolio aggregation. The library includes both an application programming interface (API) and native implementations in Python and R, allowing researchers to work in their preferred computational environment. Our transparent, modular design enables both reproducibility and flexibility, accommodating diverse portfolio sort configurations and adjustment methodologies. By making all code and data workflows publicly available, we promote standardization and support reproducible research practices in empirical asset pricing.
 
-keywords: [financial risk factors, reproducible research, multilingual programming, asset pricing, API design, R, Python]
-keywords-formatted: [financial risk factors, reproducible research, multilingual programming, asset pricing, API, "[R]{.proglang}", "[Python]{.proglang}"]
+keywords: [financial risk factors, reproducible research, asset pricing, API design, R, Python]
+keywords-formatted: [financial risk factors, reproducible research, asset pricing, API, "[R]{.proglang}", "[Python]{.proglang}"]
 
 bibliography: bibliography.bib  
 ---
 
 ## Introduction: Constructing financial risk factors {#sec-intro}
 
-- $\square$ Only R?  
-- $\square$ Exact scope (factor library from raw data with portfolio sorts, few adjustment examples))
-- $\square$ Write a proper introduction presenting sorts, data sources, tidyfinance package and the API 
+In empirical finance, a key question is which sources of systematic risk drive asset returns. Researchers address this by constructing factor returns—portfolios isolating single economic characteristics or exposures. Factor returns allow model evaluation, hypothesis testing, benchmarking, and decomposition of returns into systematic and idiosyncratic components [@fama1993; @cochrane2011; @harvey2016].
 
--   Define financial risk factors and their importance in empirical asset pricing research.
+Despite their importance, no widely adopted, transparent, and accessible source standardizes factor construction. Current practice often relies on ad‑hoc publication of factor series, usually without code or detailed workflows. This limits reproducibility, comparability, and extension. Reproducible research requires transparent workflows, standardized data processing, analysis‑ready series, and modularity to vary methodological choices.^[Existing resources illustrate this gap: the French Data Library [@fama2023] provides canonical factors but no code; the Open Source Asset Pricing Project [@chen2022] focuses on replication; the global factor database [@jensen2023] is Python‑oriented. A modular, multilingual framework is still needed.]
 
--   Risk factors require aggregation of raw financial data
+Our project makes four contributions. First, we release a public factor library that centralizes series and workflows. Second, we provide a modular, end‑to‑end workflow for data acquisition, cleaning, variable construction, and portfolio aggregation. Third, we offer native R and Python implementations and a programmatic API for standardized data retrieval. Fourth, all code, workflows, and documentation are published to enable replication, methodological comparison, and extensibility. Together, these improve transparency, reproducibility, and comparability.
 
--   Existing factor libraries suffer from limited reproducibility, lack of modularity, and language-specific implementations.
+We provide two libraries — *tidyfinance* (on CRAN) and *py‑tidyfinance* that streamline data acquisition from WRDS, Compustat, and other commonly used data providers. Automated routines handle standard lagging procedures to eliminate ad‑hoc fixes. Special adjustments typical for financial data —delistings, price or volume adjustments —are embedded. 
 
--   Yet, a substantial amount of academic research relies on such published data sources without addressing reproducibility or the specifics of data construction.
+A core focus of our project is the handling of the construction of portfolio sorts which involve many subjective choices: breakpoints, weighting, rebalancing, handling ties, and sample inclusion. Our code treats sorting as a configurable module. All choices are documented, tested and common variants (equal- or value-weighted, double sorts, quantile/percentile breaks, overlapping portfolios) are implemented.
 
--   This paper presents a comprehensive solution addressing these limitations through a fully replicable, multilingual financial risk factor library.
+We illustrate the full workflow in R, from raw data to factor returns, including diagnostics. Python examples in the appendix ensure parity in configuration, defaults, and outputs.
 
--   We provide a systematic framework for risk factor construction that encompasses modular components for data gathering, cleaning, and aggregation processes.
-
--   Reproducibility through transparent methodologies, flexibility through adjustable, modular design components.
-
--   Multilingual implementation facilitates broader adoption across diverse research communities and promotes standardization in financial risk factor research.
-
--   All code and data processing workflows are made publicly available to support reproducible research practices in empirical finance. API offers easy access to aggregated risk factor data for financial research.
-
--   Existing literature and data sources: Kenneth French's data library, Portfolio sort package in R, Open Source Asset Pricing, Heje Lasse Pedersens library, individual researchers homepage, Tidy Finance books.
-
--   @scheuch2023 @jensen2023
+We publish a curated factor library with preprocessed time series across sorting variables, weighting schemes, and adjustments. We demonstrate how methodological choices affect factor returns to highlight empirical relevance. Finally, a programmatic API provides access to standardized series and preprocessed panels. The database supports versioning and batch retrievals. All software, workflows, and documentation are published to enable replication, sensitivity analysis, and extension, promoting standardized benchmarking and transparent empirical research.
 
 ## Data sources and aggregation {#sec-data}
+
+- *We provide R code snippets only. We highlight that the same functionality is available in Python via py-tidyfinance. Simultaneously we include the full Python script for the examples in the main text in the supplementary material.* 
+- *Content of the paper: We use one, maximum two examples for a sorting variable to guide through the entire pipeline of data gathering, cleaning, sorting. When it comes to sorting we refer to the many different options and considerations. Final chapter(s) present the factor library and summary of the "results" + code snippets to download the time series. *
+- *I envision a variable based on compustat data without much complitations, e.g. `sv_roa = ibq / atq_lag1`. That way we can focus on the entire pipeline without getting lost in the details of the sorting variable construction.* 
 
 - $\square$ Pin down sorting variables (in my view we have the most important ones except for market and risk-free)
 
@@ -74,7 +66,6 @@ bibliography: bibliography.bib
 - $\square$ Tidy finance functions require Bali adjustment and capped value weighting to replace Kelly et al. 
 - $\square$ API needs to be constructed
 
-
 ## Illustrations {#sec-illustrations}
 
 -   Summary statistics for sorting variables
@@ -87,7 +78,7 @@ bibliography: bibliography.bib
 
 ## Computational details {.unnumbered}
 
--   The results in this paper were obtained using [R]{.proglang}\~4.5.0 with the [MASS]{.pkg}\~7.3.47 package. [R]{.proglang} itself and all packages used are available from the Comprehensive [R]{.proglang} Archive Network (CRAN) at
+-   The results in this paper were obtained using [R]{.proglang}\~4.5.2 with the [MASS]{.pkg}\~7.3.47 package. [R]{.proglang} itself and all packages used are available from the Comprehensive [R]{.proglang} Archive Network (CRAN) at
 -   \[https://CRAN.R-project.org/\]. Python environment details.
 
 ## Acknowledgments {.unnumbered}
