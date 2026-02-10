@@ -1,10 +1,13 @@
-library(tidyverse)
-library(arrow)
+library(dplyr)
+library(tidyr)
+library(tibble)
 library(here)
+library(arrow)
 
 source("factor-library-code/00_global_options.R")
 
-sorting_variable_information <- tibble::tribble(
+# TODO: either add sv_me here or remove from all scripts
+sorting_variable_information <- tribble(
   ~sorting_variable , ~full_name                                , ~direction         ,
   "mom"             , "Momentum"                                , "top_minus_bottom" ,
   "rmom"            , "Residual Momentum"                       , "top_minus_bottom" ,
@@ -58,11 +61,13 @@ sorting_variable_information <- tibble::tribble(
   "tur"             , "Turnover"                                , "bottom_minus_top"
 )
 
-sorting_variable_information |>
-  write_parquet(here(
+write_parquet(
+  sorting_variable_information,
+  here(
     data_folder,
     "sorting_variable_information.parquet"
-  ))
+  )
+)
 
 full_grid <- expand_grid(
   sorting_variable = unique(sorting_variable_information$sorting_variable),
@@ -84,6 +89,7 @@ full_grid <- expand_grid(
 )
 
 # Revise breakpoints_secondary
+# TODO: comment should say why this is happening
 grid <- full_grid |>
   filter(
     !(sorting_method == "univariate" &
@@ -98,6 +104,8 @@ grid <- full_grid |>
   )
 
 # Revise sv_me's double sorts
+# TODO: comment should say why this is happening
+# TODO: sv_me is not part of sorting_variable_information
 grid <- grid |>
   filter(
     !(sorting_variable == "sv_me" &
@@ -105,6 +113,7 @@ grid <- grid |>
   )
 
 # Revise sv_em and exclude_negative_earnings combination
+# TODO: redundant as long as sv_me is not part of sorting_variable_information
 grid <- grid |>
   filter(!(sorting_variable == "sv_em" & exclude_negative_earnings == FALSE))
 
@@ -112,8 +121,10 @@ grid <- grid |>
   arrange(sorting_variable_lag, sorting_variable) |>
   rowid_to_column(var = "id")
 
-grid |>
-  write_parquet(here(
+write_parquet(
+  grid,
+  here(
     data_folder,
     "portfolio_sort_grid.parquet"
-  ))
+  )
+)

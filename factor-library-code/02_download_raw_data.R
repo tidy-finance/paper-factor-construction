@@ -1,4 +1,5 @@
-library(tidyverse)
+library(dplyr)
+library(tidyr)
 library(tidyfinance)
 library(here)
 library(arrow)
@@ -6,26 +7,32 @@ library(arrow)
 source("factor-library-code/00_global_options.R")
 
 download_data(
-  "factors_ff_3_monthly"
+  domain = "factors_ff",
+  dataset = "Fama/French 5 Factors (2x3)"
 ) |>
   write_parquet(here(data_folder, "factors_ff_3_monthly.parquet"))
 
 download_data(
-  "factors_ff_3_daily"
+  domain = "factors_ff",
+  dataset = "Fama/French 5 Factors (2x3) [Daily]"
 ) |>
   write_parquet(here(data_folder, "factors_ff_3_daily.parquet"))
 
 # CRSP Compustat linking table --------------------------------------------
-ccm_link <- download_data_wrds_ccm_links(
+ccm_link <- download_data(
+  domain = "wrds",
+  dataset = "ccm_links",
   linktype = c("LU", "LC"),
   linkprim = c("P", "C")
 )
 
-crsp_monthly <- download_data_wrds_crsp(
-  type = "crsp_monthly",
+# TODO: update to v2 (`retx` and `cfacpr` don't exist)
+crsp_monthly <- download_data(
+  domain = "wrds",
+  dataset = "crsp_monthly",
   version = "v1",
-  start_date = date_start_data,
-  end_date = date_end_data,
+  start_date = date_start,
+  end_date = date_end,
   additional_columns = c("retx", "cfacpr")
 )
 
@@ -51,19 +58,23 @@ ccm_link <- crsp_monthly |>
 crsp_monthly <- crsp_monthly |>
   left_join(ccm_link, join_by(permno, date))
 
-crsp_monthly |>
-  write_parquet(here(data_folder, "crsp_monthly.parquet"))
+write_parquet(
+  crsp_monthly,
+  here(data_folder, "crsp_monthly.parquet")
+)
 
-crsp_daily <- download_data_wrds_crsp(
-  type = "crsp_daily",
+# TODO: update to v2
+crsp_daily <- download_data(
+  domain = "wrds",
+  dataset = "crsp_daily",
   version = "v1",
-  start_date = date_start_data,
-  end_date = date_end_data,
+  start_date = date_start,
+  end_date = date_end,
   batch_size = 500,
   additional_columns = c("shrout", "prc", "vol", "cfacpr", "ret", "exchcd")
 )
 
-# Gao and Ritter volume adjustment
+# Gao and Ritter (2010) volume adjustment to ensure NASDAQ trading volume
 gr_date_1 <- as.Date("2001-02-01")
 gr_date_2 <- as.Date("2002-01-01")
 gr_date_3 <- as.Date("2004-01-01")
@@ -86,13 +97,16 @@ crsp_daily <- crsp_daily |>
   ) |>
   select(-exchcd, -vol)
 
-crsp_daily |>
-  write_parquet(here(data_folder, "crsp_daily.parquet"))
+write_parquet(
+  crsp_daily,
+  here(data_folder, "crsp_daily.parquet")
+)
 
-compustat_annual <- download_data_wrds_compustat(
-  type = "wrds_compustat_annual",
-  start_date = date_start_data,
-  end_date = date_end_data,
+compustat_annual <- download_data(
+  domain = "wrds",
+  dataset = "compustat_annual",
+  start_date = date_start,
+  end_date = date_end,
   additional_columns = c(
     "act",
     "ap",
@@ -159,21 +173,26 @@ compustat_annual <- compustat_annual |>
   filter(curcd == "USD") |>
   select(-curcd)
 
-# Remove negative numbers
+# Replace negative numbers with missing values
 compustat_annual <- compustat_annual |>
-  mutate(across(
-    .cols = c("sale", "at", "capx", "invt"),
-    .fns = ~ if_else(.x < 0, NA_real_, .x)
-  ))
+  mutate(
+    across(
+      .cols = c("sale", "at", "capx", "invt"),
+      .fns = ~ if_else(.x < 0, NA_real_, .x)
+    )
+  )
 
 # Save data
-compustat_annual |>
-  write_parqet(here(data_folder, "compustat_annual.parquet"))
+write_parquet(
+  compustat_annual,
+  here(data_folder, "compustat_annual.parquet")
+)
 
-compustat_quarterly <- download_data_wrds_compustat(
-  type = "wrds_compustat_quarterly",
-  start_date = date_start_data,
-  end_date = date_end_data,
+compustat_quarterly <- download_data(
+  domain = "wrds",
+  dataset = "compustat_quarterly",
+  start_date = date_start,
+  end_date = date_end,
   additional_columns = c(
     "rdq",
     "fyearq",
@@ -200,13 +219,17 @@ compustat_quarterly <- compustat_quarterly |>
   filter(curcdq == "USD") |>
   select(-curcdq)
 
-# Replace negative values of total assets with zero and sales
+# Replace negative values of total assets and sales with zero
 compustat_quarterly <- compustat_quarterly |>
   mutate(
-    atq = if_else(atq < 0, NA_real_, atq),
-    saleq = if_else(saleq < 0, NA_real_, saleq)
+    across(
+      .cols = c("atq", "saleq"),
+      .fns = ~ if_else(.x < 0, NA_real_, .x)
+    )
   )
 
 # Save data
-compustat_quarterly |>
-  write_parquet(here(data_folder, "compustat_quarterly.parquet"))
+write_parquet(
+  compustat_quarterly,
+  here(data_folder, "compustat_quarterly.parquet")
+)

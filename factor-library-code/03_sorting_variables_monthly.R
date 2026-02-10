@@ -1,13 +1,16 @@
-library(tidyverse)
+library(dplyr)
+library(tidyr)
 library(arrow)
 library(slider)
+library(purrr)
 library(multidplyr)
 library(moments)
+library(here)
 
 source("factor-library-code/00_global_options.R")
 
 cluster <- new_cluster(parallel::detectCores() - 1)
-cluster_library(cluster, c("lubridate", "slider", "dplyr"))
+cluster_library(cluster, c("lubridate", "slider", "dplyr", "tidyr"))
 
 crsp_monthly <- open_dataset(
   here(data_folder, "crsp_monthly.parquet")
@@ -81,18 +84,22 @@ crsp_monthly <- crsp_monthly |>
     relationship = "many-to-one"
   )
 
-
 # Rolling regressions -----------------------------------------------------
+
+# TODO: replace by functions from r-tidyfinance
 rolling_window_capm <- function(data, months) {
   beta_coefficients <- slide_period_vec(
     .x = data,
     .i = data$date,
     .period = "month",
-    .f = ~ if_else(
-      nrow(.x) < 24,
-      NA_real_,
-      coefficients(lm(ret_excess ~ mkt_excess, data = .x))[2]
-    ),
+    .f = ~ {
+      complete <- drop_na(.x)
+      if (nrow(complete) < months) {
+        NA_real_
+      } else {
+        coefficients(lm(ret_excess ~ mkt_excess, data = complete))[2]
+      }
+    },
     .before = months - 1,
     .complete = FALSE
   )
@@ -105,11 +112,14 @@ rolling_window_residual <- function(data, months) {
     .x = data,
     .i = data$date,
     .period = "month",
-    .f = ~ if_else(
-      nrow(.x) < months,
-      NA_real_,
-      last(lm(ret_excess ~ mkt_excess + smb + hml, data = .x)$residuals)
-    ),
+    .f = ~ {
+      complete <- drop_na(.x)
+      if (nrow(complete) < months) {
+        NA_real_
+      } else {
+        last(lm(ret_excess ~ mkt_excess + smb + hml, data = complete)$residuals)
+      }
+    },
     .before = months - 1,
     .complete = FALSE
   )
@@ -120,6 +130,7 @@ rolling_window_residual <- function(data, months) {
 cluster_copy(cluster, c("rolling_window_residual", "rolling_window_capm"))
 
 # Compute CAPM regression coefficients and FF3 residuals
+
 crsp_monthly <- crsp_monthly |>
   arrange(permno, date) |>
   group_by(permno) |>
@@ -142,11 +153,13 @@ rolling_window_residual_to_sd <- function(data, months) {
     .x = data,
     .i = data$date,
     .period = "month",
-    .f = ~ if_else(
-      nrow(.x) < months,
-      NA_real_,
-      (prod(1 + .x$int_roll_residual) - 1) / sd(.x$int_roll_residual)
-    ),
+    .f = ~ {
+      if (nrow(.x) < months) {
+        NA_real_
+      } else {
+        (prod(1 + .x$int_roll_residual) - 1) / sd(.x$int_roll_residual)
+      }
+    },
     .before = months - 1,
     .complete = FALSE
   )
@@ -312,6 +325,7 @@ crsp_daily_aggregation <- crsp_daily |>
   mutate(date = floor_date(date, "month")) |>
   select(permno, date, ret_excess, mkt_excess, smb, hml)
 
+# TODO: replace 15 by expressive object
 permno_month_combinations <- crsp_daily_aggregation |>
   group_by(permno, date) |>
   count() |>
@@ -327,6 +341,22 @@ crsp_daily_aggregation <- crsp_daily_aggregation |>
   ) |>
   compute()
 
+# TODO: replace this by a r-tidyfinance function (calculate_residuals()?)
+calculate_residuals <- function(data, formula) {
+  complete <- complete.cases(model.frame(
+    formula,
+    data = data,
+    na.action = na.pass
+  ))
+  if (sum(complete) <= length(all.vars(formula))) {
+    return(rep(NA_real_, nrow(data)))
+  }
+  res <- rep(NA_real_, nrow(data))
+  res[complete] <- lm(formula, data = data[complete, ])$residuals
+  res
+}
+
+# TODO: parallelize this via batches
 aggregation_data_all <- permno_month_combinations |>
   distinct(permno) |>
   collect() |>
@@ -339,7 +369,10 @@ aggregation_data_all <- permno_month_combinations |>
           collect() |>
           group_by(date) |>
           mutate(
-            residual_ff3 = lm(ret_excess ~ mkt_excess + smb + hml)$residuals
+            residual_ff3 = calculate_residuals(
+              pick(everything()),
+              ret_excess ~ mkt_excess + smb + hml
+            )
           ) |>
           summarize(
             int_max_ret = max(ret_excess, na.rm = TRUE),
@@ -381,6 +414,7 @@ sorting_variables_monthly <- crsp_monthly |>
   )
 
 # Filters -----------------------------------------------------------------
+
 # Remove Inf and NaN
 sorting_variables_monthly <- sorting_variables_monthly |>
   mutate(
@@ -389,7 +423,7 @@ sorting_variables_monthly <- sorting_variables_monthly |>
     across(starts_with("sv_"), ~ if_else(is.nan(.x), NA_real_, .x))
   )
 
-# Stock-age filter
+# Create column with stock_age to filter later
 sorting_variables_monthly <- sorting_variables_monthly |>
   arrange(permno, date) |>
   group_by(permno) |>
@@ -402,5 +436,7 @@ sorting_variables_monthly <- sorting_variables_monthly |>
   select(permno, date, filter_stock_age, starts_with("sv_")) |>
   ungroup()
 
-sorting_variables_monthly |>
-  write_parquet(here(data_folder, "sorting_variables_monthly.parquet"))
+write_parquet(
+  sorting_variables_monthly,
+  here(data_folder, "sorting_variables_monthly.parquet")
+)

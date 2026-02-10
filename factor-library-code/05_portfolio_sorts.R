@@ -1,13 +1,14 @@
-suppressPackageStartupMessages({
-  library(dplyr)
-  library(lubridate)
-  library(arrow)
-  library(tidyr)
-  library(tidyfinance)
-  library(here)
-})
+library(dplyr)
+library(lubridate)
+library(arrow)
+library(tidyr)
+library(tidyfinance)
+library(here)
 
 source("factor-library-code/00_global_options.R")
+
+# TODO: rewrite using local parallelization
+# TODO: include option for SLURM parallelization via library(future.batchtools)
 
 task_id <- as.numeric(Sys.getenv("SLURM_ARRAY_TASK_ID"))
 tasks_per_worker <- 100
@@ -18,20 +19,24 @@ task_ids <- tibble(
 
 full_grid <- read_parquet(
   here(data_folder, "portfolio_sort_grid.parquet")
-) |>
-  filter(weighting_scheme == "EW")
+)
 
 grid <- full_grid |>
   mutate(task_id = row_number()) |>
   inner_join(task_ids, join_by(task_id))
 
-required_sorting_variables <- grid |> distinct(sorting_variable) |> pull()
-required_datasets <- grid |> distinct(sorting_variable_lag) |> pull()
+required_sorting_variables <- grid |>
+  distinct(sorting_variable) |>
+  pull()
 
-sv_directions <- read_parquet(here(
-  data_folder,
-  "sorting_variable_information.parquet"
-))
+required_datasets <- grid |>
+  distinct(sorting_variable_lag) |>
+  pull()
+
+sv_directions <- read_parquet(
+  here(data_folder, "sorting_variable_information.parquet")
+)
+
 if ("3m" %in% required_datasets) {
   sorting_data_3m <- open_dataset(
     here(data_folder, "sorting_variables_lag_3m.parquet")
@@ -68,9 +73,9 @@ if ("6m" %in% required_datasets) {
 }
 
 # FF lag
-if ("FF" %in% required_datasets) {
-  sorting_data_FF <- open_dataset(
-    here(data_folder, "sorting_variables_lag_FF.parquet")
+if ("ff" %in% required_datasets) {
+  sorting_data_ff <- open_dataset(
+    here(data_folder, "sorting_variables_lag_ff.parquet")
   ) |>
     select(
       permno,
@@ -90,8 +95,8 @@ for (j in 1:nrow(grid)) {
     sorting_data <- sorting_data_3m
   } else if (grid$sorting_variable_lag[j] == "6m") {
     sorting_data <- sorting_data_6m
-  } else if (grid$sorting_variable_lag[j] == "FF") {
-    sorting_data <- sorting_data_FF
+  } else if (grid$sorting_variable_lag[j] == "ff") {
+    sorting_data <- sorting_data_ff
   }
 
   # Size exclusion
@@ -199,12 +204,14 @@ for (j in 1:nrow(grid)) {
     showWarnings = FALSE
   )
 
-  long_short_return |>
-    write_parquet(here(
+  write_parquet(
+    long_short_return,
+    here(
       data_folder,
       "portfolio_returns/",
       grid$sorting_variable[j],
       "/",
       grid$ID[j]
-    ))
+    )
+  )
 }

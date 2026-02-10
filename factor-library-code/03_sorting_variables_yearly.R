@@ -1,4 +1,6 @@
-library(tidyverse)
+library(dplyr)
+library(tidyr)
+library(lubridate)
 library(tidyfinance)
 library(arrow)
 library(here)
@@ -81,6 +83,7 @@ compustat_annual <- compustat_annual |>
   rename(int_me = mktcap)
 
 # Winsorization
+# TODO: explain why one variable is winsoized by group and the others not
 compustat_annual <- compustat_annual |>
   group_by(year = year(datadate)) |>
   mutate(int_rer = winsorize(int_rer, 0.01)) |>
@@ -271,5 +274,7 @@ sorting_variables_yearly <- sorting_variables_yearly |>
 sorting_variables_yearly <- sorting_variables_yearly |>
   select(gvkey, date, starts_with("filter_"), starts_with("sv_"))
 
-sorting_variables_yearly |>
-  write_parquet(here(data_folder, "sorting_variables_yearly.parquet"))
+write_parquet(
+  sorting_variables_yearly,
+  here(data_folder, "sorting_variables_yearly.parquet")
+)
