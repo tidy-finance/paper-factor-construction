@@ -6,7 +6,6 @@ library(arrow)
 
 source("factor-library-code/00_global_options.R")
 
-# TODO: either add sv_me here or remove from all scripts
 sorting_variable_information <- tribble(
   ~sorting_variable , ~full_name                                , ~direction         ,
   "mom"             , "Momentum"                                , "top_minus_bottom" ,
@@ -59,7 +58,8 @@ sorting_variable_information <- tribble(
   "ivol"            , "Idiosyncratic Volatility"                , "bottom_minus_top" ,
   "mdr"             , "Maximum Daily Return"                    , "bottom_minus_top" ,
   "tur"             , "Turnover"                                , "bottom_minus_top"
-)
+) |>
+  mutate(sorting_variable = paste0("sv_", sorting_variable))
 
 write_parquet(
   sorting_variable_information,
@@ -75,7 +75,7 @@ full_grid <- expand_grid(
   exclude_financials = c(TRUE, FALSE),
   exclude_utilities = c(TRUE, FALSE),
   exclude_negative_earnings = c(TRUE, FALSE),
-  sorting_variable_lag = c("3m", "6m", "FF"),
+  sorting_variable_lag = c("3m", "6m", "ff"),
   rebalancing = c("monthly", "annual"),
   breakpoints_main = c(5, 10),
   sorting_method = c(
@@ -105,7 +105,6 @@ grid <- full_grid |>
 
 # Revise sv_me's double sorts
 # TODO: comment should say why this is happening
-# TODO: sv_me is not part of sorting_variable_information
 grid <- grid |>
   filter(
     !(sorting_variable == "sv_me" &
@@ -113,7 +112,6 @@ grid <- grid |>
   )
 
 # Revise sv_em and exclude_negative_earnings combination
-# TODO: redundant as long as sv_me is not part of sorting_variable_information
 grid <- grid |>
   filter(!(sorting_variable == "sv_em" & exclude_negative_earnings == FALSE))
 
