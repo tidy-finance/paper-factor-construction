@@ -247,7 +247,7 @@ crsp_maxima <- crsp_daily |>
   group_by(permno, date = floor_date(date, "month")) |>
   summarise(
     int_max_price_month = if_else(
-      n() > 3,
+      n() > 3, # TODO: replace 3 with expressive variable
       max(prc_adj, na.rm = TRUE),
       NA_real_
     ),

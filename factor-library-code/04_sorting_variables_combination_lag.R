@@ -35,27 +35,6 @@ filter_yearly <- sorting_variables_yearly |>
 sorting_variables_yearly <- sorting_variables_yearly |>
   select(gvkey, date, starts_with("sv_"))
 
-crsp_monthly <- crsp_monthly |>
-  add_lagged_values(
-    filter_monthly,
-    "permno",
-    min_lag = months(3),
-    max_lag = months(12)
-  ) |>
-  add_lagged_values(
-    filter_yearly,
-    "gvkey",
-    min_lag = months(3),
-    max_lag = months(12)
-  ) |>
-  filter(filter_stock_age >= 2) |>
-  filter(date >= date_start_returns, date <= date_end_returns) |>
-  select(-filter_stock_age)
-
-# Lag 3m ------------------------------------------------------------------
-# Exactly lag by three months
-## Include: Monthly, quarterly, and yearly variables
-## Allow "old" date up until 12 months after sorting date (not including)
 # TODO: replace with function from r-tidyfinance
 add_lagged_values <- function(
   original_data,
@@ -119,6 +98,28 @@ add_lagged_values <- function(
   original_data
 }
 
+crsp_monthly <- crsp_monthly |>
+  add_lagged_values(
+    filter_monthly,
+    "permno",
+    min_lag = months(3),
+    max_lag = months(12)
+  ) |>
+  add_lagged_values(
+    filter_yearly,
+    "gvkey",
+    min_lag = months(3),
+    max_lag = months(12)
+  ) |>
+  filter(filter_stock_age >= min_stock_age) |>
+  filter(date >= date_start, date <= date_end) |>
+  select(-filter_stock_age)
+
+# Lag 3m ------------------------------------------------------------------
+# Exactly lag by three months
+## Include: Monthly, quarterly, and yearly variables
+## Allow "old" date up until 12 months after sorting date (not including)
+
 sv_lag3m <- crsp_monthly |>
   add_lagged_values(
     sorting_variables_monthly,
@@ -179,28 +180,28 @@ write_parquet(
 ## Include: Monthly, quarterly, and yearly variables
 ## Allow "old" date up until 12 months after sorting date (not including)
 
-# TODO: why is min_lag > max_lag?
+# TODO: why was min_lag > max_lag?
 # TODO: why does this take forever?
 sv_lag_ff <- crsp_monthly |>
   add_lagged_values(
     sorting_variables_monthly,
     "permno",
-    min_lag = months(18),
-    max_lag = months(12),
+    min_lag = months(12),
+    max_lag = months(18),
     ff_adjustment = TRUE
   ) |>
   add_lagged_values(
     sorting_variables_quarterly,
     "gvkey",
-    min_lag = months(18),
-    max_lag = months(12),
+    min_lag = months(12),
+    max_lag = months(18),
     ff_adjustment = TRUE
   ) |>
   add_lagged_values(
     sorting_variables_yearly,
     "gvkey",
-    min_lag = months(18),
-    max_lag = months(12),
+    min_lag = months(12),
+    max_lag = months(18),
     ff_adjustment = TRUE
   )
 
