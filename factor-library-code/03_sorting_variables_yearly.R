@@ -3,16 +3,15 @@ library(tidyr)
 library(lubridate)
 library(tidyfinance)
 library(arrow)
-library(here)
 
 source("factor-library-code/00_global_options.R")
 
 compustat_annual <- open_dataset(
-  here(data_folder, "compustat_annual.parquet")
+  file.path(data_folder, "compustat_annual.parquet")
 )
 
 crsp_monthly <- open_dataset(
-  here(data_folder, "crsp_monthly.parquet")
+  file.path(data_folder, "crsp_monthly.parquet")
 )
 
 # Add relevant CRSP items
@@ -276,5 +275,5 @@ sorting_variables_yearly <- sorting_variables_yearly |>
 
 write_parquet(
   sorting_variables_yearly,
-  here(data_folder, "sorting_variables_yearly.parquet")
+  file.path(data_folder, "sorting_variables_yearly.parquet")
 )

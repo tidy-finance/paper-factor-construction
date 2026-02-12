@@ -5,7 +5,6 @@ library(slider)
 library(purrr)
 library(multidplyr)
 library(moments)
-library(here)
 
 source("factor-library-code/00_global_options.R")
 
@@ -13,21 +12,21 @@ cluster <- new_cluster(parallel::detectCores() - 1)
 cluster_library(cluster, c("lubridate", "slider", "dplyr", "tidyr"))
 
 crsp_monthly <- open_dataset(
-  here(data_folder, "crsp_monthly.parquet")
+  file.path(data_folder, "crsp_monthly.parquet")
 ) |>
   mutate(int_me = mktcap) |>
   collect()
 
 crsp_daily <- open_dataset(
-  here(data_folder, "crsp_daily.parquet")
+  file.path(data_folder, "crsp_daily.parquet")
 )
 
 factors_ff_3_monthly <- open_dataset(
-  here(data_folder, "factors_ff_3_monthly.parquet")
+  file.path(data_folder, "factors_ff_3_monthly.parquet")
 )
 
 factors_ff_3_daily <- open_dataset(
-  here(data_folder, "factors_ff_3_daily.parquet")
+  file.path(data_folder, "factors_ff_3_daily.parquet")
 )
 
 # Daily and monthly Amihud measure
@@ -438,5 +437,5 @@ sorting_variables_monthly <- sorting_variables_monthly |>
 
 write_parquet(
   sorting_variables_monthly,
-  here(data_folder, "sorting_variables_monthly.parquet")
+  file.path(data_folder, "sorting_variables_monthly.parquet")
 )

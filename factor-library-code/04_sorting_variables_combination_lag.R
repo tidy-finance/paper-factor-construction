@@ -1,24 +1,23 @@
 library(dplyr)
 library(lubridate)
 library(arrow)
-library(here)
 
 source("factor-library-code/00_global_options.R")
 
 sorting_variables_yearly <- read_parquet(
-  here(data_folder, "sorting_variables_yearly.parquet")
+  file.path(data_folder, "sorting_variables_yearly.parquet")
 )
 
 sorting_variables_quarterly <- read_parquet(
-  here(data_folder, "sorting_variables_quarterly.parquet")
+  file.path(data_folder, "sorting_variables_quarterly.parquet")
 )
 
 sorting_variables_monthly <- read_parquet(
-  here(data_folder, "sorting_variables_monthly.parquet")
+  file.path(data_folder, "sorting_variables_monthly.parquet")
 )
 
 crsp_monthly <- open_dataset(
-  here(data_folder, "crsp_monthly.parquet")
+  file.path(data_folder, "crsp_monthly.parquet")
 ) |>
   select(gvkey, permno, date, ret_excess, exchange, industry, mktcap_lag) |>
   collect()
@@ -142,7 +141,7 @@ sv_lag3m <- crsp_monthly |>
 
 write_parquet(
   sv_lag3m,
-  here(data_folder, "sorting_variables_lag_3m.parquet")
+  file.path(data_folder, "sorting_variables_lag_3m.parquet")
 )
 
 # Lag 6m ------------------------------------------------------------------
@@ -172,7 +171,7 @@ sv_lag6m <- crsp_monthly |>
 
 write_parquet(
   sv_lag6m,
-  here(data_folder, "sorting_variables_lag_6m.parquet")
+  file.path(data_folder, "sorting_variables_lag_6m.parquet")
 )
 
 # Lag FF ------------------------------------------------------------------
@@ -207,5 +206,5 @@ sv_lag_ff <- crsp_monthly |>
 
 write_parquet(
   sv_lag_ff,
-  here(data_folder, "sorting_variables_lag_ff.parquet")
+  file.path(data_folder, "sorting_variables_lag_ff.parquet")
 )

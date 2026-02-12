@@ -1,7 +1,6 @@
 library(dplyr)
 library(tidyr)
 library(tidyfinance)
-library(here)
 library(arrow)
 
 source("factor-library-code/00_global_options.R")
@@ -10,13 +9,13 @@ download_data(
   domain = "factors_ff",
   dataset = "Fama/French 5 Factors (2x3)"
 ) |>
-  write_parquet(here(data_folder, "factors_ff_3_monthly.parquet"))
+  write_parquet(file.path(data_folder, "factors_ff_3_monthly.parquet"))
 
 download_data(
   domain = "factors_ff",
   dataset = "Fama/French 5 Factors (2x3) [Daily]"
 ) |>
-  write_parquet(here(data_folder, "factors_ff_3_daily.parquet"))
+  write_parquet(file.path(data_folder, "factors_ff_3_daily.parquet"))
 
 # CRSP Compustat linking table --------------------------------------------
 ccm_link <- download_data(
@@ -60,7 +59,7 @@ crsp_monthly <- crsp_monthly |>
 
 write_parquet(
   crsp_monthly,
-  here(data_folder, "crsp_monthly.parquet")
+  file.path(data_folder, "crsp_monthly.parquet")
 )
 
 # TODO: update to v2
@@ -99,7 +98,7 @@ crsp_daily <- crsp_daily |>
 
 write_parquet(
   crsp_daily,
-  here(data_folder, "crsp_daily.parquet")
+  file.path(data_folder, "crsp_daily.parquet")
 )
 
 compustat_annual <- download_data(
@@ -185,7 +184,7 @@ compustat_annual <- compustat_annual |>
 # Save data
 write_parquet(
   compustat_annual,
-  here(data_folder, "compustat_annual.parquet")
+  file.path(data_folder, "compustat_annual.parquet")
 )
 
 compustat_quarterly <- download_data(
@@ -228,8 +227,7 @@ compustat_quarterly <- compustat_quarterly |>
     )
   )
 
-# Save data
 write_parquet(
   compustat_quarterly,
-  here(data_folder, "compustat_quarterly.parquet")
+  file.path(data_folder, "compustat_quarterly.parquet")
 )

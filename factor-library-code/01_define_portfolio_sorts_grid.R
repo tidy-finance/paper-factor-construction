@@ -1,7 +1,6 @@
 library(dplyr)
 library(tidyr)
 library(tibble)
-library(here) # TODO: replace here with file.path across all scripts
 library(arrow)
 
 source("factor-library-code/00_global_options.R")
@@ -63,7 +62,7 @@ sorting_variable_information <- tribble(
 
 write_parquet(
   sorting_variable_information,
-  here(
+  file.path(
     data_folder,
     "sorting_variable_information.parquet"
   )
@@ -121,7 +120,7 @@ grid <- grid |>
 
 write_parquet(
   grid,
-  here(
+  file.path(
     data_folder,
     "portfolio_sort_grid.parquet"
   )

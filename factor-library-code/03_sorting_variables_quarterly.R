@@ -4,7 +4,6 @@ library(lubridate)
 library(multidplyr)
 library(arrow)
 library(slider)
-library(here)
 
 source("factor-library-code/00_global_options.R")
 
@@ -12,11 +11,11 @@ cluster <- new_cluster(parallel::detectCores() - 1)
 cluster_library(cluster, c("lubridate", "slider", "dplyr"))
 
 compustat_quarterly <- open_dataset(
-  here(data_folder, "compustat_quarterly.parquet")
+  file.path(data_folder, "compustat_quarterly.parquet")
 )
 
 crsp_monthly <- open_dataset(
-  here(data_folder, "crsp_monthly.parquet")
+  file.path(data_folder, "crsp_monthly.parquet")
 )
 
 compustat_quarterly <- compustat_quarterly |>
@@ -194,4 +193,4 @@ sorting_variables_quarterly <- sorting_variables_quarterly |>
   select(gvkey, date, starts_with("sv_"))
 
 sorting_variables_quarterly |>
-  write_parquet(here(data_folder, "sorting_variables_quarterly.parquet"))
+  write_parquet(file.path(data_folder, "sorting_variables_quarterly.parquet"))
