@@ -1,7 +1,7 @@
 library(dplyr)
 library(tidyr)
 library(tibble)
-library(here)
+library(here) # TODO: replace here with file.path across all scripts
 library(arrow)
 
 source("factor-library-code/00_global_options.R")
