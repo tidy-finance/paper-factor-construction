@@ -55,7 +55,8 @@ ccm_link <- crsp_monthly |>
   select(permno, gvkey, date)
 
 crsp_monthly <- crsp_monthly |>
-  left_join(ccm_link, join_by(permno, date))
+  left_join(ccm_link, join_by(permno, date)) |>
+  mutate(exchange = as.factor(exchange), industry = as.factor(industry))
 
 write_parquet(
   crsp_monthly,
