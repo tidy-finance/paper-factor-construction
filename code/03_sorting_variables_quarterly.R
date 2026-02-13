@@ -42,29 +42,18 @@ compustat_quarterly <- compustat_quarterly |>
 
 # Lag certain variables
 ## One quarter lag
-compustat_quarterly_lag1 <- compustat_quarterly |>
-  select(gvkey, date, atq, int_beq) |>
-  mutate(date = date %m+% months(3)) |>
-  rename_with(.cols = -c("gvkey", "date"), .fn = ~ paste0(.x, "_lag1"))
+compustat_quarterly <- compustat_quarterly |>
+  add_lag_columns(cols = c("atq", "int_beq"), by = "gvkey", lag = months(3)) |>
+  rename(atq_lag1 = atq_lag, int_beq_lag1 = int_beq_lag)
 
 ## Four quarter lag
-compustat_quarterly_lag4 <- compustat_quarterly |>
-  select(gvkey, date, int_rps, int_sue) |>
-  mutate(date = date %m+% months(12)) |>
-  rename_with(.cols = -c("gvkey", "date"), .fn = ~ paste0(.x, "_lag4"))
-
-# Merge back
 compustat_quarterly <- compustat_quarterly |>
-  left_join(
-    compustat_quarterly_lag1,
-    join_by(gvkey, date),
-    relationship = "one-to-one"
+  add_lag_columns(
+    cols = c("int_rps", "int_sue"),
+    by = "gvkey",
+    lag = months(12)
   ) |>
-  left_join(
-    compustat_quarterly_lag4,
-    join_by(gvkey, date),
-    relationship = "one-to-one"
-  )
+  rename(int_rps_lag4 = int_rps_lag, int_sue_lag4 = int_sue_lag)
 
 # Revenue surprise
 # TODO: Remove compute_rolling_sd definition as soon as it is available in the tidyfinance package
