@@ -1,10 +1,11 @@
-library(tidyverse)
+library(dplyr)
+library(tidyr)
+library(tibble)
 library(arrow)
-library(here)
 
 source("factor-library-code/00_global_options.R")
 
-sorting_variable_information <- tibble::tribble(
+sorting_variable_information <- tribble(
   ~sorting_variable , ~full_name                                , ~direction         ,
   "mom"             , "Momentum"                                , "top_minus_bottom" ,
   "rmom"            , "Residual Momentum"                       , "top_minus_bottom" ,
@@ -56,13 +57,16 @@ sorting_variable_information <- tibble::tribble(
   "ivol"            , "Idiosyncratic Volatility"                , "bottom_minus_top" ,
   "mdr"             , "Maximum Daily Return"                    , "bottom_minus_top" ,
   "tur"             , "Turnover"                                , "bottom_minus_top"
-)
+) |>
+  mutate(sorting_variable = paste0("sv_", sorting_variable))
 
-sorting_variable_information |>
-  write_parquet(here(
+write_parquet(
+  sorting_variable_information,
+  file.path(
     data_folder,
     "sorting_variable_information.parquet"
-  ))
+  )
+)
 
 full_grid <- expand_grid(
   sorting_variable = unique(sorting_variable_information$sorting_variable),
@@ -70,7 +74,7 @@ full_grid <- expand_grid(
   exclude_financials = c(TRUE, FALSE),
   exclude_utilities = c(TRUE, FALSE),
   exclude_negative_earnings = c(TRUE, FALSE),
-  sorting_variable_lag = c("3m", "6m", "FF"),
+  sorting_variable_lag = c("3m", "6m", "ff"),
   rebalancing = c("monthly", "annual"),
   breakpoints_main = c(5, 10),
   sorting_method = c(
@@ -84,6 +88,7 @@ full_grid <- expand_grid(
 )
 
 # Revise breakpoints_secondary
+# TODO: comment should say why this is happening
 grid <- full_grid |>
   filter(
     !(sorting_method == "univariate" &
@@ -98,6 +103,7 @@ grid <- full_grid |>
   )
 
 # Revise sv_me's double sorts
+# TODO: comment should say why this is happening
 grid <- grid |>
   filter(
     !(sorting_variable == "sv_me" &
@@ -112,8 +118,10 @@ grid <- grid |>
   arrange(sorting_variable_lag, sorting_variable) |>
   rowid_to_column(var = "id")
 
-grid |>
-  write_parquet(here(
+write_parquet(
+  grid,
+  file.path(
     data_folder,
     "portfolio_sort_grid.parquet"
-  ))
+  )
+)

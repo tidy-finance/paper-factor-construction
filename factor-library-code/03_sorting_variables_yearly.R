@@ -1,16 +1,17 @@
-library(tidyverse)
+library(dplyr)
+library(tidyr)
+library(lubridate)
 library(tidyfinance)
 library(arrow)
-library(here)
 
 source("factor-library-code/00_global_options.R")
 
 compustat_annual <- open_dataset(
-  here(data_folder, "compustat_annual.parquet")
+  file.path(data_folder, "compustat_annual.parquet")
 )
 
 crsp_monthly <- open_dataset(
-  here(data_folder, "crsp_monthly.parquet")
+  file.path(data_folder, "crsp_monthly.parquet")
 )
 
 # Add relevant CRSP items
@@ -81,6 +82,7 @@ compustat_annual <- compustat_annual |>
   rename(int_me = mktcap)
 
 # Winsorization
+# TODO: explain why one variable is winsoized by group and the others not
 compustat_annual <- compustat_annual |>
   group_by(year = year(datadate)) |>
   mutate(int_rer = winsorize(int_rer, 0.01)) |>
@@ -271,5 +273,7 @@ sorting_variables_yearly <- sorting_variables_yearly |>
 sorting_variables_yearly <- sorting_variables_yearly |>
   select(gvkey, date, starts_with("filter_"), starts_with("sv_"))
 
-sorting_variables_yearly |>
-  write_parquet(here(data_folder, "sorting_variables_yearly.parquet"))
+write_parquet(
+  sorting_variables_yearly,
+  file.path(data_folder, "sorting_variables_yearly.parquet")
+)

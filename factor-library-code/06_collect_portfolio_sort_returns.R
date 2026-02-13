@@ -1,10 +1,6 @@
 library(arrow)
-library(dplyr)
-library(stringr)
-library(forcats)
 
-open_dataset(
-  "data_raw/portfolio_returns",
-  partition = "sorting_variable"
-) |>
-  write_dataset("data/portfolio_returns", partition = "sorting_variable")
+open_dataset("data/portfolio_returns") |>
+  Scanner$create() |>
+  as_record_batch_reader() |>
+  write_parquet("data/portfolio_returns.parquet")

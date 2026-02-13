@@ -1,210 +1,246 @@
-suppressPackageStartupMessages({
-  library(dplyr)
-  library(lubridate)
-  library(arrow)
-  library(tidyr)
-  library(tidyfinance)
-  library(here)
-})
+library(dplyr)
+library(lubridate)
+library(arrow)
+library(tidyr)
+library(tidyfinance)
+library(here)
+library(furrr)
+library(future)
+library(future.batchtools)
 
 source("factor-library-code/00_global_options.R")
 
-task_id <- as.numeric(Sys.getenv("SLURM_ARRAY_TASK_ID"))
-tasks_per_worker <- 100
+# SLURM task setup -------------------------------------------------------
 
-task_ids <- tibble(
-  task_id = (task_id - 1) * tasks_per_worker + seq(tasks_per_worker)
+slurm_task_id <- as.numeric(Sys.getenv("SLURM_ARRAY_TASK_ID"))
+full_grid <- read_parquet(here(data_folder, "portfolio_sort_grid.parquet"))
+
+if (!is.na(slurm_task_id)) {
+  # Running on SLURM: take this worker's chunk
+  task_id <- as.numeric(slurm_task_id)
+  tasks_per_worker <- 100
+  task_ids <- tibble(
+    task_id = (task_id - 1) * tasks_per_worker + seq(tasks_per_worker)
+  )
+  grid <- full_grid |>
+    mutate(task_id = row_number()) |>
+    inner_join(task_ids, join_by(task_id))
+} else {
+  # Local execution: process a random subset
+  set.seed(1234)
+  grid <- full_grid |>
+    mutate(task_id = row_number()) |>
+    slice_sample(n = 100)
+}
+
+required_sorting_variables <- grid |>
+  distinct(sorting_variable) |>
+  pull()
+
+required_datasets <- grid |>
+  distinct(sorting_variable_lag) |>
+  pull()
+
+sv_directions <- read_parquet(
+  here(data_folder, "sorting_variable_information.parquet")
+) |>
+  select(sorting_variable, direction)
+
+grid <- grid |>
+  inner_join(sv_directions, join_by(sorting_variable))
+
+# Helper to read sorting data --------------------------------------------
+
+read_sorting_data <- function(lag_label) {
+  path <- here(
+    data_folder,
+    paste0("sorting_variables_lag_", lag_label, ".parquet")
+  )
+  open_dataset(path) |>
+    select(
+      permno,
+      date,
+      ret_excess,
+      exchange,
+      industry,
+      filter_earnings,
+      mktcap_lag,
+      all_of(required_sorting_variables)
+    ) |>
+    collect()
+}
+
+sorting_data_cache <- setNames(
+  lapply(required_datasets, read_sorting_data),
+  required_datasets
 )
 
-full_grid <- read_parquet(
-  here(data_folder, "portfolio_sort_grid.parquet")
-) |>
-  filter(weighting_scheme == "EW")
-
-grid <- full_grid |>
-  mutate(task_id = row_number()) |>
-  inner_join(task_ids, join_by(task_id))
-
-required_sorting_variables <- grid |> distinct(sorting_variable) |> pull()
-required_datasets <- grid |> distinct(sorting_variable_lag) |> pull()
-
-sv_directions <- read_parquet(here(
-  data_folder,
-  "sorting_variable_information.parquet"
-))
-if ("3m" %in% required_datasets) {
-  sorting_data_3m <- open_dataset(
-    here(data_folder, "sorting_variables_lag_3m.parquet")
-  ) |>
-    select(
-      permno,
-      date,
-      ret_excess,
-      exchange,
-      industry,
-      filter_earnings,
-      mktcap_lag,
-      all_of(required_sorting_variables)
-    ) |>
-    collect()
-}
-
-# 6m lag
-if ("6m" %in% required_datasets) {
-  sorting_data_6m <- open_dataset(
-    here(data_folder, "sorting_variables_lag_6m.parquet")
-  ) |>
-    select(
-      permno,
-      date,
-      ret_excess,
-      exchange,
-      industry,
-      filter_earnings,
-      mktcap_lag,
-      all_of(required_sorting_variables)
-    ) |>
-    collect()
-}
-
-# FF lag
-if ("FF" %in% required_datasets) {
-  sorting_data_FF <- open_dataset(
-    here(data_folder, "sorting_variables_lag_FF.parquet")
-  ) |>
-    select(
-      permno,
-      date,
-      ret_excess,
-      exchange,
-      industry,
-      filter_earnings,
-      mktcap_lag,
-      all_of(required_sorting_variables)
-    ) |>
-    collect()
-}
-
-for (j in 1:nrow(grid)) {
-  if (grid$sorting_variable_lag[j] == "3m") {
-    sorting_data <- sorting_data_3m
-  } else if (grid$sorting_variable_lag[j] == "6m") {
-    sorting_data <- sorting_data_6m
-  } else if (grid$sorting_variable_lag[j] == "FF") {
-    sorting_data <- sorting_data_FF
-  }
-
-  # Size exclusion
-  if (grid$exclude_size[j] != 0) {
-    sorting_data <- sorting_data |>
-      group_by(date) |>
-      filter(
-        mktcap_lag >=
-          quantile(mktcap_lag[exchange == "NYSE"], grid$exclude_size[j])
-      ) |>
-      ungroup()
-  }
-
-  # Exclude financials
-  if (grid$exclude_financials[j]) {
-    sorting_data <- sorting_data |> filter(industry != "Finance")
-  }
-
-  # Exclude utilities
-  if (grid$exclude_utilities[j]) {
-    sorting_data <- sorting_data |> filter(industry != "Utilities")
-  }
-
-  # Exclude negative earnings
-  if (grid$exclude_negative_earnings[j]) {
-    sorting_data <- sorting_data |> filter(filter_earnings > 0)
-  }
-
-  sorting_data <- sorting_data |>
-    select(
-      permno,
-      date, # identifiers
-      ret_excess, # returns
-      contains(grid$sorting_variable[j]), # sorting variable
-      exchange,
-      mktcap_lag
-    ) |> # breakpoints + weighting
-    drop_na(all_of(grid$sorting_variable[j]))
-
-  # Portfolio characteristics
-  min_portfolio_size <- 10
-
-  rebalancing_month <- if (grid$rebalancing[j] == "monthly") {
-    NULL
-  } else {
-    7
-  }
-  options_main <- breakpoint_options(
-    n_portfolios = grid$breakpoints_main[j],
-    breakpoint_exchanges = strsplit(
-      grid$breakpoints_exchanges[j],
-      split = "\\|"
-    )[[1]]
-  )
-
-  sorting_variables <- grid$sorting_variable[j]
-  options_secondary <- NULL
-
-  if (grid$sorting_method[j] != "univariate") {
-    sorting_variables <- c(grid$sorting_variable[j], "mktcap_lag")
-    options_secondary <- breakpoint_options(
-      n_portfolios = grid$breakpoints_secondary[j],
-      breakpoint_exchanges = strsplit(
-        grid$breakpoints_exchanges[j],
-        split = "\\|"
-      )[[1]]
-    )
-  }
-
-  portfolio_returns <- compute_portfolio_returns(
-    sorting_data,
-    sorting_variables,
-    sorting_method = grid$sorting_method[j],
-    rebalancing_month,
-    options_main,
-    options_secondary,
-    min_portfolio_size = min_portfolio_size
-  )
-
-  long_short_return <- portfolio_returns |>
-    tidyfinance::compute_long_short_returns(
-      direction = sv_directions |>
-        filter(sorting_variable == grid$sorting_variable[j]) |>
-        pull(direction)
-    ) |>
-    rename(
-      "{grid$ID[j]}" := ret_excess_ew,
-      "{grid$ID[j] + 1}" := ret_excess_vw
-    ) |>
-    pivot_longer(-date, names_to = "ID", values_to = "ret") |>
+# Factors are faster for filtering and reduce cache data size in child processes
+sorting_data_cache <- lapply(sorting_data_cache, \(df) {
+  df |>
     mutate(
-      ID = as.integer(ID),
-      sorting_variable = grid$sorting_variable[j],
-      ret = replace_na(ret, 0)
-    ) |> # no trading for empty portfolios
-    left_join(all_tasks |> select(ID, ID_sequence), join_by(ID)) |>
-    select(ID, ID_sequence, sorting_variable, date, ret)
+      exchange = as.factor(exchange),
+      industry = as.factor(industry)
+    )
+})
 
-  # Store results
-  dir.create(
-    file.path(
-      paste0(data_raw_folder, "portfolio_returns/"),
-      grid$sorting_variable[j]
-    ),
-    showWarnings = FALSE
+# Helper to process individual task --------------------------------------
+
+process_task <- function(row, sorting_data_cache) {
+  start <- Sys.time()
+
+  warnings_collected <- character(0)
+  result <- withCallingHandlers(
+    {
+      sorting_data <- sorting_data_cache[[row$sorting_variable_lag]]
+
+      if (row$exclude_size != 0) {
+        sorting_data <- sorting_data |>
+          group_by(date) |>
+          filter(
+            mktcap_lag >=
+              quantile(mktcap_lag[exchange == "NYSE"], row$exclude_size)
+          ) |>
+          ungroup()
+      }
+
+      if (row$exclude_financials) {
+        sorting_data <- sorting_data |>
+          filter(industry != "Finance")
+      }
+
+      if (row$exclude_utilities) {
+        sorting_data <- sorting_data |>
+          filter(industry != "Utilities")
+      }
+
+      if (row$exclude_negative_earnings) {
+        sorting_data <- sorting_data |>
+          filter(filter_earnings > 0)
+      }
+
+      sorting_data <- sorting_data |>
+        select(
+          permno,
+          date,
+          ret_excess,
+          all_of(row$sorting_variable),
+          exchange,
+          mktcap_lag
+        ) |>
+        drop_na(all_of(row$sorting_variable)) |>
+        collect()
+
+      rebalancing_month <- if (row$rebalancing == "monthly") NULL else 7
+
+      options_main <- breakpoint_options(
+        n_portfolios = row$breakpoints_main,
+        breakpoint_exchanges = strsplit(
+          row$breakpoints_exchanges,
+          split = "\\|"
+        )[[
+          1
+        ]]
+      )
+
+      sorting_variables <- row$sorting_variable
+      options_secondary <- NULL
+
+      if (row$sorting_method != "univariate") {
+        sorting_variables <- c(row$sorting_variable, "mktcap_lag")
+        options_secondary <- breakpoint_options(
+          n_portfolios = row$breakpoints_secondary,
+          breakpoint_exchanges = strsplit(
+            row$breakpoints_exchanges,
+            split = "\\|"
+          )[[1]]
+        )
+      }
+
+      # Remove dates with too few stocks to avoid errors in compute_portfolio_returns()
+      min_portfolio_size <- 10
+      sorting_data <- sorting_data |>
+        group_by(date) |>
+        filter(n() >= min_portfolio_size) |>
+        ungroup()
+
+      # TODO: improve performance of compute_portfolio_returns (https://github.com/tidy-finance/r-tidyfinance/issues/148)
+      cpr_start <- Sys.time()
+      portfolio_returns <- compute_portfolio_returns(
+        sorting_data,
+        sorting_variables,
+        sorting_method = row$sorting_method,
+        rebalancing_month,
+        options_main,
+        options_secondary,
+        min_portfolio_size = min_portfolio_size
+      )
+      cpr_elapsed <- as.numeric(difftime(Sys.time(), cpr_start, units = "secs"))
+
+      long_short_return <- portfolio_returns |>
+        compute_long_short_returns(direction = row$direction) |>
+        pivot_longer(-date, names_to = "ret_type", values_to = "ret") |>
+        mutate(
+          id = row$id,
+          ret_type = gsub("ret_excess_", "", ret_type),
+          sorting_variable = row$sorting_variable,
+          ret = replace_na(ret, 0)
+        ) |>
+        select(id, sorting_variable, date, ret_type, ret)
+
+      long_short_return |>
+        group_by(id) |>
+        write_dataset(
+          path = "data/portfolio_returns",
+          format = "parquet",
+          existing_data_behavior = "overwrite"
+        )
+
+      "success"
+    },
+    warning = function(w) {
+      warnings_collected <<- c(warnings_collected, conditionMessage(w))
+      invokeRestart("muffleWarning")
+    }
   )
 
-  long_short_return |>
-    write_parquet(here(
-      data_folder,
-      "portfolio_returns/",
-      grid$sorting_variable[j],
-      "/",
-      grid$ID[j]
-    ))
+  elapsed <- as.numeric(difftime(Sys.time(), start, units = "secs"))
+
+  tibble(
+    task_id = row$task_id,
+    status = result,
+    elapsed_secs = elapsed,
+    cpr_elapsed_secs = cpr_elapsed,
+    n_warnings = length(warnings_collected),
+    warnings = paste(warnings_collected, collapse = " | ")
+  )
 }
+
+# Paralellization --------------------------------------------------------
+
+# TODO: figure out whether SLURM also supports multicore or needs multisession
+if (!is.na(Sys.getenv("SLURM_ARRAY_TASK_ID"))) {
+  n_cores <- as.integer(Sys.getenv("SLURM_CPUS_PER_TASK", unset = "4"))
+  plan(multisession, workers = n_cores)
+} else {
+  # NOTE: multicore uses forked processes that have shared memory, but only
+  # works on Unix / macOS; change it to sequential on Windows (very slow though)
+  plan(multicore, workers = availableCores())
+}
+
+grid_rows <- split(grid, seq_len(nrow(grid)))
+
+start <- Sys.time()
+diagnostics <- future_map_dfr(
+  grid_rows,
+  \(row) process_task(row, sorting_data_cache),
+  .options = furrr_options(
+    globals = c("process_task", "sorting_data_cache", "data_folder"),
+    packages = c("dplyr", "tidyr", "arrow", "tidyfinance", "here")
+  ),
+  .progress = TRUE
+)
+elapsed <- Sys.time() - start
+message("Total: ", format(elapsed))
+
+write_parquet(diagnostics, here(data_folder, "task_diagnostics.parquet"))

@@ -1,8 +1,9 @@
-library(tidyverse)
+library(dplyr)
+library(tidyr)
+library(lubridate)
 library(multidplyr)
 library(arrow)
 library(slider)
-library(here)
 
 source("factor-library-code/00_global_options.R")
 
@@ -10,11 +11,11 @@ cluster <- new_cluster(parallel::detectCores() - 1)
 cluster_library(cluster, c("lubridate", "slider", "dplyr"))
 
 compustat_quarterly <- open_dataset(
-  here(data_folder, "compustat_quarterly.parquet")
+  file.path(data_folder, "compustat_quarterly.parquet")
 )
 
 crsp_monthly <- open_dataset(
-  here(data_folder, "crsp_monthly.parquet")
+  file.path(data_folder, "crsp_monthly.parquet")
 )
 
 compustat_quarterly <- compustat_quarterly |>
@@ -26,7 +27,8 @@ compustat_quarterly <- compustat_quarterly |>
   ) |>
   collect()
 
-# Intermediate variables ----
+# Calculate intermediate variables ---------------------------------------
+
 compustat_quarterly <- compustat_quarterly |>
   mutate(
     int_rps = saleq / (cshprq * ajexq),
@@ -63,7 +65,33 @@ compustat_quarterly <- compustat_quarterly |>
     relationship = "one-to-one"
   )
 
-# Revenue surprise ----
+# Revenue surprise
+# TODO: add compute_rolling_sd to r-tidyfinance
+compute_rolling_sd <- function(
+  data,
+  column,
+  period = "quarter",
+  periods = 4,
+  min_obs = 2
+) {
+  stopifnot("date" %in% names(data))
+  stopifnot(inherits(data$date, "Date"))
+  stopifnot(is.character(period), length(period) == 1)
+
+  x <- data |> dplyr::pull({{ column }})
+
+  slider::slide_period_vec(
+    .x = x,
+    .i = data$date,
+    .period = period,
+    .f = ~ {
+      if (sum(!is.na(.x)) < min_obs) NA_real_ else stats::sd(.x, na.rm = TRUE)
+    },
+    .before = periods - 1,
+    .complete = FALSE
+  )
+}
+
 cluster_copy(cluster, "compute_rolling_sd")
 
 # Estimate sorting variable
@@ -85,7 +113,8 @@ compustat_quarterly_rs <- compustat_quarterly |>
     sd_drps = compute_rolling_sd(
       pick(everything()),
       column = int_drps,
-      quarters = 8,
+      period = "quarter",
+      periods = 8,
       min_obs = 6
     ),
     sv_rs = int_drps / sd_drps,
@@ -104,7 +133,7 @@ compustat_quarterly <- compustat_quarterly |>
     relationship = "one-to-one"
   )
 
-# Standardized unexpected earnings ----
+# Standardized unexpected earnings ---------------------------------------
 
 compustat_quarterly_sue <- compustat_quarterly |>
   mutate(
@@ -120,7 +149,8 @@ compustat_quarterly_sue <- compustat_quarterly |>
     sd_sue = compute_rolling_sd(
       pick(everything()),
       column = int_sue,
-      quarters = 8,
+      period = "quarter",
+      periods = 8,
       min_obs = 6
     ),
     sv_sue = int_sue / sd_sue,
@@ -139,11 +169,17 @@ compustat_quarterly <- compustat_quarterly |>
     relationship = "one-to-one"
   )
 
-# Main variables ----
-sorting_variables_quarterly <- compustat_quarterly |>
-  mutate(sv_roa = ibq / atq_lag1, sv_roe = ibq / int_beq_lag1)
 
-# Filters ----
+# Calculate main variables -----------------------------------------------
+
+sorting_variables_quarterly <- compustat_quarterly |>
+  mutate(
+    sv_roa = ibq / atq_lag1,
+    sv_roe = ibq / int_beq_lag1
+  )
+
+# Apply filters ----------------------------------------------------------
+
 # Remove Inf and NaN
 sorting_variables_quarterly <- sorting_variables_quarterly |>
   mutate(
@@ -157,4 +193,4 @@ sorting_variables_quarterly <- sorting_variables_quarterly |>
   select(gvkey, date, starts_with("sv_"))
 
 sorting_variables_quarterly |>
-  write_parquet(here(data_folder, "sorting_variables_quarterly.parquet"))
+  write_parquet(file.path(data_folder, "sorting_variables_quarterly.parquet"))
