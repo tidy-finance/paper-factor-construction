@@ -84,7 +84,6 @@ crsp_monthly <- crsp_monthly |>
   )
 
 # Rolling regressions -----------------------------------------------------
-
 # TODO: replace by functions from r-tidyfinance
 rolling_window_capm <- function(data, months) {
   beta_coefficients <- slide_period_vec(
@@ -130,8 +129,16 @@ cluster_copy(cluster, c("rolling_window_residual", "rolling_window_capm"))
 
 # Compute CAPM regression coefficients and FF3 residuals
 
+# TODO: Consider alternative below based on r-tidyfinance function
+# capm_betas <- crsp_monthly |>
+#   arrange(permno, date) |>
+#   estimate_betas("ret_excess ~ mkt_excess", months(60)) |>
+#   select(everything(), int_capm_beta = beta_mkt_excess, -intercept)
+
+# crsp_monthly <- crsp_monthly |>
+#   left_join(capm_betas, join_by(permno, date), relationship = "one-to-one")
+
 crsp_monthly <- crsp_monthly |>
-  arrange(permno, date) |>
   group_by(permno) |>
   partition(cluster) |>
   mutate(
@@ -238,6 +245,7 @@ crsp_monthly <- crsp_monthly |>
 
 # Rolling maximum ---------------------------------------------------------
 
+min_obs_for_max_price <- 3
 # Compute monthly max
 crsp_maxima <- crsp_daily |>
   select(permno, date, prc_adj) |>
@@ -246,7 +254,7 @@ crsp_maxima <- crsp_daily |>
   group_by(permno, date = floor_date(date, "month")) |>
   summarise(
     int_max_price_month = if_else(
-      n() > 3, # TODO: replace 3 with expressive variable
+      n() > min_obs_for_max_price,
       max(prc_adj, na.rm = TRUE),
       NA_real_
     ),
@@ -324,11 +332,12 @@ crsp_daily_aggregation <- crsp_daily |>
   mutate(date = floor_date(date, "month")) |>
   select(permno, date, ret_excess, mkt_excess, smb, hml)
 
-# TODO: replace 15 by expressive object
+min_daily_obs_per_month <- 15
+
 permno_month_combinations <- crsp_daily_aggregation |>
   group_by(permno, date) |>
   count() |>
-  filter(n >= 15) |>
+  filter(n >= min_daily_obs_per_month) |>
   select(-n) |>
   ungroup()
 
