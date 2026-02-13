@@ -207,6 +207,7 @@ crsp_monthly <- crsp_monthly |>
   collect()
 
 # Skip one month
+# TODO: Replace with add_lagged_columns() from r-tidyfinance (?)
 crsp_monthly_skip1m <- crsp_monthly |>
   select(permno, date, int_roll_ret_11m, int_rmom_11m) |>
   mutate(date = date %m+% months(1)) |>
