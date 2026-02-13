@@ -3,7 +3,7 @@ library(tidyr)
 library(tidyfinance)
 library(arrow)
 
-source("factor-library-code/00_global_options.R")
+source("code/00_global_options.R")
 
 download_data(
   domain = "factors_ff",
