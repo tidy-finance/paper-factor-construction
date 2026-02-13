@@ -7,6 +7,7 @@ library(slider)
 library(tidyfinance)
 
 source("code/00_global_options.R")
+source("code/01_helper_functions.R")
 
 cluster <- new_cluster(parallel::detectCores() - 1)
 cluster_library(cluster, c("lubridate", "slider", "dplyr", "tidyfinance"))
@@ -52,48 +53,6 @@ compustat_quarterly <- compustat_quarterly |>
     lag = months(12)
   ) |>
   rename(int_rps_lag4 = int_rps_lag, int_sue_lag4 = int_sue_lag)
-
-# Define analysis start date
-min_analysis_date <- as.Date("1972-01-01")
-
-# Helper function to compute standardized quarterly variables
-compute_standardized_variable <- function(
-  data,
-  variable_name,
-  lag_variable_name,
-  output_name,
-  cluster,
-  min_analysis_date
-) {
-  data |>
-    mutate(
-      temp_var = {{ variable_name }} - {{ lag_variable_name }}
-    ) |>
-    select(gvkey, date, temp_var) |>
-    drop_na() |>
-    arrange(gvkey, date) |>
-    group_by(gvkey) |>
-    multidplyr::partition(cluster) |>
-    mutate(
-      temp_sd = compute_rolling_sd(
-        pick(everything()),
-        column = temp_var,
-        period = "quarter",
-        periods = 8,
-        min_obs = 6
-      ),
-      {{ output_name }} := temp_var / temp_sd,
-      {{ output_name }} := if_else(
-        date >= min_analysis_date,
-        {{ output_name }},
-        NA_real_
-      )
-    ) |>
-    collect() |>
-    ungroup() |>
-    select(gvkey, date, {{ output_name }}) |>
-    drop_na()
-}
 
 # Revenue surprise
 compustat_quarterly_rs <- compute_standardized_variable(

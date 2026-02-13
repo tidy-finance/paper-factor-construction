@@ -9,6 +9,7 @@ library(multidplyr)
 library(moments)
 
 source("code/00_global_options.R")
+source("code/01_helper_functions.R")
 
 cluster <- new_cluster(parallel::detectCores() - 1)
 cluster_library(cluster, c("lubridate", "slider", "dplyr", "tidyr"))
@@ -76,25 +77,6 @@ crsp_monthly <- crsp_monthly |>
   rename(int_me_lag5y = int_me_lag)
 
 # Rolling regressions -----------------------------------------------------
-rolling_window_residual <- function(data, months) {
-  residuals <- slide_period_vec(
-    .x = data,
-    .i = data$date,
-    .period = "month",
-    .f = ~ {
-      complete <- drop_na(.x)
-      if (nrow(complete) < months) {
-        NA_real_
-      } else {
-        last(lm(ret_excess ~ mkt_excess + smb + hml, data = complete)$residuals)
-      }
-    },
-    .before = months - 1,
-    .complete = FALSE
-  )
-
-  return(residuals)
-}
 
 cluster_copy(cluster, c("rolling_window_residual"))
 
@@ -119,25 +101,6 @@ crsp_monthly <- crsp_monthly |>
   ) |>
   ungroup() |>
   collect()
-
-rolling_window_residual_to_sd <- function(data, months) {
-  returns <- slide_period_vec(
-    .x = data,
-    .i = data$date,
-    .period = "month",
-    .f = ~ {
-      if (nrow(.x) < months) {
-        NA_real_
-      } else {
-        (prod(1 + .x$int_roll_residual) - 1) / sd(.x$int_roll_residual)
-      }
-    },
-    .before = months - 1,
-    .complete = FALSE
-  )
-
-  return(returns)
-}
 
 cluster_copy(cluster, c("rolling_window_residual_to_sd"))
 
@@ -315,20 +278,6 @@ crsp_daily_aggregation <- crsp_daily_aggregation |>
   ) |>
   compute()
 
-# TODO: replace this by a r-tidyfinance function (calculate_residuals()?)
-calculate_residuals <- function(data, formula) {
-  complete <- complete.cases(model.frame(
-    formula,
-    data = data,
-    na.action = na.pass
-  ))
-  if (sum(complete) <= length(all.vars(formula))) {
-    return(rep(NA_real_, nrow(data)))
-  }
-  res <- rep(NA_real_, nrow(data))
-  res[complete] <- lm(formula, data = data[complete, ])$residuals
-  res
-}
 
 # TODO: parallelize this via batches
 aggregation_data_all <- permno_month_combinations |>
