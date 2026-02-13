@@ -90,96 +90,67 @@ compustat_annual <- compustat_annual |>
   mutate(across(int_o_1:int_o_7, ~ winsorize(.x, 0.01)))
 
 # Lag certain variables
-# TODO: Replace with r-tidyfinance functions
-# TODO: Fix lagging based on year, not date
-## One year lag
-# compustate_annual <- compustat_annual |>
-#   add_lag_columns(
-#     cols = c(
-#       "ceq",
-#       "at",
-#       "emp",
-#       "ppegt",
-#       "invt",
-#       "capx",
-#       "ni",
-#       "pstkrv",
-#       "act",
-#       "che",
-#       "lct",
-#       "dlc",
-#       "revt",
-#       "xpp",
-#       "drc",
-#       "drlt",
-#       "ap",
-#       "xacc",
-#       "wcap",
-#       "int_ce",
-#       "int_col",
-#       "int_fnl",
-#       "int_noa",
-#       "int_wc",
-#       "int_oa_helper",
-#       "int_o_ni_negative"
-#     ),
-#     lag = years(1),
-#     by = "gvkey"
-#   ) |>
-#   rename_with(contains("lag"), .fn = ~ paste0(.x, "1"))
-
-## One year lag
-compustat_annual_lag1 <- compustat_annual |>
-  select(
-    gvkey,
-    year,
-    ceq,
-    at,
-    emp,
-    ppegt,
-    invt,
-    capx,
-    ni,
-    pstkrv,
-    act,
-    che,
-    lct,
-    dlc,
-    revt,
-    xpp,
-    drc,
-    drlt,
-    ap,
-    xacc,
-    wcap,
-    int_ce,
-    int_col,
-    int_fnl,
-    int_noa,
-    int_wc,
-    int_oa_helper,
-    int_o_ni_negative
+compustat_annual <- compustat_annual |>
+  add_lag_columns(
+    c(
+      "ceq",
+      "at",
+      "emp",
+      "ppegt",
+      "invt",
+      "capx",
+      "ni",
+      "pstkrv",
+      "act",
+      "che",
+      "lct",
+      "dlc",
+      "revt",
+      "xpp",
+      "drc",
+      "drlt",
+      "ap",
+      "xacc",
+      "wcap",
+      "int_ce",
+      "int_col",
+      "int_fnl",
+      "int_noa",
+      "int_wc",
+      "int_oa_helper",
+      "int_o_ni_negative"
+    ),
+    lag = years(1),
+    by = "gvkey"
   ) |>
-  mutate(year = year + 1) |>
-  rename_with(.cols = -c("gvkey", "year"), .fn = ~ paste0(.x, "_lag1"))
+  rename_with(contains("lag"), .fn = ~ paste0(.x, "1"))
 
 ## Two year lag
-compustat_annual_lag2 <- compustat_annual |>
-  select(gvkey, year, int_ce) |>
-  mutate(year = year + 2) |>
-  rename_with(.cols = -c("gvkey", "year"), .fn = ~ paste0(.x, "_lag2"))
+compustat_annual <- compustat_annual |>
+  add_lag_columns(
+    "int_ce",
+    lag = years(2),
+    by = "gvkey"
+  ) |>
+  rename_with("int_ce_lag", .fn = ~ paste0(.x, "2"))
 
 ## Three year lag
-compustat_annual_lag3 <- compustat_annual |>
-  select(gvkey, year, int_ce) |>
-  mutate(year = year + 3) |>
-  rename_with(.cols = -c("gvkey", "year"), .fn = ~ paste0(.x, "_lag3"))
+compustat_annual <- compustat_annual |>
+  add_lag_columns(
+    "int_ce",
+    lag = years(3),
+    by = "gvkey"
+  ) |>
+  rename_with("int_ce_lag", .fn = ~ paste0(.x, "3"))
 
 ## Five year lag
-compustat_annual_lag5 <- compustat_annual |>
-  select(gvkey, year, int_td) |>
-  mutate(year = year + 5) |>
-  rename_with(.cols = -c("gvkey", "year"), .fn = ~ paste0(.x, "_lag5"))
+compustat_annual <- compustat_annual |>
+  add_lag_columns(
+    "int_td",
+    lag = years(5),
+    by = "gvkey"
+  ) |>
+  rename_with("int_td_lag", .fn = ~ paste0(.x, "5"))
 
 # Create industry averages
 compustat_annual_industry <- compustat_annual |>
@@ -193,26 +164,6 @@ compustat_annual_industry <- compustat_annual |>
 
 # Merge back
 compustat_annual <- compustat_annual |>
-  left_join(
-    compustat_annual_lag1,
-    join_by(gvkey, year),
-    relationship = "one-to-one"
-  ) |>
-  left_join(
-    compustat_annual_lag2,
-    join_by(gvkey, year),
-    relationship = "one-to-one"
-  ) |>
-  left_join(
-    compustat_annual_lag3,
-    join_by(gvkey, year),
-    relationship = "one-to-one"
-  ) |>
-  left_join(
-    compustat_annual_lag5,
-    join_by(gvkey, year),
-    relationship = "one-to-one"
-  ) |>
   left_join(
     compustat_annual_industry,
     join_by(year, int_sic_2),
