@@ -90,6 +90,44 @@ compustat_annual <- compustat_annual |>
   mutate(across(int_o_1:int_o_7, ~ winsorize(.x, 0.01)))
 
 # Lag certain variables
+# TODO: Replace with r-tidyfinance functions
+# TODO: Fix lagging based on year, not date
+## One year lag
+# compustate_annual <- compustat_annual |>
+#   add_lag_columns(
+#     cols = c(
+#       "ceq",
+#       "at",
+#       "emp",
+#       "ppegt",
+#       "invt",
+#       "capx",
+#       "ni",
+#       "pstkrv",
+#       "act",
+#       "che",
+#       "lct",
+#       "dlc",
+#       "revt",
+#       "xpp",
+#       "drc",
+#       "drlt",
+#       "ap",
+#       "xacc",
+#       "wcap",
+#       "int_ce",
+#       "int_col",
+#       "int_fnl",
+#       "int_noa",
+#       "int_wc",
+#       "int_oa_helper",
+#       "int_o_ni_negative"
+#     ),
+#     lag = years(1),
+#     by = "gvkey"
+#   ) |>
+#   rename_with(contains("lag"), .fn = ~ paste0(.x, "1"))
+
 ## One year lag
 compustat_annual_lag1 <- compustat_annual |>
   select(
@@ -268,7 +306,6 @@ sorting_variables_yearly <- sorting_variables_yearly |>
     across(starts_with("sv_"), ~ na_if(., -Inf)),
     across(starts_with("sv_"), ~ if_else(is.nan(.x), NA_real_, .x))
   )
-
 
 sorting_variables_yearly <- sorting_variables_yearly |>
   select(gvkey, date, starts_with("filter_"), starts_with("sv_"))
