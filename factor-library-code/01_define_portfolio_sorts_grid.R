@@ -88,7 +88,8 @@ full_grid <- expand_grid(
 )
 
 # Revise breakpoints_secondary
-# TODO: comment should say why this is happening
+
+# For univariate sorting, the secondary breakpoints do not apply as there is no secondary variable
 grid <- full_grid |>
   filter(
     !(sorting_method == "univariate" &
@@ -103,14 +104,14 @@ grid <- full_grid |>
   )
 
 # Revise sv_me's double sorts
-# TODO: comment should say why this is happening
+# The 'sv_me' (Market Equity) variable is excluded from bivariate sorts because size is already accounted for in the first sort
 grid <- grid |>
   filter(
     !(sorting_variable == "sv_me" &
       sorting_method %in% c("bivariate-dependent", "bivariate-independent"))
   )
 
-# Revise sv_em and exclude_negative_earnings combination
+# Exclude configurations where the 'Earnings to Market' (sv_em) is combined with allowing negative earnings
 grid <- grid |>
   filter(!(sorting_variable == "sv_em" & exclude_negative_earnings == FALSE))
 
