@@ -7,7 +7,7 @@ library(furrr)
 library(future)
 library(future.batchtools)
 
-source("factor-library-code/00_global_options.R")
+source("code/00_global_options.R")
 
 # SLURM task setup -------------------------------------------------------
 

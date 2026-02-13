@@ -2,7 +2,7 @@ library(dplyr)
 library(lubridate)
 library(arrow)
 
-source("factor-library-code/00_global_options.R")
+source("code/00_global_options.R")
 
 sorting_variables_yearly <- read_parquet(
   file.path(data_folder, "sorting_variables_yearly.parquet")

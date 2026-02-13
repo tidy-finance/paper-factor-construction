@@ -6,7 +6,7 @@ library(purrr)
 library(multidplyr)
 library(moments)
 
-source("factor-library-code/00_global_options.R")
+source("code/00_global_options.R")
 
 cluster <- new_cluster(parallel::detectCores() - 1)
 cluster_library(cluster, c("lubridate", "slider", "dplyr", "tidyr"))

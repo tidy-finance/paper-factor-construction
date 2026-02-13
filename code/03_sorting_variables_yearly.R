@@ -4,7 +4,7 @@ library(lubridate)
 library(tidyfinance)
 library(arrow)
 
-source("factor-library-code/00_global_options.R")
+source("code/00_global_options.R")
 
 compustat_annual <- open_dataset(
   file.path(data_folder, "compustat_annual.parquet")

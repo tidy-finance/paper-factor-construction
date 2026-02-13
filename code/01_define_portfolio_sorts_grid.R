@@ -3,7 +3,7 @@ library(tidyr)
 library(tibble)
 library(arrow)
 
-source("factor-library-code/00_global_options.R")
+source("code/00_global_options.R")
 
 sorting_variable_information <- tribble(
   ~sorting_variable , ~full_name                                , ~direction         ,
