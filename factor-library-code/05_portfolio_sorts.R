@@ -3,7 +3,6 @@ library(lubridate)
 library(arrow)
 library(tidyr)
 library(tidyfinance)
-library(here)
 library(furrr)
 library(future)
 library(future.batchtools)
@@ -13,7 +12,7 @@ source("factor-library-code/00_global_options.R")
 # SLURM task setup -------------------------------------------------------
 
 slurm_task_id <- as.numeric(Sys.getenv("SLURM_ARRAY_TASK_ID"))
-full_grid <- read_parquet(here(data_folder, "portfolio_sort_grid.parquet"))
+full_grid <- read_parquet(file.path(data_folder, "portfolio_sort_grid.parquet"))
 
 if (!is.na(slurm_task_id)) {
   # Running on SLURM: take this worker's chunk
@@ -42,7 +41,7 @@ required_datasets <- grid |>
   pull()
 
 sv_directions <- read_parquet(
-  here(data_folder, "sorting_variable_information.parquet")
+  file.path(data_folder, "sorting_variable_information.parquet")
 ) |>
   select(sorting_variable, direction)
 
@@ -52,7 +51,7 @@ grid <- grid |>
 # Helper to read sorting data --------------------------------------------
 
 read_sorting_data <- function(lag_label) {
-  path <- here(
+  path <- file.path(
     data_folder,
     paste0("sorting_variables_lag_", lag_label, ".parquet")
   )
@@ -74,15 +73,6 @@ sorting_data_cache <- setNames(
   lapply(required_datasets, read_sorting_data),
   required_datasets
 )
-
-# Factors are faster for filtering and reduce cache data size in child processes
-sorting_data_cache <- lapply(sorting_data_cache, \(df) {
-  df |>
-    mutate(
-      exchange = as.factor(exchange),
-      industry = as.factor(industry)
-    )
-})
 
 # Helper to process individual task --------------------------------------
 
@@ -236,11 +226,11 @@ diagnostics <- future_map_dfr(
   \(row) process_task(row, sorting_data_cache),
   .options = furrr_options(
     globals = c("process_task", "sorting_data_cache", "data_folder"),
-    packages = c("dplyr", "tidyr", "arrow", "tidyfinance", "here")
+    packages = c("dplyr", "tidyr", "arrow", "tidyfinance")
   ),
   .progress = TRUE
 )
 elapsed <- Sys.time() - start
 message("Total: ", format(elapsed))
 
-write_parquet(diagnostics, here(data_folder, "task_diagnostics.parquet"))
+write_parquet(diagnostics, file.path(data_folder, "task_diagnostics.parquet"))
