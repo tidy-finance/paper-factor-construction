@@ -9,7 +9,7 @@ library(tidyfinance)
 source("code/00_global_options.R")
 
 cluster <- new_cluster(parallel::detectCores() - 1)
-cluster_library(cluster, c("lubridate", "slider", "dplyr"))
+cluster_library(cluster, c("lubridate", "slider", "dplyr", "tidyfinance"))
 
 compustat_quarterly <- open_dataset(
   file.path(data_folder, "compustat_quarterly.parquet")
@@ -27,8 +27,6 @@ compustat_quarterly <- compustat_quarterly |>
     relationship = "one-to-one"
   ) |>
   collect()
-
-# Calculate intermediate variables ---------------------------------------
 
 compustat_quarterly <- compustat_quarterly |>
   mutate(
@@ -55,67 +53,58 @@ compustat_quarterly <- compustat_quarterly |>
   ) |>
   rename(int_rps_lag4 = int_rps_lag, int_sue_lag4 = int_sue_lag)
 
-# Revenue surprise
-# TODO: Remove compute_rolling_sd definition as soon as it is available in the tidyfinance package
-compute_rolling_sd <- function(
+# Define analysis start date
+min_analysis_date <- as.Date("1972-01-01")
+
+# Helper function to compute standardized quarterly variables
+compute_standardized_variable <- function(
   data,
-  column,
-  period = "quarter",
-  periods = 4,
-  min_obs = 2
+  variable_name,
+  lag_variable_name,
+  output_name,
+  cluster,
+  min_analysis_date
 ) {
-  stopifnot("date" %in% names(data))
-  stopifnot(inherits(data$date, "Date"))
-  stopifnot(is.character(period), length(period) == 1)
-
-  x <- data |> dplyr::pull({{ column }})
-
-  slider::slide_period_vec(
-    .x = x,
-    .i = data$date,
-    .period = period,
-    .f = ~ {
-      if (sum(!is.na(.x)) < min_obs) NA_real_ else stats::sd(.x, na.rm = TRUE)
-    },
-    .before = periods - 1,
-    .complete = FALSE
-  )
+  data |>
+    mutate(
+      temp_var = {{ variable_name }} - {{ lag_variable_name }}
+    ) |>
+    select(gvkey, date, temp_var) |>
+    drop_na() |>
+    arrange(gvkey, date) |>
+    group_by(gvkey) |>
+    multidplyr::partition(cluster) |>
+    mutate(
+      temp_sd = compute_rolling_sd(
+        pick(everything()),
+        column = temp_var,
+        period = "quarter",
+        periods = 8,
+        min_obs = 6
+      ),
+      {{ output_name }} := temp_var / temp_sd,
+      {{ output_name }} := if_else(
+        date >= min_analysis_date,
+        {{ output_name }},
+        NA_real_
+      )
+    ) |>
+    collect() |>
+    ungroup() |>
+    select(gvkey, date, {{ output_name }}) |>
+    drop_na()
 }
 
-cluster_copy(cluster, "compute_rolling_sd")
+# Revenue surprise
+compustat_quarterly_rs <- compute_standardized_variable(
+  data = compustat_quarterly,
+  variable_name = int_rps,
+  lag_variable_name = int_rps_lag4,
+  output_name = sv_rs,
+  cluster = cluster,
+  min_analysis_date = min_analysis_date
+)
 
-# Estimate sorting variable
-compustat_quarterly_rs <- compustat_quarterly |>
-  mutate(
-    int_drps = int_rps - int_rps_lag4,
-    int_drps = if_else(
-      is.nan(int_drps) | is.infinite(int_drps),
-      NA_real_,
-      int_drps
-    )
-  ) |>
-  select(gvkey, date, int_drps) |>
-  drop_na() |>
-  arrange(gvkey, date) |>
-  group_by(gvkey) |>
-  partition(cluster) |>
-  mutate(
-    sd_drps = compute_rolling_sd(
-      pick(everything()),
-      column = int_drps,
-      period = "quarter",
-      periods = 8,
-      min_obs = 6
-    ),
-    sv_rs = int_drps / sd_drps,
-    sv_rs = if_else(date >= as.Date("1972-01-01"), sv_rs, NA_real_)
-  ) |>
-  collect() |>
-  ungroup() |>
-  select(gvkey, date, sv_rs) |>
-  drop_na()
-
-# Remerge
 compustat_quarterly <- compustat_quarterly |>
   left_join(
     compustat_quarterly_rs,
@@ -123,35 +112,16 @@ compustat_quarterly <- compustat_quarterly |>
     relationship = "one-to-one"
   )
 
-# Standardized unexpected earnings ---------------------------------------
+# Standardized unexpected earnings
+compustat_quarterly_sue <- compute_standardized_variable(
+  data = compustat_quarterly,
+  variable_name = int_sue,
+  lag_variable_name = int_sue_lag4,
+  output_name = sv_sue,
+  cluster = cluster,
+  min_analysis_date = min_analysis_date
+)
 
-compustat_quarterly_sue <- compustat_quarterly |>
-  mutate(
-    int_sue = int_sue - int_sue_lag4,
-    int_sue = if_else(is.nan(int_sue) | is.infinite(int_sue), NA_real_, int_sue)
-  ) |>
-  select(gvkey, date, int_sue) |>
-  drop_na() |>
-  arrange(gvkey, date) |>
-  group_by(gvkey) |>
-  partition(cluster) |>
-  mutate(
-    sd_sue = compute_rolling_sd(
-      pick(everything()),
-      column = int_sue,
-      period = "quarter",
-      periods = 8,
-      min_obs = 6
-    ),
-    sv_sue = int_sue / sd_sue,
-    sv_sue = if_else(date >= as.Date("1972-01-01"), sv_sue, NA_real_)
-  ) |>
-  collect() |>
-  ungroup() |>
-  select(gvkey, date, sv_sue) |>
-  drop_na()
-
-# Remerge
 compustat_quarterly <- compustat_quarterly |>
   left_join(
     compustat_quarterly_sue,
@@ -159,16 +129,13 @@ compustat_quarterly <- compustat_quarterly |>
     relationship = "one-to-one"
   )
 
-
-# Calculate main variables -----------------------------------------------
+# Calculate main variables
 
 sorting_variables_quarterly <- compustat_quarterly |>
   mutate(
     sv_roa = ibq / atq_lag1,
     sv_roe = ibq / int_beq_lag1
   )
-
-# Apply filters ----------------------------------------------------------
 
 # Remove Inf and NaN
 sorting_variables_quarterly <- sorting_variables_quarterly |>
@@ -177,7 +144,6 @@ sorting_variables_quarterly <- sorting_variables_quarterly |>
     across(starts_with("sv_"), ~ na_if(., -Inf)),
     across(starts_with("sv_"), ~ if_else(is.nan(.x), NA_real_, .x))
   )
-
 
 sorting_variables_quarterly <- sorting_variables_quarterly |>
   select(gvkey, date, starts_with("sv_"))
