@@ -3,6 +3,8 @@ library(tidyr)
 library(arrow)
 library(slider)
 library(purrr)
+library(lubridate)
+library(tidyfinance)
 library(multidplyr)
 library(moments)
 
@@ -56,20 +58,7 @@ crsp_monthly_liquidity <- crsp_daily |>
   ) |>
   collect()
 
-# Lag certain variables
-## Five year lag
-crsp_monthly_lag5y <- crsp_monthly |>
-  select(permno, date, int_me) |>
-  mutate(date = date %m+% years(5)) |>
-  rename_with(.cols = -c("permno", "date"), .fn = ~ paste0(.x, "_lag5y"))
-
-# Merge back
 crsp_monthly <- crsp_monthly |>
-  left_join(
-    crsp_monthly_lag5y,
-    join_by(permno, date),
-    relationship = "one-to-one"
-  ) |>
   left_join(
     crsp_monthly_liquidity,
     join_by(permno, date),
@@ -82,6 +71,11 @@ crsp_monthly <- crsp_monthly |>
     join_by(date),
     relationship = "many-to-one"
   )
+
+## Five year lag
+crsp_monthly <- crsp_monthly |>
+  add_lag_columns("int_me", by = "permno", lag = years(5)) |>
+  rename(int_me_lag5y = int_me_lag)
 
 # Rolling regressions -----------------------------------------------------
 # TODO: replace by functions from r-tidyfinance
