@@ -63,9 +63,7 @@ crsp_monthly <- crsp_monthly |>
     crsp_monthly_liquidity,
     join_by(permno, date),
     relationship = "one-to-one"
-  )
-
-crsp_monthly <- crsp_monthly |>
+  ) |>
   left_join(
     factors_ff_3_monthly |> collect(),
     join_by(date),
@@ -78,27 +76,6 @@ crsp_monthly <- crsp_monthly |>
   rename(int_me_lag5y = int_me_lag)
 
 # Rolling regressions -----------------------------------------------------
-# TODO: replace by functions from r-tidyfinance
-rolling_window_capm <- function(data, months) {
-  beta_coefficients <- slide_period_vec(
-    .x = data,
-    .i = data$date,
-    .period = "month",
-    .f = ~ {
-      complete <- drop_na(.x)
-      if (nrow(complete) < months) {
-        NA_real_
-      } else {
-        coefficients(lm(ret_excess ~ mkt_excess, data = complete))[2]
-      }
-    },
-    .before = months - 1,
-    .complete = FALSE
-  )
-
-  return(beta_coefficients)
-}
-
 rolling_window_residual <- function(data, months) {
   residuals <- slide_period_vec(
     .x = data,
@@ -119,18 +96,17 @@ rolling_window_residual <- function(data, months) {
   return(residuals)
 }
 
-cluster_copy(cluster, c("rolling_window_residual", "rolling_window_capm"))
+cluster_copy(cluster, c("rolling_window_residual"))
 
 # Compute CAPM regression coefficients and FF3 residuals
 
-# TODO: Consider alternative below based on r-tidyfinance function
-# capm_betas <- crsp_monthly |>
-#   arrange(permno, date) |>
-#   estimate_betas("ret_excess ~ mkt_excess", months(60)) |>
-#   select(everything(), int_capm_beta = beta_mkt_excess, -intercept)
+capm_betas <- crsp_monthly |>
+  arrange(permno, date) |>
+  estimate_betas("ret_excess ~ mkt_excess", months(60), use_furrr = TRUE) |>
+  select(everything(), int_capm_beta = beta_mkt_excess, -intercept)
 
-# crsp_monthly <- crsp_monthly |>
-#   left_join(capm_betas, join_by(permno, date), relationship = "one-to-one")
+crsp_monthly <- crsp_monthly |>
+  left_join(capm_betas, join_by(permno, date), relationship = "one-to-one")
 
 crsp_monthly <- crsp_monthly |>
   group_by(permno) |>
@@ -139,10 +115,6 @@ crsp_monthly <- crsp_monthly |>
     int_roll_residual = rolling_window_residual(
       pick(date, ret_excess, mkt_excess, hml, smb),
       months = 36
-    ),
-    int_capm_beta = rolling_window_capm(
-      pick(date, ret_excess, mkt_excess),
-      months = 60
     )
   ) |>
   ungroup() |>
@@ -238,7 +210,7 @@ crsp_monthly <- crsp_monthly |>
     relationship = "one-to-one"
   )
 
-# Rolling maximum ---------------------------------------------------------
+# Rolling maximum
 
 min_obs_for_max_price <- 3
 # Compute monthly max
@@ -272,7 +244,6 @@ crsp_maxima <- crsp_maxima |>
   ungroup() |>
   collect()
 
-# Merge back
 crsp_monthly <- crsp_monthly |>
   left_join(crsp_maxima, join_by(permno, date), relationship = "one-to-one")
 

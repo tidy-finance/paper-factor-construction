@@ -132,7 +132,7 @@ compustat_annual <- compustat_annual |>
     lag = years(2),
     by = "gvkey"
   ) |>
-  rename_with("int_ce_lag", .fn = ~ paste0(.x, "2"))
+  rename(int_ce_lag2 = int_ce_lag)
 
 ## Three year lag
 compustat_annual <- compustat_annual |>
@@ -141,7 +141,7 @@ compustat_annual <- compustat_annual |>
     lag = years(3),
     by = "gvkey"
   ) |>
-  rename_with("int_ce_lag", .fn = ~ paste0(.x, "3"))
+  rename(int_ce_lag3 = int_ce_lag)
 
 ## Five year lag
 compustat_annual <- compustat_annual |>
@@ -150,7 +150,7 @@ compustat_annual <- compustat_annual |>
     lag = years(5),
     by = "gvkey"
   ) |>
-  rename_with("int_td_lag", .fn = ~ paste0(.x, "5"))
+  rename(int_td_lag5 = int_td_lag)
 
 # Create industry averages
 compustat_annual_industry <- compustat_annual |>
