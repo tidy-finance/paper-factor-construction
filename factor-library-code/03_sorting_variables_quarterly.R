@@ -4,6 +4,7 @@ library(lubridate)
 library(multidplyr)
 library(arrow)
 library(slider)
+library(tidyfinance)
 
 source("factor-library-code/00_global_options.R")
 
@@ -66,7 +67,7 @@ compustat_quarterly <- compustat_quarterly |>
   )
 
 # Revenue surprise
-# TODO: add compute_rolling_sd to r-tidyfinance
+# TODO: Remove compute_rolling_sd definition as soon as it is available in the tidyfinance package
 compute_rolling_sd <- function(
   data,
   column,
