@@ -292,9 +292,10 @@ aggregation_data_all <- permno_month_combinations |>
           collect() |>
           group_by(date) |>
           mutate(
-            residual_ff3 = calculate_residuals(
+            residual_ff3 = estimate_model(
               pick(everything()),
-              ret_excess ~ mkt_excess + smb + hml
+              model = "ret_excess ~ mkt_excess + smb + hml",
+              output = "residuals"
             )
           ) |>
           summarize(

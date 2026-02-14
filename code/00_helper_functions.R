@@ -76,19 +76,3 @@ compute_standardized_variable <- function(
     select(gvkey, date, {{ output_name }}) |>
     drop_na()
 }
-
-
-# TODO: replace this by a r-tidyfinance function (calculate_residuals()?)
-calculate_residuals <- function(data, formula) {
-  complete <- complete.cases(model.frame(
-    formula,
-    data = data,
-    na.action = na.pass
-  ))
-  if (sum(complete) <= length(all.vars(formula))) {
-    return(rep(NA_real_, nrow(data)))
-  }
-  res <- rep(NA_real_, nrow(data))
-  res[complete] <- lm(formula, data = data[complete, ])$residuals
-  res
-}
