@@ -7,10 +7,9 @@ library(slider)
 library(tidyfinance)
 
 source("code/00_global_options.R")
-source("code/01_helper_functions.R")
 
 cluster <- new_cluster(parallel::detectCores() - 1)
-cluster_library(cluster, c("lubridate", "slider", "dplyr", "tidyfinance"))
+cluster_library(cluster, c("tidyfinance"))
 
 compustat_quarterly <- open_dataset(
   file.path(data_folder, "compustat_quarterly.parquet")
@@ -55,14 +54,27 @@ compustat_quarterly <- compustat_quarterly |>
   rename(int_rps_lag4 = int_rps_lag, int_sue_lag4 = int_sue_lag)
 
 # Revenue surprise
-compustat_quarterly_rs <- compute_standardized_variable(
-  data = compustat_quarterly,
-  variable_name = int_rps,
-  lag_variable_name = int_rps_lag4,
-  output_name = sv_rs,
-  cluster = cluster,
-  min_analysis_date = min_analysis_date
-)
+compustat_quarterly_rs <- compustat_quarterly |>
+  arrange(gvkey, date) |>
+  group_by(gvkey) |>
+  partition(cluster) |>
+  mutate(
+    int_rps_delta = int_rps - int_rps_lag4
+  ) |>
+  filter(!is.na(int_rps_delta)) |>
+  mutate(
+    sv_rs = compute_rolling_value(
+      pick(everything()),
+      .f = ~ last(.x$int_rps_delta) / sd(.x$int_rps_delta),
+      period = "quarter",
+      periods = 8,
+      min_obs = 6
+    )
+  ) |>
+  ungroup() |>
+  collect() |>
+  select(gvkey, date, sv_rs) |>
+  filter(date >= min_analysis_date)
 
 compustat_quarterly <- compustat_quarterly |>
   left_join(
@@ -72,14 +84,27 @@ compustat_quarterly <- compustat_quarterly |>
   )
 
 # Standardized unexpected earnings
-compustat_quarterly_sue <- compute_standardized_variable(
-  data = compustat_quarterly,
-  variable_name = int_sue,
-  lag_variable_name = int_sue_lag4,
-  output_name = sv_sue,
-  cluster = cluster,
-  min_analysis_date = min_analysis_date
-)
+compustat_quarterly_sue <- compustat_quarterly |>
+  arrange(gvkey, date) |>
+  group_by(gvkey) |>
+  partition(cluster) |>
+  mutate(
+    int_sue_delta = int_sue - int_sue_lag4
+  ) |>
+  filter(!is.na(int_sue_delta)) |>
+  mutate(
+    sv_sue = compute_rolling_value(
+      pick(everything()),
+      .f = ~ last(.x$int_sue_delta) / sd(.x$int_sue_delta),
+      period = "quarter",
+      periods = 8,
+      min_obs = 6
+    )
+  ) |>
+  ungroup() |>
+  collect() |>
+  select(gvkey, date, sv_sue) |>
+  filter(date >= min_analysis_date)
 
 compustat_quarterly <- compustat_quarterly |>
   left_join(

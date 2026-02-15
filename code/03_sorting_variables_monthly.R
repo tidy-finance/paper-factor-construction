@@ -9,10 +9,6 @@ library(multidplyr)
 library(moments)
 
 source("code/00_global_options.R")
-source("code/01_helper_functions.R")
-
-cluster <- new_cluster(parallel::detectCores() - 1)
-cluster_library(cluster, c("lubridate", "slider", "dplyr", "tidyr"))
 
 crsp_monthly <- open_dataset(
   file.path(data_folder, "crsp_monthly.parquet")
@@ -78,9 +74,8 @@ crsp_monthly <- crsp_monthly |>
 
 # Rolling regressions -----------------------------------------------------
 
-cluster_copy(cluster, c("rolling_window_residual"))
-
 # Compute CAPM regression coefficients and FF3 residuals
+options(future.globals.maxSize = 1000 * 1024^2)
 
 capm_betas <- crsp_monthly |>
   arrange(permno, date) |>
@@ -90,19 +85,24 @@ capm_betas <- crsp_monthly |>
 crsp_monthly <- crsp_monthly |>
   left_join(capm_betas, join_by(permno, date), relationship = "one-to-one")
 
+# NOTE: cluster needs to be initialized after parallelization with furrr
+cluster <- new_cluster(parallel::detectCores() - 1)
+cluster_library(cluster, c("tidyfinance"))
+
 crsp_monthly <- crsp_monthly |>
   group_by(permno) |>
   partition(cluster) |>
   mutate(
-    int_roll_residual = rolling_window_residual(
-      pick(date, ret_excess, mkt_excess, hml, smb),
-      months = 36
+    int_roll_residual = compute_rolling_value(
+      pick(everything()),
+      .f = ~ last(lm(ret_excess ~ mkt_excess + smb + hml, data = .x)$residuals),
+      period = "month",
+      periods = 36,
+      min_obs = 12 # TODO: needs to be verified by Patrick
     )
   ) |>
   ungroup() |>
   collect()
-
-cluster_copy(cluster, c("rolling_window_residual_to_sd"))
 
 # Add rolling window returns
 crsp_monthly <- crsp_monthly |>
@@ -132,9 +132,12 @@ crsp_monthly <- crsp_monthly |>
       complete = TRUE
     ) -
       1,
-    int_rmom_11m = rolling_window_residual_to_sd(
-      pick(date, int_roll_residual),
-      months = 11
+    int_rmom_11m = compute_rolling_value(
+      pick(everything()),
+      .f = ~ (prod(1 + .x$int_roll_residual) - 1) / sd(.x$int_roll_residual),
+      period = "month",
+      periods = 12,
+      min_obs = 12 # TODO: needs to be verified by Patrick
     )
   ) |>
   select(-ret_gross) |>
@@ -142,7 +145,7 @@ crsp_monthly <- crsp_monthly |>
   collect()
 
 # Skip one month
-# TODO: Replace with add_lagged_columns() from r-tidyfinance (?)
+# TODO: Replace with add_lagged_columns() or join_lagged_values() from r-tidyfinance (?)
 crsp_monthly_skip1m <- crsp_monthly |>
   select(permno, date, int_roll_ret_11m, int_rmom_11m) |>
   mutate(date = date %m+% months(1)) |>
