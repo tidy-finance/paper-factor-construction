@@ -279,40 +279,25 @@ crsp_daily_aggregation <- crsp_daily_aggregation |>
     join_by(permno, date),
     relationship = "one-to-one"
   ) |>
-  compute()
+  collect()
 
-
-# TODO: parallelize this via batches
-aggregation_data_all <- permno_month_combinations |>
-  distinct(permno) |>
-  collect() |>
+aggregation_data_all <- crsp_daily_aggregation |>
+  group_by(permno, date) |>
+  partition(cluster) |>
   mutate(
-    value = map(
-      permno,
-      .f = \(selected_permno) {
-        crsp_daily_aggregation |>
-          filter(permno == selected_permno) |>
-          collect() |>
-          group_by(date) |>
-          mutate(
-            residual_ff3 = estimate_model(
-              pick(everything()),
-              model = "ret_excess ~ mkt_excess + smb + hml",
-              output = "residuals"
-            )
-          ) |>
-          summarize(
-            int_max_ret = max(ret_excess, na.rm = TRUE),
-            int_res_ivol = sd(residual_ff3, na.rm = TRUE),
-            int_res_iskew = moments::skewness(residual_ff3, na.rm = TRUE),
-            .groups = 'drop'
-          )
-      },
-      .progress = "permno_iterations"
+    residual_ff3 = estimate_model(
+      pick(everything()),
+      model = "ret_excess ~ mkt_excess + smb + hml",
+      output = "residuals"
     )
   ) |>
-  unnest(value) |>
-  mutate(across(starts_with("int_res_"), ~ if_else(is.nan(.x), NA_real_, .x)))
+  summarize(
+    int_max_ret = max(ret_excess, na.rm = TRUE),
+    int_res_ivol = sd(residual_ff3, na.rm = TRUE),
+    int_res_iskew = moments::skewness(residual_ff3, na.rm = TRUE)
+  ) |>
+  collect() |>
+  ungroup()
 
 # Merge into monthly sorting variable dataset
 crsp_monthly <- crsp_monthly |>
