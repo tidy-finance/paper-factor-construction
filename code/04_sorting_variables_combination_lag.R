@@ -118,7 +118,6 @@ write_parquet(
 ## Include: Monthly, quarterly, and yearly variables
 ## Allow "old" date up until 12 months after sorting date (not including)
 
-# TODO: why was min_lag > max_lag?
 # TODO: why does this take forever?
 sv_lag_ff <- crsp_monthly |>
   join_lagged_values(

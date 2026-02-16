@@ -154,7 +154,6 @@ process_task <- function(row, sorting_data_cache) {
         filter(n() >= min_portfolio_size) |>
         ungroup()
 
-      # TODO: improve performance of compute_portfolio_returns (https://github.com/tidy-finance/r-tidyfinance/issues/148)
       cpr_start <- Sys.time()
       portfolio_returns <- compute_portfolio_returns(
         sorting_data,
