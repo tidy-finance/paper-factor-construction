@@ -87,7 +87,7 @@ crsp_monthly <- crsp_monthly |>
 
 # NOTE: cluster needs to be initialized after parallelization with furrr
 cluster <- new_cluster(parallel::detectCores() - 1)
-cluster_library(cluster, c("tidyfinance"))
+cluster_library(cluster, c("tidyfinance", "dplyr"))
 
 crsp_monthly <- crsp_monthly |>
   group_by(permno) |>
@@ -145,33 +145,35 @@ crsp_monthly <- crsp_monthly |>
   collect()
 
 # Skip one month
-# TODO: Replace with add_lagged_columns() or join_lagged_values() from r-tidyfinance (?)
-crsp_monthly_skip1m <- crsp_monthly |>
-  select(permno, date, int_roll_ret_11m, int_rmom_11m) |>
-  mutate(date = date %m+% months(1)) |>
-  rename(
-    int_roll_ret_11m_skip1 = int_roll_ret_11m,
-    int_rmom_11m_skip1 = int_rmom_11m
+crsp_monthly_lag1m <- crsp_monthly |>
+  add_lagged_columns(
+    c("int_roll_ret_11m", "int_rmom_11m"),
+    lag = months(1),
+    by = "permno"
   ) |>
+  select(permno, date, int_roll_ret_11m_lag, int_rmom_11m_lag) |>
   drop_na()
 
 # Skip one year
-crsp_monthly_skip1y <- crsp_monthly |>
-  select(permno, date, int_roll_ret_47m) |>
-  mutate(date = date %m+% months(13)) |>
-  rename(int_roll_ret_47m_skip13 = int_roll_ret_47m) |>
+crsp_monthly_lag1y <- crsp_monthly |>
+  add_lagged_columns(
+    c("int_roll_ret_47m"),
+    lag = months(13),
+    by = "permno"
+  ) |>
+  select(permno, date, int_roll_ret_47m_lag) |>
   drop_na()
 
 # Merge skips back
 crsp_monthly <- crsp_monthly |>
   select(-int_roll_ret_11m, -int_roll_ret_47m, -int_rmom_11m) |>
   left_join(
-    crsp_monthly_skip1m,
+    crsp_monthly_lag1m,
     join_by(permno, date),
     relationship = "one-to-one"
   ) |>
   left_join(
-    crsp_monthly_skip1y,
+    crsp_monthly_lag1y,
     join_by(permno, date),
     relationship = "one-to-one"
   )
@@ -311,8 +313,8 @@ crsp_monthly <- crsp_monthly |>
 sorting_variables_monthly <- crsp_monthly |>
   mutate(
     sv_csi = log(int_me / int_me_lag5y) - log(int_roll_ret_5y),
-    sv_mom = int_roll_ret_11m_skip1,
-    sv_rmom = int_rmom_11m_skip1,
+    sv_mom = int_roll_ret_11m_lag,
+    sv_rmom = int_rmom_11m_lag,
     sv_52w = prc_adj / int_max_price_month_52w,
     sv_ami = int_rolling_amihud,
     sv_beta = int_capm_beta,
@@ -322,7 +324,7 @@ sorting_variables_monthly <- crsp_monthly |>
     sv_mdr = int_max_ret,
     sv_tur = int_daily_turnover,
     sv_me = log(mktcap * 10^6),
-    sv_rev = int_roll_ret_47m_skip13
+    sv_rev = int_roll_ret_47m_lag
   )
 
 # Filters -----------------------------------------------------------------
