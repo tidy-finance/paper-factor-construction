@@ -3,6 +3,9 @@ library(tidyr)
 library(tidyfinance)
 library(arrow)
 
+date_start <- as.Date("1960-01-01")
+date_end <- as.Date("2024-12-31")
+
 source("code/00_global_options.R")
 
 download_data(
