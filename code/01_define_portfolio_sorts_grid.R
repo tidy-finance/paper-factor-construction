@@ -62,10 +62,7 @@ sorting_variable_information <- tribble(
 
 write_parquet(
   sorting_variable_information,
-  file.path(
-    data_folder,
-    "sorting_variable_information.parquet"
-  )
+  "data/sorting_variable_information.parquet"
 )
 
 full_grid <- expand_grid(
@@ -121,8 +118,5 @@ grid <- grid |>
 
 write_parquet(
   grid,
-  file.path(
-    data_folder,
-    "portfolio_sort_grid.parquet"
-  )
+  "data/portfolio_sort_grid.parquet"
 )

@@ -12,13 +12,13 @@ download_data(
   domain = "factors_ff",
   dataset = "Fama/French 5 Factors (2x3)"
 ) |>
-  write_parquet(file.path(data_folder, "factors_ff_3_monthly.parquet"))
+  write_parquet("data/factors_ff_3_monthly.parquet")
 
 download_data(
   domain = "factors_ff",
   dataset = "Fama/French 5 Factors (2x3) [Daily]"
 ) |>
-  write_parquet(file.path(data_folder, "factors_ff_3_daily.parquet"))
+  write_parquet("data/factors_ff_3_daily.parquet")
 
 crsp_monthly <- download_data(
   domain = "wrds",
@@ -32,10 +32,7 @@ crsp_monthly <- download_data(
   select(-cfacpr) |>
   mutate(exchange = as.factor(exchange), industry = as.factor(industry))
 
-write_parquet(
-  crsp_monthly,
-  file.path(data_folder, "crsp_monthly.parquet")
-)
+write_parquet(crsp_monthly, "data/crsp_monthly.parquet")
 
 crsp_daily <- download_data(
   domain = "wrds",
@@ -49,10 +46,8 @@ crsp_daily <- download_data(
 ) |>
   select(-exchcd, -vol)
 
-write_parquet(
-  crsp_daily,
-  file.path(data_folder, "crsp_daily.parquet")
-)
+write_parquet(crsp_daily, "data/crsp_daily.parquet")
+
 
 compustat_annual <- download_data(
   domain = "wrds",
@@ -131,10 +126,7 @@ compustat_annual <- compustat_annual |>
     )
   )
 
-write_parquet(
-  compustat_annual,
-  file.path(data_folder, "compustat_annual.parquet")
-)
+write_parquet(compustat_annual, "data/compustat_annual.parquet")
 
 compustat_quarterly <- download_data(
   domain = "wrds",
@@ -173,7 +165,4 @@ compustat_quarterly <- compustat_quarterly |>
     )
   )
 
-write_parquet(
-  compustat_quarterly,
-  file.path(data_folder, "compustat_quarterly.parquet")
-)
+write_parquet(compustat_quarterly, "data/compustat_quarterly.parquet")

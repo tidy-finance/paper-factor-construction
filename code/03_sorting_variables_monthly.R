@@ -11,23 +11,15 @@ library(moments)
 source("code/00_global_options.R")
 options(future.globals.maxSize = 1000 * 1024^2)
 
-crsp_monthly <- open_dataset(
-  file.path(data_folder, "crsp_monthly.parquet")
-) |>
+crsp_monthly <- open_dataset("data/crsp_monthly.parquet") |>
   mutate(int_me = mktcap) |>
   collect()
 
-crsp_daily <- open_dataset(
-  file.path(data_folder, "crsp_daily.parquet")
-)
+crsp_daily <- open_dataset("data/crsp_daily.parquet")
 
-factors_ff_3_monthly <- open_dataset(
-  file.path(data_folder, "factors_ff_3_monthly.parquet")
-)
+factors_ff_3_monthly <- open_dataset("data/factors_ff_3_monthly.parquet")
 
-factors_ff_3_daily <- open_dataset(
-  file.path(data_folder, "factors_ff_3_daily.parquet")
-)
+factors_ff_3_daily <- open_dataset("data/factors_ff_3_daily.parquet")
 
 # Daily and monthly Amihud measure
 crsp_monthly_liquidity <- crsp_daily |>
@@ -350,5 +342,5 @@ sorting_variables_monthly <- sorting_variables_monthly |>
 
 write_parquet(
   sorting_variables_monthly,
-  file.path(data_folder, "sorting_variables_monthly.parquet")
+  "data/sorting_variables_monthly.parquet"
 )

@@ -12,13 +12,10 @@ min_analysis_date <- as.Date("1972-01-01")
 cluster <- new_cluster(parallel::detectCores() - 1)
 cluster_library(cluster, c("tidyfinance", "dplyr"))
 
-compustat_quarterly <- open_dataset(
-  file.path(data_folder, "compustat_quarterly.parquet")
-)
+compustat_quarterly <- open_dataset("data/compustat_quarterly.parquet")
 
-crsp_monthly <- open_dataset(
-  file.path(data_folder, "crsp_monthly.parquet")
-)
+
+crsp_monthly <- open_dataset("data/crsp_monthly.parquet")
 
 compustat_quarterly <- compustat_quarterly |>
   left_join(
@@ -130,5 +127,7 @@ sorting_variables_quarterly <- sorting_variables_quarterly |>
 sorting_variables_quarterly <- sorting_variables_quarterly |>
   select(gvkey, date, starts_with("sv_"))
 
-sorting_variables_quarterly |>
-  write_parquet(file.path(data_folder, "sorting_variables_quarterly.parquet"))
+write_parquet(
+  sorting_variables_quarterly,
+  "data/sorting_variables_quarterly.parquet"
+)

@@ -12,7 +12,7 @@ source("code/00_global_options.R")
 # SLURM task setup -------------------------------------------------------
 
 slurm_task_id <- as.numeric(Sys.getenv("SLURM_ARRAY_TASK_ID"))
-full_grid <- read_parquet(file.path(data_folder, "portfolio_sort_grid.parquet"))
+full_grid <- read_parquet("data/portfolio_sort_grid.parquet")
 
 if (!is.na(slurm_task_id)) {
   # Running on SLURM: take this worker's chunk
@@ -40,9 +40,7 @@ required_datasets <- grid |>
   distinct(sorting_variable_lag) |>
   pull()
 
-sv_directions <- read_parquet(
-  file.path(data_folder, "sorting_variable_information.parquet")
-) |>
+sv_directions <- read_parquet("data/sorting_variable_information.parquet") |>
   select(sorting_variable, direction)
 
 grid <- grid |>
@@ -232,4 +230,4 @@ diagnostics <- future_map_dfr(
 elapsed <- Sys.time() - start
 message("Total: ", format(elapsed))
 
-write_parquet(diagnostics, file.path(data_folder, "task_diagnostics.parquet"))
+write_parquet(diagnostics, "data/task_diagnostics.parquet")

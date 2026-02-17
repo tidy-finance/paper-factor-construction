@@ -7,20 +7,18 @@ source("code/00_global_options.R")
 min_stock_age <- 2
 
 sorting_variables_yearly <- read_parquet(
-  file.path(data_folder, "sorting_variables_yearly.parquet")
+  "data/sorting_variables_yearly.parquet"
 )
 
 sorting_variables_quarterly <- read_parquet(
-  file.path(data_folder, "sorting_variables_quarterly.parquet")
+  "data/sorting_variables_quarterly.parquet"
 )
 
 sorting_variables_monthly <- read_parquet(
-  file.path(data_folder, "sorting_variables_monthly.parquet")
+  "data/sorting_variables_monthly.parquet"
 )
 
-crsp_monthly <- open_dataset(
-  file.path(data_folder, "crsp_monthly.parquet")
-) |>
+crsp_monthly <- open_dataset("data/crsp_monthly.parquet") |>
   select(gvkey, permno, date, ret_excess, exchange, industry, mktcap_lag) |>
   collect()
 
@@ -79,10 +77,7 @@ sv_lag3m <- crsp_monthly |>
     max_lag = months(12)
   )
 
-write_parquet(
-  sv_lag3m,
-  file.path(data_folder, "sorting_variables_lag_3m.parquet")
-)
+write_parquet(sv_lag3m, "data/sorting_variables_lag_3m.parquet")
 
 # Lag 6m ------------------------------------------------------------------
 # Exactly lag by six months
@@ -109,10 +104,7 @@ sv_lag6m <- crsp_monthly |>
     max_lag = months(12)
   )
 
-write_parquet(
-  sv_lag6m,
-  file.path(data_folder, "sorting_variables_lag_6m.parquet")
-)
+write_parquet(sv_lag6m, "data/sorting_variables_lag_6m.parquet")
 
 # Lag FF ------------------------------------------------------------------
 # Lag variables from year t to July t+1
@@ -142,7 +134,4 @@ sv_lag_ff <- crsp_monthly |>
     ff_adjustment = TRUE
   )
 
-write_parquet(
-  sv_lag_ff,
-  file.path(data_folder, "sorting_variables_lag_ff.parquet")
-)
+write_parquet(sv_lag_ff, "data/sorting_variables_lag_ff.parquet")
