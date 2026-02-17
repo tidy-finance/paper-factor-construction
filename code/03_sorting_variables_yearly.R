@@ -82,7 +82,6 @@ compustat_annual <- compustat_annual |>
   rename(int_me = mktcap)
 
 # Winsorization
-# TODO: explain why one variable is winsoized by group and the others not
 compustat_annual <- compustat_annual |>
   group_by(year = year(datadate)) |>
   mutate(int_rer = winsorize(int_rer, 0.01)) |>
