@@ -9,7 +9,7 @@ library(tidyfinance)
 source("code/00_global_options.R")
 
 cluster <- new_cluster(parallel::detectCores() - 1)
-cluster_library(cluster, c("tidyfinance"))
+cluster_library(cluster, c("tidyfinance", "dplyr"))
 
 compustat_quarterly <- open_dataset(
   file.path(data_folder, "compustat_quarterly.parquet")
