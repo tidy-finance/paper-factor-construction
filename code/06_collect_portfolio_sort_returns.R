@@ -1,6 +1,11 @@
 library(arrow)
 
-open_dataset("data/portfolio_returns") |>
+source("code/00_global_options.R")
+
+open_dataset(file.path(data_folder, "portfolio_returns")) |>
   Scanner$create() |>
   as_record_batch_reader() |>
-  write_parquet("data/portfolio_returns.parquet")
+  write_dataset(
+    file.path(data_folder, "factor-library"),
+    partition = "sorting_variable"
+  )
