@@ -4,6 +4,7 @@ library(arrow)
 library(tidyfinance)
 
 source("code/00_global_options.R")
+min_stock_age <- 2
 
 sorting_variables_yearly <- read_parquet(
   file.path(data_folder, "sorting_variables_yearly.parquet")
