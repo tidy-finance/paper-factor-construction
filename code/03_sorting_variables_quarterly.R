@@ -38,7 +38,6 @@ compustat_quarterly <- compustat_quarterly |>
   ) |>
   rename(int_me = mktcap)
 
-# Lag certain variables
 ## One quarter lag
 compustat_quarterly <- compustat_quarterly |>
   add_lag_columns(cols = c("atq", "int_beq"), by = "gvkey", lag = months(3)) |>
@@ -112,8 +111,6 @@ compustat_quarterly <- compustat_quarterly |>
     join_by(gvkey, date),
     relationship = "one-to-one"
   )
-
-# Calculate main variables
 
 sorting_variables_quarterly <- compustat_quarterly |>
   mutate(
