@@ -9,6 +9,7 @@ library(multidplyr)
 library(moments)
 
 source("code/00_global_options.R")
+options(future.globals.maxSize = 1000 * 1024^2)
 
 crsp_monthly <- open_dataset(
   file.path(data_folder, "crsp_monthly.parquet")
@@ -72,10 +73,7 @@ crsp_monthly <- crsp_monthly |>
   add_lag_columns("int_me", by = "permno", lag = years(5)) |>
   rename(int_me_lag5y = int_me_lag)
 
-# Rolling regressions -----------------------------------------------------
-
 # Compute CAPM regression coefficients and FF3 residuals
-options(future.globals.maxSize = 1000 * 1024^2)
 
 capm_betas <- crsp_monthly |>
   arrange(permno, date) |>
@@ -98,7 +96,7 @@ crsp_monthly <- crsp_monthly |>
       .f = ~ last(lm(ret_excess ~ mkt_excess + smb + hml, data = .x)$residuals),
       period = "month",
       periods = 36,
-      min_obs = 12 # TODO: needs to be verified by Patrick
+      min_obs = 12
     )
   ) |>
   ungroup() |>
@@ -137,7 +135,7 @@ crsp_monthly <- crsp_monthly |>
       .f = ~ (prod(1 + .x$int_roll_residual) - 1) / sd(.x$int_roll_residual),
       period = "month",
       periods = 12,
-      min_obs = 12 # TODO: needs to be verified by Patrick
+      min_obs = 12
     )
   ) |>
   select(-ret_gross) |>
@@ -309,7 +307,7 @@ crsp_monthly <- crsp_monthly |>
     relationship = "one-to-one"
   )
 
-# Main variables ----------------------------------------------------------
+# Main variables
 sorting_variables_monthly <- crsp_monthly |>
   mutate(
     sv_csi = log(int_me / int_me_lag5y) - log(int_roll_ret_5y),
@@ -327,7 +325,7 @@ sorting_variables_monthly <- crsp_monthly |>
     sv_rev = int_roll_ret_47m_lag
   )
 
-# Filters -----------------------------------------------------------------
+# Filters
 
 # Remove Inf and NaN
 sorting_variables_monthly <- sorting_variables_monthly |>

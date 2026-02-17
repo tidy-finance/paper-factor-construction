@@ -25,7 +25,6 @@ ccm_link <- download_data(
   linkprim = c("P", "C")
 )
 
-# TODO: update to v2 (`retx` and `cfacpr` don't exist)
 crsp_monthly <- download_data(
   domain = "wrds",
   dataset = "crsp_monthly",
@@ -63,7 +62,6 @@ write_parquet(
   file.path(data_folder, "crsp_monthly.parquet")
 )
 
-# TODO: update to v2
 crsp_daily <- download_data(
   domain = "wrds",
   dataset = "crsp_daily",
@@ -182,7 +180,6 @@ compustat_annual <- compustat_annual |>
     )
   )
 
-# Save data
 write_parquet(
   compustat_annual,
   file.path(data_folder, "compustat_annual.parquet")
