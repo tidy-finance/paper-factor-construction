@@ -5,32 +5,14 @@ library(tidyr)
 library(tidyfinance)
 library(furrr)
 library(future)
-library(future.batchtools)
 
-source("code/00_global_options.R")
-
-# SLURM task setup -------------------------------------------------------
-
-slurm_task_id <- as.numeric(Sys.getenv("SLURM_ARRAY_TASK_ID"))
 full_grid <- read_parquet("data/portfolio_sort_grid.parquet")
 
-if (!is.na(slurm_task_id)) {
-  # Running on SLURM: take this worker's chunk
-  task_id <- as.numeric(slurm_task_id)
-  tasks_per_worker <- 100
-  task_ids <- tibble(
-    task_id = (task_id - 1) * tasks_per_worker + seq(tasks_per_worker)
-  )
-  grid <- full_grid |>
-    mutate(task_id = row_number()) |>
-    inner_join(task_ids, join_by(task_id))
-} else {
-  # Local execution: process a random subset
-  set.seed(1234)
-  grid <- full_grid |>
-    mutate(task_id = row_number()) |>
-    slice_sample(n = 100)
-}
+# TODO: loop over sorting variable, then parallize conditional on each variable
+set.seed(1234)
+grid <- full_grid |>
+  filter(sorting_variable == "sv_52w") |>
+  slice_sample(n = 25)
 
 required_sorting_variables <- grid |>
   distinct(sorting_variable) |>
@@ -50,7 +32,7 @@ grid <- grid |>
 
 read_sorting_data <- function(lag_label) {
   path <- file.path(
-    data_folder,
+    "data",
     paste0("sorting_variables_lag_", lag_label, ".parquet")
   )
   open_dataset(path) |>
@@ -205,15 +187,10 @@ process_task <- function(row, sorting_data_cache) {
 
 # Paralellization --------------------------------------------------------
 
-# TODO: figure out whether SLURM also supports multicore or needs multisession
-if (!is.na(Sys.getenv("SLURM_ARRAY_TASK_ID"))) {
-  n_cores <- as.integer(Sys.getenv("SLURM_CPUS_PER_TASK", unset = "4"))
-  plan(multisession, workers = n_cores)
-} else {
-  # NOTE: multicore uses forked processes that have shared memory, but only
-  # works on Unix / macOS; change it to sequential on Windows (very slow though)
-  plan(multicore, workers = availableCores())
-}
+# NOTE: multicore uses forked processes that have shared memory, but only
+# works on Unix / macOS; change it to sequential or multisession on Windows
+# (very slow though).
+plan(multicore, workers = availableCores())
 
 grid_rows <- split(grid, seq_len(nrow(grid)))
 
