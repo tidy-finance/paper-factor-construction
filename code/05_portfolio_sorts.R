@@ -8,19 +8,9 @@ library(future)
 
 full_grid <- read_parquet("data/portfolio_sort_grid.parquet")
 
-# TODO: loop over sorting variable, then parallize conditional on each variable
 set.seed(1234)
 grid <- full_grid |>
-  filter(sorting_variable == "sv_52w") |>
   slice_sample(n = 25)
-
-required_sorting_variables <- grid |>
-  distinct(sorting_variable) |>
-  pull()
-
-required_datasets <- grid |>
-  distinct(sorting_variable_lag) |>
-  pull()
 
 sv_directions <- read_parquet("data/sorting_variable_information.parquet") |>
   select(sorting_variable, direction)
@@ -30,7 +20,7 @@ grid <- grid |>
 
 # Helper to read sorting data --------------------------------------------
 
-read_sorting_data <- function(lag_label) {
+read_sorting_data <- function(lag_label, sorting_variables) {
   path <- file.path(
     "data",
     paste0("sorting_variables_lag_", lag_label, ".parquet")
@@ -44,15 +34,10 @@ read_sorting_data <- function(lag_label) {
       industry,
       filter_earnings,
       mktcap_lag,
-      all_of(required_sorting_variables)
+      all_of(sorting_variables)
     ) |>
     collect()
 }
-
-sorting_data_cache <- setNames(
-  lapply(required_datasets, read_sorting_data),
-  required_datasets
-)
 
 # Helper to process individual task --------------------------------------
 
@@ -108,9 +93,7 @@ process_task <- function(row, sorting_data_cache) {
         breakpoint_exchanges = strsplit(
           row$breakpoints_exchanges,
           split = "\\|"
-        )[[
-          1
-        ]]
+        )[[1]]
       )
 
       sorting_variables <- row$sorting_variable
@@ -127,7 +110,6 @@ process_task <- function(row, sorting_data_cache) {
         )
       }
 
-      # Remove dates with too few stocks to avoid errors in compute_portfolio_returns()
       min_portfolio_size <- 10
       sorting_data <- sorting_data |>
         group_by(date) |>
@@ -185,26 +167,41 @@ process_task <- function(row, sorting_data_cache) {
   )
 }
 
-# Paralellization --------------------------------------------------------
+# Parallelization --------------------------------------------------------
 
-# NOTE: multicore uses forked processes that have shared memory, but only
-# works on Unix / macOS; change it to sequential or multisession on Windows
-# (very slow though).
 plan(multicore, workers = availableCores())
 
-grid_rows <- split(grid, seq_len(nrow(grid)))
+# Loop over each sorting variable, load relevant data once, then
+# parallelize the tasks that share that variable.
+sorting_variable_groups <- split(grid, grid$sorting_variable)
 
-start <- Sys.time()
-diagnostics <- future_map_dfr(
-  grid_rows,
-  \(row) process_task(row, sorting_data_cache),
-  .options = furrr_options(
-    globals = c("process_task", "sorting_data_cache", "data_folder"),
-    packages = c("dplyr", "tidyr", "arrow", "tidyfinance")
-  ),
-  .progress = TRUE
-)
-elapsed <- Sys.time() - start
+total_start <- Sys.time()
+diagnostics <- bind_rows(lapply(names(sorting_variable_groups), function(sv) {
+  sv_grid <- sorting_variable_groups[[sv]]
+
+  message("Processing sorting variable: ", sv, " (", nrow(sv_grid), " tasks)")
+
+  required_lags <- unique(sv_grid$sorting_variable_lag)
+  required_svs <- unique(sv_grid$sorting_variable)
+
+  sv_cache <- setNames(
+    lapply(required_lags, read_sorting_data, sorting_variables = required_svs),
+    required_lags
+  )
+
+  sv_rows <- split(sv_grid, seq_len(nrow(sv_grid)))
+
+  future_map_dfr(
+    sv_rows,
+    \(row) process_task(row, sv_cache),
+    .options = furrr_options(
+      globals = c("process_task", "sv_cache"),
+      packages = c("dplyr", "tidyr", "arrow", "tidyfinance")
+    ),
+    .progress = TRUE
+  )
+}))
+elapsed <- Sys.time() - total_start
 message("Total: ", format(elapsed))
 
 write_parquet(diagnostics, "data/task_diagnostics.parquet")
