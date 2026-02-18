@@ -10,6 +10,7 @@ full_grid <- read_parquet("data/portfolio_sort_grid.parquet")
 
 set.seed(1234)
 grid <- full_grid |>
+  mutate(task_id = row_number()) |>
   slice_sample(n = 25)
 
 sv_directions <- read_parquet("data/sorting_variable_information.parquet") |>
@@ -48,110 +49,112 @@ process_task <- function(row, sorting_data_cache) {
   state <- new.env(parent = emptyenv())
   state$cpr_elapsed <- NA_real_
 
-  result <- withCallingHandlers(
-    {
-      sorting_data <- sorting_data_cache[[row$sorting_variable_lag]]
+  result <- tryCatch(
+    withCallingHandlers(
+      {
+        sorting_data <- sorting_data_cache[[row$sorting_variable_lag]]
 
-      if (row$exclude_size != 0) {
+        if (row$exclude_size != 0) {
+          sorting_data <- sorting_data |>
+            group_by(date) |>
+            filter(
+              mktcap_lag >=
+                quantile(mktcap_lag[exchange == "NYSE"], row$exclude_size)
+            ) |>
+            ungroup()
+        }
+
+        if (row$exclude_financials) {
+          sorting_data <- sorting_data |>
+            filter(industry != "Finance")
+        }
+
+        if (row$exclude_utilities) {
+          sorting_data <- sorting_data |>
+            filter(industry != "Utilities")
+        }
+
+        if (row$exclude_negative_earnings) {
+          sorting_data <- sorting_data |>
+            filter(filter_earnings > 0)
+        }
+
         sorting_data <- sorting_data |>
-          group_by(date) |>
-          filter(
-            mktcap_lag >=
-              quantile(mktcap_lag[exchange == "NYSE"], row$exclude_size)
+          select(
+            permno,
+            date,
+            ret_excess,
+            all_of(row$sorting_variable),
+            exchange,
+            mktcap_lag
           ) |>
-          ungroup()
-      }
+          drop_na(all_of(row$sorting_variable))
 
-      if (row$exclude_financials) {
-        sorting_data <- sorting_data |>
-          filter(industry != "Finance")
-      }
+        rebalancing_month <- if (row$rebalancing == "monthly") NULL else 7
 
-      if (row$exclude_utilities) {
-        sorting_data <- sorting_data |>
-          filter(industry != "Utilities")
-      }
-
-      if (row$exclude_negative_earnings) {
-        sorting_data <- sorting_data |>
-          filter(filter_earnings > 0)
-      }
-
-      sorting_data <- sorting_data |>
-        select(
-          permno,
-          date,
-          ret_excess,
-          all_of(row$sorting_variable),
-          exchange,
-          mktcap_lag
-        ) |>
-        drop_na(all_of(row$sorting_variable)) |>
-        collect()
-
-      rebalancing_month <- if (row$rebalancing == "monthly") NULL else 7
-
-      options_main <- breakpoint_options(
-        n_portfolios = row$breakpoints_main,
-        breakpoint_exchanges = strsplit(
-          row$breakpoints_exchanges,
-          split = "\\|"
-        )[[1]]
-      )
-
-      sorting_variables <- row$sorting_variable
-      options_secondary <- NULL
-
-      if (row$sorting_method != "univariate") {
-        sorting_variables <- c(row$sorting_variable, "mktcap_lag")
-        options_secondary <- breakpoint_options(
-          n_portfolios = row$breakpoints_secondary,
+        options_main <- breakpoint_options(
+          n_portfolios = row$breakpoints_main,
           breakpoint_exchanges = strsplit(
             row$breakpoints_exchanges,
             split = "\\|"
           )[[1]]
         )
+
+        sorting_variables <- row$sorting_variable
+        options_secondary <- NULL
+
+        if (row$sorting_method != "univariate") {
+          sorting_variables <- c(row$sorting_variable, "mktcap_lag")
+          options_secondary <- breakpoint_options(
+            n_portfolios = row$breakpoints_secondary,
+            breakpoint_exchanges = strsplit(
+              row$breakpoints_exchanges,
+              split = "\\|"
+            )[[1]]
+          )
+        }
+
+        min_portfolio_size <- 10
+        sorting_data <- sorting_data |>
+          group_by(date) |>
+          filter(n() >= min_portfolio_size) |>
+          ungroup()
+
+        cpr_start <- Sys.time()
+        portfolio_returns <- compute_portfolio_returns(
+          sorting_data,
+          sorting_variables,
+          sorting_method = row$sorting_method,
+          rebalancing_month,
+          options_main,
+          options_secondary,
+          min_portfolio_size = min_portfolio_size
+        )
+        state$cpr_elapsed <- as.numeric(difftime(
+          Sys.time(),
+          cpr_start,
+          units = "secs"
+        ))
+
+        long_short_return <- portfolio_returns |>
+          compute_long_short_returns(direction = row$direction) |>
+          pivot_longer(-date, names_to = "ret_type", values_to = "ret") |>
+          mutate(
+            id = row$id,
+            ret_type = gsub("ret_excess_", "", ret_type),
+            sorting_variable = row$sorting_variable,
+            ret = replace_na(ret, 0)
+          ) |>
+          select(id, sorting_variable, date, ret_type, ret)
+
+        long_short_return
+      },
+      warning = function(w) {
+        warnings_collected <<- c(warnings_collected, conditionMessage(w))
+        invokeRestart("muffleWarning")
       }
-
-      min_portfolio_size <- 10
-      sorting_data <- sorting_data |>
-        group_by(date) |>
-        filter(n() >= min_portfolio_size) |>
-        ungroup()
-
-      cpr_start <- Sys.time()
-      portfolio_returns <- compute_portfolio_returns(
-        sorting_data,
-        sorting_variables,
-        sorting_method = row$sorting_method,
-        rebalancing_month,
-        options_main,
-        options_secondary,
-        min_portfolio_size = min_portfolio_size
-      )
-      state$cpr_elapsed <- as.numeric(difftime(
-        Sys.time(),
-        cpr_start,
-        units = "secs"
-      ))
-
-      long_short_return <- portfolio_returns |>
-        compute_long_short_returns(direction = row$direction) |>
-        pivot_longer(-date, names_to = "ret_type", values_to = "ret") |>
-        mutate(
-          id = row$id,
-          ret_type = gsub("ret_excess_", "", ret_type),
-          sorting_variable = row$sorting_variable,
-          ret = replace_na(ret, 0)
-        ) |>
-        select(id, sorting_variable, date, ret_type, ret)
-
-      long_short_return
-    },
-    warning = function(w) {
-      warnings_collected <<- c(warnings_collected, conditionMessage(w))
-      invokeRestart("muffleWarning")
-    }
+    ),
+    error = function(e) e
   )
 
   elapsed <- as.numeric(difftime(Sys.time(), start, units = "secs"))
@@ -185,7 +188,7 @@ process_task <- function(row, sorting_data_cache) {
 
 # Parallelization --------------------------------------------------------
 
-plan(multicore, workers = availableCores())
+plan(multicore, workers = availableCores() - 1)
 
 sorting_variable_groups <- split(grid, grid$sorting_variable)
 
@@ -208,10 +211,6 @@ diagnostics <- bind_rows(lapply(names(sorting_variable_groups), function(sv) {
   results <- future_map(
     sv_rows,
     \(row) process_task(row, sv_cache),
-    .options = furrr_options(
-      globals = c("process_task", "sv_cache"),
-      packages = c("dplyr", "tidyr", "arrow", "tidyfinance")
-    ),
     .progress = TRUE
   )
 
@@ -222,7 +221,7 @@ diagnostics <- bind_rows(lapply(names(sorting_variable_groups), function(sv) {
       write_dataset(
         path = "data/portfolio_returns",
         format = "parquet",
-        existing_data_behavior = "overwrite"
+        existing_data_behavior = "delete_matching"
       )
   }
 
