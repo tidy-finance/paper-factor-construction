@@ -190,7 +190,6 @@ process_task <- function(row, sorting_data_cache) {
 # NOTE: multicore only works on UNIX-based systems and leverages the benefit of
 # shared memory across tasks.
 plan(multicore, workers = availableCores() - 1)
-options(future.globals.maxSize = 1024 * 1024^2)
 
 sorting_variable_groups <- split(grid, grid$sorting_variable)
 
@@ -201,33 +200,46 @@ diagnostics <- bind_rows(lapply(names(sorting_variable_groups), function(sv) {
   message("Processing sorting variable: ", sv, " (", nrow(sv_grid), " tasks)")
 
   required_lags <- unique(sv_grid$sorting_variable_lag)
-  required_svs <- unique(sv_grid$sorting_variable)
 
-  sv_cache <- setNames(
-    lapply(required_lags, read_sorting_data, sorting_variables = required_svs),
-    required_lags
-  )
+  bind_rows(lapply(required_lags, function(lag_label) {
+    lag_grid <- sv_grid |> filter(sorting_variable_lag == lag_label)
 
-  sv_rows <- split(sv_grid, seq_len(nrow(sv_grid)))
+    message("  Lag: ", lag_label, " (", nrow(lag_grid), " tasks)")
 
-  results <- future_map(
-    sv_rows,
-    \(row) process_task(row, sv_cache),
-    .progress = TRUE
-  )
+    sv_cache <- setNames(
+      list(read_sorting_data(
+        lag_label,
+        sorting_variables = unique(lag_grid$sorting_variable)
+      )),
+      lag_label
+    )
 
-  all_returns <- bind_rows(lapply(results, \(r) r$returns))
-  if (nrow(all_returns) > 0) {
-    all_returns |>
-      group_by(sorting_variable) |>
-      write_dataset(
-        path = "data/portfolio_returns",
-        format = "parquet",
-        existing_data_behavior = "delete_matching"
-      )
-  }
+    lag_rows <- split(lag_grid, seq_len(nrow(lag_grid)))
 
-  bind_rows(lapply(results, \(r) r$diagnostics))
+    results <- future_map(
+      lag_rows,
+      \(row) process_task(row, sv_cache),
+      .progress = TRUE
+    )
+
+    all_returns <- bind_rows(lapply(results, \(r) r$returns))
+    if (nrow(all_returns) > 0) {
+      all_returns |>
+        group_by(sorting_variable) |>
+        write_dataset(
+          path = "data/portfolio_returns",
+          format = "parquet",
+          existing_data_behavior = "delete_matching"
+        )
+    }
+
+    diag <- bind_rows(lapply(results, \(r) r$diagnostics))
+
+    rm(sv_cache, results, all_returns)
+    gc()
+
+    diag
+  }))
 }))
 elapsed <- Sys.time() - total_start
 message("Total: ", format(elapsed))
