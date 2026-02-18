@@ -5,7 +5,7 @@ library(tidyr)
 library(tidyfinance)
 
 library(mirai)
-daemons(future::availableCores())
+daemons(future::availableCores() - 1)
 
 sv_directions <- read_parquet("data/sorting_variable_information.parquet") |>
   select(sorting_variable, direction)
