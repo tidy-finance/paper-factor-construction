@@ -45,6 +45,9 @@ process_task <- function(row, sorting_data_cache) {
   start <- Sys.time()
 
   warnings_collected <- character(0)
+  state <- new.env(parent = emptyenv())
+  state$cpr_elapsed <- NA_real_
+
   result <- withCallingHandlers(
     {
       sorting_data <- sorting_data_cache[[row$sorting_variable_lag]]
@@ -126,7 +129,11 @@ process_task <- function(row, sorting_data_cache) {
         options_secondary,
         min_portfolio_size = min_portfolio_size
       )
-      cpr_elapsed <- as.numeric(difftime(Sys.time(), cpr_start, units = "secs"))
+      state$cpr_elapsed <- as.numeric(difftime(
+        Sys.time(),
+        cpr_start,
+        units = "secs"
+      ))
 
       long_short_return <- portfolio_returns |>
         compute_long_short_returns(direction = row$direction) |>
@@ -139,15 +146,7 @@ process_task <- function(row, sorting_data_cache) {
         ) |>
         select(id, sorting_variable, date, ret_type, ret)
 
-      long_short_return |>
-        group_by(id) |>
-        write_dataset(
-          path = "data/portfolio_returns",
-          format = "parquet",
-          existing_data_behavior = "overwrite"
-        )
-
-      "success"
+      long_short_return
     },
     warning = function(w) {
       warnings_collected <<- c(warnings_collected, conditionMessage(w))
@@ -157,22 +156,37 @@ process_task <- function(row, sorting_data_cache) {
 
   elapsed <- as.numeric(difftime(Sys.time(), start, units = "secs"))
 
-  tibble(
-    task_id = row$task_id,
-    status = result,
-    elapsed_secs = elapsed,
-    cpr_elapsed_secs = cpr_elapsed,
-    n_warnings = length(warnings_collected),
-    warnings = paste(warnings_collected, collapse = " | ")
-  )
+  if (is.data.frame(result)) {
+    list(
+      returns = result,
+      diagnostics = tibble(
+        task_id = row$task_id,
+        status = "success",
+        elapsed_secs = elapsed,
+        cpr_elapsed_secs = state$cpr_elapsed,
+        n_warnings = length(warnings_collected),
+        warnings = paste(warnings_collected, collapse = " | ")
+      )
+    )
+  } else {
+    list(
+      returns = NULL,
+      diagnostics = tibble(
+        task_id = row$task_id,
+        status = paste("error:", as.character(result)),
+        elapsed_secs = elapsed,
+        cpr_elapsed_secs = state$cpr_elapsed,
+        n_warnings = length(warnings_collected),
+        warnings = paste(warnings_collected, collapse = " | ")
+      )
+    )
+  }
 }
 
 # Parallelization --------------------------------------------------------
 
 plan(multicore, workers = availableCores())
 
-# Loop over each sorting variable, load relevant data once, then
-# parallelize the tasks that share that variable.
 sorting_variable_groups <- split(grid, grid$sorting_variable)
 
 total_start <- Sys.time()
@@ -191,7 +205,7 @@ diagnostics <- bind_rows(lapply(names(sorting_variable_groups), function(sv) {
 
   sv_rows <- split(sv_grid, seq_len(nrow(sv_grid)))
 
-  future_map_dfr(
+  results <- future_map(
     sv_rows,
     \(row) process_task(row, sv_cache),
     .options = furrr_options(
@@ -200,6 +214,19 @@ diagnostics <- bind_rows(lapply(names(sorting_variable_groups), function(sv) {
     ),
     .progress = TRUE
   )
+
+  all_returns <- bind_rows(lapply(results, \(r) r$returns))
+  if (nrow(all_returns) > 0) {
+    all_returns |>
+      group_by(sorting_variable) |>
+      write_dataset(
+        path = "data/portfolio_returns",
+        format = "parquet",
+        existing_data_behavior = "overwrite"
+      )
+  }
+
+  bind_rows(lapply(results, \(r) r$diagnostics))
 }))
 elapsed <- Sys.time() - total_start
 message("Total: ", format(elapsed))
