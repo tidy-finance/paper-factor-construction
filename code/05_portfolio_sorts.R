@@ -203,9 +203,6 @@ tasks <- lapply(seq_along(groups), \(i) {
 
       rows <- split(.group_data, seq_len(nrow(.group_data)))
       results <- lapply(seq_along(rows), \(j) {
-        message(glue(
-          "[{.group_key$sorting_variable}] task {j}/{length(rows)}"
-        ))
         process_task(rows[[j]], sv_lag_data)
       })
 
@@ -233,7 +230,7 @@ tasks <- lapply(seq_along(groups), \(i) {
   )
 })
 
-diagnostics <- bind_rows(lapply(tasks, \(t) t[]))
+diagnostics <- bind_rows(lapply(tasks, \(t) collect_mirai(t)))
 daemons(0)
 
 write_parquet(diagnostics, "data/task_diagnostics.parquet")
