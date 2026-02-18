@@ -4,14 +4,13 @@ library(arrow)
 library(tidyr)
 library(tidyfinance)
 library(furrr)
-library(future)
 
 full_grid <- read_parquet("data/portfolio_sort_grid.parquet")
 
 set.seed(1234)
 grid <- full_grid |>
   mutate(task_id = row_number()) |>
-  slice_sample(n = 25)
+  slice_sample(n = 100)
 
 sv_directions <- read_parquet("data/sorting_variable_information.parquet") |>
   select(sorting_variable, direction)
@@ -188,7 +187,10 @@ process_task <- function(row, sorting_data_cache) {
 
 # Parallelization --------------------------------------------------------
 
+# NOTE: multicore only works on UNIX-based systems and leverages the benefit of
+# shared memory across tasks.
 plan(multicore, workers = availableCores() - 1)
+options(future.globals.maxSize = 1024 * 1024^2)
 
 sorting_variable_groups <- split(grid, grid$sorting_variable)
 
