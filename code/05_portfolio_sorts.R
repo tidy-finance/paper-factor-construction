@@ -21,9 +21,6 @@ grid <- read_parquet("data/portfolio_sort_grid.parquet") |>
   group_by(sorting_variable, sorting_variable_lag) |>
   mutate(task_id = row_number())
 
-groups <- group_split(grid)
-keys <- group_keys(grid)
-
 process_task <- function(row, sorting_data) {
   start <- Sys.time()
 
@@ -73,15 +70,11 @@ process_task <- function(row, sorting_data) {
           drop_na(all_of(sorting_variables))
 
         rebalancing_month <- if (row$rebalancing == "monthly") NULL else 7
-
-        breakpoint_exchanges <- strsplit(
-          row$breakpoints_exchanges,
-          split = "\\|"
-        )[[1]]
+        bp_exchanges <- strsplit(row$breakpoints_exchanges, split = "\\|")[[1]]
 
         options_main <- breakpoint_options(
           n_portfolios = row$breakpoints_main,
-          breakpoint_exchanges = breakpoint_exchanges
+          breakpoint_exchanges = bp_exchanges
         )
 
         options_secondary <- NULL
@@ -90,9 +83,10 @@ process_task <- function(row, sorting_data) {
           sorting_variables <- c(sorting_variables, "mktcap_lag")
           options_secondary <- breakpoint_options(
             n_portfolios = row$breakpoints_secondary,
-            breakpoint_exchanges = breakpoint_exchanges
+            breakpoint_exchanges = bp_exchanges
           )
         }
+
         min_portfolio_size <- 10
 
         cpr_start <- Sys.time()
@@ -161,7 +155,7 @@ process_task <- function(row, sorting_data) {
   }
 }
 
-tasks <- lapply(seq_along(groups), \(i) {
+tasks <- lapply(seq_along(group_split(grid)), \(i) {
   mirai(
     {
       path <- file.path(
@@ -207,12 +201,13 @@ tasks <- lapply(seq_along(groups), \(i) {
 
       bind_rows(lapply(results, \(r) r$diagnostics))
     },
-    .group_data = groups[[i]],
-    .group_key = keys[i, ],
+    .group_data = group_split(grid)[[i]],
+    .group_key = group_keys(grid)[i, ],
     process_task = process_task
   )
 })
 
 diagnostics <- bind_rows(lapply(tasks, \(t) collect_mirai(t)))
 write_parquet(diagnostics, "data/task_diagnostics.parquet")
+
 daemons(0)
