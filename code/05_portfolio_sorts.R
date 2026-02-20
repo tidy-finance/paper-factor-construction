@@ -1,42 +1,28 @@
 library(dplyr)
-library(lubridate)
 library(arrow)
 library(tidyr)
 library(tidyfinance)
-
 library(mirai)
 daemons(future::availableCores() - 1)
+
+# Push packages to workers
+mirai::everywhere({
+  library(dplyr)
+  library(arrow)
+  library(tidyfinance)
+  library(tidyr)
+})
 
 sv_directions <- read_parquet("data/sorting_variable_information.parquet") |>
   select(sorting_variable, direction)
 
-full_grid <- read_parquet("data/portfolio_sort_grid.parquet") |>
-  inner_join(sv_directions, join_by(sorting_variable))
-
-set.seed(1234)
-grid <- full_grid |>
-  group_by(sorting_variable, sorting_variable_lag) |> # TODO: Parallel across sv and lag datasets to prevent multiple reading of the same data
-  slice_sample(n = 5) |>
+grid <- read_parquet("data/portfolio_sort_grid.parquet") |>
+  inner_join(sv_directions, join_by(sorting_variable)) |>
+  group_by(sorting_variable, sorting_variable_lag) |>
   mutate(task_id = row_number())
 
-read_sorting_data <- function(lag_label, sorting_variables) {
-  path <- file.path(
-    "data",
-    paste0("sorting_variables_lag_", lag_label, ".parquet")
-  )
-  open_dataset(path) |>
-    select(
-      permno,
-      date,
-      ret_excess,
-      exchange,
-      industry,
-      filter_earnings,
-      mktcap_lag,
-      all_of(sorting_variables)
-    ) |>
-    collect()
-}
+groups <- group_split(grid)
+keys <- group_keys(grid)
 
 process_task <- function(row, sorting_data) {
   start <- Sys.time()
@@ -88,12 +74,14 @@ process_task <- function(row, sorting_data) {
 
         rebalancing_month <- if (row$rebalancing == "monthly") NULL else 7
 
+        breakpoint_exchanges <- strsplit(
+          row$breakpoints_exchanges,
+          split = "\\|"
+        )[[1]]
+
         options_main <- breakpoint_options(
           n_portfolios = row$breakpoints_main,
-          breakpoint_exchanges = strsplit(
-            row$breakpoints_exchanges,
-            split = "\\|"
-          )[[1]]
+          breakpoint_exchanges = breakpoint_exchanges
         )
 
         options_secondary <- NULL
@@ -102,13 +90,9 @@ process_task <- function(row, sorting_data) {
           sorting_variables <- c(sorting_variables, "mktcap_lag")
           options_secondary <- breakpoint_options(
             n_portfolios = row$breakpoints_secondary,
-            breakpoint_exchanges = strsplit(
-              row$breakpoints_exchanges,
-              split = "\\|"
-            )[[1]]
+            breakpoint_exchanges = breakpoint_exchanges
           )
         }
-        # TODO: I removed manual min_portfolio_size filter as we use it in compute_portfolio_returns
         min_portfolio_size <- 10
 
         cpr_start <- Sys.time()
@@ -119,7 +103,7 @@ process_task <- function(row, sorting_data) {
           rebalancing_month,
           options_main,
           options_secondary,
-          min_portfolio_size = 10
+          min_portfolio_size = min_portfolio_size
         )
         state$cpr_elapsed <- as.numeric(difftime(
           Sys.time(),
@@ -177,29 +161,30 @@ process_task <- function(row, sorting_data) {
   }
 }
 
-groups <- group_split(grid)
-keys <- group_keys(grid)
-
 tasks <- lapply(seq_along(groups), \(i) {
   mirai(
     {
-      library(dplyr)
-      library(tidyr)
-      library(tidyfinance)
-      library(glue)
-      library(arrow)
-
-      .group_data <- groups[[i]]
-      .group_key <- keys[i, ]
-
-      message(glue(
-        "Processing: {.group_key$sorting_variable} (lag: {.group_key$sorting_variable_lag}, {nrow(.group_data)} tasks)"
-      ))
-
-      sv_lag_data <- read_sorting_data(
-        lag_label = .group_key$sorting_variable_lag,
-        sorting_variables = .group_key$sorting_variable
+      path <- file.path(
+        "data",
+        paste0(
+          "sorting_variables_lag_",
+          .group_key$sorting_variable_lag,
+          ".parquet"
+        )
       )
+
+      sv_lag_data <- open_dataset(path) |>
+        select(
+          permno,
+          date,
+          ret_excess,
+          exchange,
+          industry,
+          filter_earnings,
+          mktcap_lag,
+          all_of(.group_key$sorting_variable)
+        ) |>
+        collect()
 
       rows <- split(.group_data, seq_len(nrow(.group_data)))
       results <- lapply(seq_along(rows), \(j) {
@@ -222,15 +207,12 @@ tasks <- lapply(seq_along(groups), \(i) {
 
       bind_rows(lapply(results, \(r) r$diagnostics))
     },
-    groups = groups,
-    keys = keys,
-    i = i,
-    read_sorting_data = read_sorting_data,
+    .group_data = groups[[i]],
+    .group_key = keys[i, ],
     process_task = process_task
   )
 })
 
 diagnostics <- bind_rows(lapply(tasks, \(t) collect_mirai(t)))
-daemons(0)
-
 write_parquet(diagnostics, "data/task_diagnostics.parquet")
+daemons(0)
