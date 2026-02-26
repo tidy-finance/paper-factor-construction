@@ -36,13 +36,14 @@ diagnostics |>
   slice(1) |>
   pull(warnings)
 
-# TODO: resolve warnings
-# Caused by warning:\n! The number of portfolios differs from the specified
-# parameter due to clusters\nin the sorting variable.
-# The sorting variable is constant and only one portfolio is returned.
+# TODO: resolve warnings - maybe we should not compute portfolio returns for
+# these cases?
+# "The number of portfolios differs from the specified parameter due to clusters\nin the sorting variable."
+# "The sorting variable is constant and only one portfolio is returned."
 diagnostics |>
   mutate(
+    has_errored = status != "success",
     cluster_warning = str_detect(warnings, "clusters\nin the sorting variable"),
     constant_warning = str_detect(warnings, "sorting variable is constant")
   ) |>
-  count(cluster_warning, constant_warning)
+  count(has_errored, cluster_warning, constant_warning)
