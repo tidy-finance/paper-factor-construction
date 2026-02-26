@@ -110,10 +110,10 @@ grid <- grid |>
 grid <- grid |>
   filter(!(sorting_variable == "sv_em" & exclude_negative_earnings == FALSE))
 
+# id is used for parallelization later
 grid <- grid |>
   arrange(sorting_variable_lag, sorting_variable) |>
-  rowid_to_column(var = "id") |>
-  mutate(task_id = row_number())
+  rowid_to_column(var = "id")
 
 write_parquet(
   grid,
