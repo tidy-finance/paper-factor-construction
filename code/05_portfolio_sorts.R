@@ -9,7 +9,6 @@ full_grid <- read_parquet("data/portfolio_sort_grid.parquet")
 
 set.seed(1234)
 grid <- full_grid |>
-  mutate(task_id = row_number()) |>
   slice_sample(n = 100)
 
 sv_directions <- read_parquet("data/sorting_variable_information.parquet") |>
