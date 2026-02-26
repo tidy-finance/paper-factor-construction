@@ -80,8 +80,7 @@ full_grid <- expand_grid(
   breakpoints_secondary = c(2, 5),
   breakpoints_exchanges = c("NYSE", "AMEX|NASDAQ|NYSE"),
   weighting_scheme = c("EW", "VW")
-) |>
-  mutate(task_id = row_number())
+)
 
 # Revise breakpoints_secondary
 
@@ -113,7 +112,8 @@ grid <- grid |>
 
 grid <- grid |>
   arrange(sorting_variable_lag, sorting_variable) |>
-  rowid_to_column(var = "id")
+  rowid_to_column(var = "id") |>
+  mutate(task_id = row_number())
 
 write_parquet(
   grid,
