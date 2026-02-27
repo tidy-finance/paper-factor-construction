@@ -8,13 +8,17 @@ date_end <- as.Date("2024-12-31")
 
 download_data(
   domain = "factors_ff",
-  dataset = "Fama/French 5 Factors (2x3)"
+  dataset = "Fama/French 5 Factors (2x3)",
+  start_date = date_start,
+  end_date = date_end
 ) |>
   write_parquet("data/factors_ff_3_monthly.parquet")
 
 download_data(
   domain = "factors_ff",
-  dataset = "Fama/French 5 Factors (2x3) [Daily]"
+  dataset = "Fama/French 5 Factors (2x3) [Daily]",
+  start_date = date_start,
+  end_date = date_end
 ) |>
   write_parquet("data/factors_ff_3_daily.parquet")
 
