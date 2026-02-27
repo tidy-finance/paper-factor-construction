@@ -3,8 +3,6 @@ library(tidyr)
 library(tibble)
 library(arrow)
 
-source("code/00_global_options.R")
-
 sorting_variable_information <- tribble(
   ~sorting_variable , ~full_name                                , ~direction         ,
   "mom"             , "Momentum"                                , "top_minus_bottom" ,
@@ -112,6 +110,7 @@ grid <- grid |>
 grid <- grid |>
   filter(!(sorting_variable == "sv_em" & exclude_negative_earnings == FALSE))
 
+# id is used for parallelization later
 grid <- grid |>
   arrange(sorting_variable_lag, sorting_variable) |>
   rowid_to_column(var = "id")

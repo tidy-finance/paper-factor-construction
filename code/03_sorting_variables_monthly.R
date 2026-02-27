@@ -126,8 +126,8 @@ crsp_monthly <- crsp_monthly |>
       pick(everything()),
       .f = ~ (prod(1 + .x$int_roll_residual) - 1) / sd(.x$int_roll_residual),
       period = "month",
-      periods = 12,
-      min_obs = 12
+      periods = 11,
+      min_obs = 11
     )
   ) |>
   select(-ret_gross) |>
