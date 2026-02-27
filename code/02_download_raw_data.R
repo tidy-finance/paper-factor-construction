@@ -25,13 +25,13 @@ download_data(
 crsp_monthly <- download_data(
   domain = "wrds",
   dataset = "crsp_monthly",
-  version = "v1",
+  version = "v2",
   start_date = date_start,
   end_date = date_end,
-  additional_columns = c("retx", "cfacpr"),
+  additional_columns = c("mthretx"),
   add_ccm_links = TRUE
 ) |>
-  select(-cfacpr) |>
+  rename(retx = mthretx) |>
   mutate(exchange = as.factor(exchange), industry = as.factor(industry))
 
 write_parquet(crsp_monthly, "data/crsp_monthly.parquet")
@@ -39,14 +39,22 @@ write_parquet(crsp_monthly, "data/crsp_monthly.parquet")
 crsp_daily <- download_data(
   domain = "wrds",
   dataset = "crsp_daily",
-  version = "v1",
+  version = "v2",
   start_date = date_start,
   end_date = date_end,
   batch_size = 500,
-  additional_columns = c("shrout", "prc", "vol", "cfacpr", "ret", "exchcd"),
+  additional_columns = c("shrout", "dlyprc", "facprc"),
   adjust_volume = TRUE
 ) |>
-  select(-exchcd, -vol)
+  rename(prc = dlyprc)
+
+# Routine to compute cumulative price adjustment factor for daily data
+crsp_daily <- crsp_daily |>
+    arrange(date) |>
+    group_by(permno) |> 
+    mutate(cfacpr = cumprod(facprc)) |>
+    ungroup() |> 
+    select(-facprc)
 
 write_parquet(crsp_daily, "data/crsp_daily.parquet")
 
