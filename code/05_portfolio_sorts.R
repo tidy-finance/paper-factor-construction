@@ -1,46 +1,27 @@
 library(dplyr)
-library(lubridate)
 library(arrow)
 library(tidyr)
 library(tidyfinance)
-library(furrr)
+library(mirai)
+daemons(future::availableCores() - 1)
 
-full_grid <- read_parquet("data/portfolio_sort_grid.parquet")
-
-set.seed(1234)
-grid <- full_grid |>
-  slice_sample(n = 100)
+# Push packages to workers
+mirai::everywhere({
+  library(dplyr)
+  library(arrow)
+  library(tidyfinance)
+  library(tidyr)
+})
 
 sv_directions <- read_parquet("data/sorting_variable_information.parquet") |>
   select(sorting_variable, direction)
 
-grid <- grid |>
-  inner_join(sv_directions, join_by(sorting_variable))
+grid <- read_parquet("data/portfolio_sort_grid.parquet") |>
+  inner_join(sv_directions, join_by(sorting_variable)) |>
+  group_by(sorting_variable, sorting_variable_lag) |>
+  mutate(task_id = row_number())
 
-# Helper to read sorting data --------------------------------------------
-
-read_sorting_data <- function(lag_label, sorting_variables) {
-  path <- file.path(
-    "data",
-    paste0("sorting_variables_lag_", lag_label, ".parquet")
-  )
-  open_dataset(path) |>
-    select(
-      permno,
-      date,
-      ret_excess,
-      exchange,
-      industry,
-      filter_earnings,
-      mktcap_lag,
-      all_of(sorting_variables)
-    ) |>
-    collect()
-}
-
-# Helper to process individual task --------------------------------------
-
-process_task <- function(row, sorting_data_cache) {
+process_task <- function(row, sorting_data) {
   start <- Sys.time()
 
   warnings_collected <- character(0)
@@ -50,7 +31,7 @@ process_task <- function(row, sorting_data_cache) {
   result <- tryCatch(
     withCallingHandlers(
       {
-        sorting_data <- sorting_data_cache[[row$sorting_variable_lag]]
+        sorting_variables <- grep("sv_", names(sorting_data), value = TRUE)
 
         if (row$exclude_size != 0) {
           sorting_data <- sorting_data |>
@@ -82,41 +63,31 @@ process_task <- function(row, sorting_data_cache) {
             permno,
             date,
             ret_excess,
-            all_of(row$sorting_variable),
+            contains("sv_"),
             exchange,
             mktcap_lag
           ) |>
-          drop_na(all_of(row$sorting_variable))
+          drop_na(all_of(sorting_variables))
 
         rebalancing_month <- if (row$rebalancing == "monthly") NULL else 7
+        bp_exchanges <- strsplit(row$breakpoints_exchanges, split = "\\|")[[1]]
 
         options_main <- breakpoint_options(
           n_portfolios = row$breakpoints_main,
-          breakpoint_exchanges = strsplit(
-            row$breakpoints_exchanges,
-            split = "\\|"
-          )[[1]]
+          breakpoint_exchanges = bp_exchanges
         )
 
-        sorting_variables <- row$sorting_variable
         options_secondary <- NULL
 
         if (row$sorting_method != "univariate") {
-          sorting_variables <- c(row$sorting_variable, "mktcap_lag")
+          sorting_variables <- c(sorting_variables, "mktcap_lag")
           options_secondary <- breakpoint_options(
             n_portfolios = row$breakpoints_secondary,
-            breakpoint_exchanges = strsplit(
-              row$breakpoints_exchanges,
-              split = "\\|"
-            )[[1]]
+            breakpoint_exchanges = bp_exchanges
           )
         }
 
         min_portfolio_size <- 10
-        sorting_data <- sorting_data |>
-          group_by(date) |>
-          filter(n() >= min_portfolio_size) |>
-          ungroup()
 
         cpr_start <- Sys.time()
         portfolio_returns <- compute_portfolio_returns(
@@ -184,63 +155,59 @@ process_task <- function(row, sorting_data_cache) {
   }
 }
 
-# Parallelization --------------------------------------------------------
-
-# NOTE: multicore only works on UNIX-based systems and leverages the benefit of
-# shared memory across tasks.
-plan(multicore, workers = availableCores() - 1)
-
-sorting_variable_groups <- split(grid, grid$sorting_variable)
-
-total_start <- Sys.time()
-diagnostics <- bind_rows(lapply(names(sorting_variable_groups), function(sv) {
-  sv_grid <- sorting_variable_groups[[sv]]
-
-  message("Processing sorting variable: ", sv, " (", nrow(sv_grid), " tasks)")
-
-  required_lags <- unique(sv_grid$sorting_variable_lag)
-
-  bind_rows(lapply(required_lags, function(lag_label) {
-    lag_grid <- sv_grid |> filter(sorting_variable_lag == lag_label)
-
-    message("  Lag: ", lag_label, " (", nrow(lag_grid), " tasks)")
-
-    sv_cache <- setNames(
-      list(read_sorting_data(
-        lag_label,
-        sorting_variables = unique(lag_grid$sorting_variable)
-      )),
-      lag_label
-    )
-
-    lag_rows <- split(lag_grid, seq_len(nrow(lag_grid)))
-
-    results <- future_map(
-      lag_rows,
-      \(row) process_task(row, sv_cache),
-      .progress = TRUE
-    )
-
-    all_returns <- bind_rows(lapply(results, \(r) r$returns))
-    if (nrow(all_returns) > 0) {
-      all_returns |>
-        group_by(sorting_variable) |>
-        write_dataset(
-          path = "data/portfolio_returns",
-          format = "parquet",
-          existing_data_behavior = "delete_matching"
+tasks <- lapply(seq_along(group_split(grid)), \(i) {
+  mirai(
+    {
+      path <- file.path(
+        "data",
+        paste0(
+          "sorting_variables_lag_",
+          .group_key$sorting_variable_lag,
+          ".parquet"
         )
-    }
+      )
 
-    diag <- bind_rows(lapply(results, \(r) r$diagnostics))
+      sv_lag_data <- open_dataset(path) |>
+        select(
+          permno,
+          date,
+          ret_excess,
+          exchange,
+          industry,
+          filter_earnings,
+          mktcap_lag,
+          all_of(.group_key$sorting_variable)
+        ) |>
+        collect()
 
-    rm(sv_cache, results, all_returns)
-    gc()
+      rows <- split(.group_data, seq_len(nrow(.group_data)))
+      results <- lapply(seq_along(rows), \(j) {
+        process_task(rows[[j]], sv_lag_data)
+      })
 
-    diag
-  }))
-}))
-elapsed <- Sys.time() - total_start
-message("Total: ", format(elapsed))
+      all_returns <- bind_rows(lapply(results, \(r) r$returns))
+      if (nrow(all_returns) > 0) {
+        all_returns |>
+          group_by(
+            sorting_variable,
+            sorting_variable_lag = .group_key$sorting_variable_lag
+          ) |>
+          write_dataset(
+            path = "data/portfolio_returns",
+            format = "parquet",
+            existing_data_behavior = "overwrite"
+          )
+      }
 
+      bind_rows(lapply(results, \(r) r$diagnostics))
+    },
+    .group_data = group_split(grid)[[i]],
+    .group_key = group_keys(grid)[i, ],
+    process_task = process_task
+  )
+})
+
+diagnostics <- bind_rows(lapply(tasks, \(t) collect_mirai(t)))
 write_parquet(diagnostics, "data/task_diagnostics.parquet")
+
+daemons(0)
