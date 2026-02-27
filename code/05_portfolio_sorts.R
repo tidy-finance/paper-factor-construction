@@ -18,8 +18,7 @@ sv_directions <- read_parquet("data/sorting_variable_information.parquet") |>
 
 grid <- read_parquet("data/portfolio_sort_grid.parquet") |>
   inner_join(sv_directions, join_by(sorting_variable)) |>
-  group_by(sorting_variable, sorting_variable_lag) |>
-  mutate(task_id = row_number())
+  group_by(sorting_variable, sorting_variable_lag)
 
 process_task <- function(row, sorting_data) {
   start <- Sys.time()
@@ -132,7 +131,7 @@ process_task <- function(row, sorting_data) {
     list(
       returns = result,
       diagnostics = tibble(
-        task_id = row$task_id,
+        id = row$id,
         status = "success",
         elapsed_secs = elapsed,
         cpr_elapsed_secs = state$cpr_elapsed,
@@ -144,7 +143,7 @@ process_task <- function(row, sorting_data) {
     list(
       returns = NULL,
       diagnostics = tibble(
-        task_id = row$task_id,
+        id = row$id,
         status = paste("error:", as.character(result)),
         elapsed_secs = elapsed,
         cpr_elapsed_secs = state$cpr_elapsed,
