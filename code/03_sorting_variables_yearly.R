@@ -78,15 +78,6 @@ compustat_annual <- compustat_annual |>
   ) |>
   rename(int_me = mktcap)
 
-# Winsorization
-# TODO: Patrick needs to explain why one variable is winsoized by group and the
-# others are not
-compustat_annual <- compustat_annual |>
-  group_by(year = year(datadate)) |>
-  mutate(int_rer = winsorize(int_rer, 0.01)) |>
-  ungroup() |>
-  mutate(across(int_o_1:int_o_7, ~ winsorize(.x, 0.01)))
-
 # Lag certain variables
 compustat_annual <- compustat_annual |>
   add_lag_columns(
