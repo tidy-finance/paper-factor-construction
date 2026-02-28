@@ -6,7 +6,6 @@ library(arrow)
 library(slider)
 library(tidyfinance)
 
-source("code/00_global_options.R")
 min_analysis_date <- as.Date("1972-01-01")
 
 cluster <- new_cluster(parallel::detectCores() - 1)

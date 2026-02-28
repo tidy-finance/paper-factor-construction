@@ -4,8 +4,6 @@ library(lubridate)
 library(tidyfinance)
 library(arrow)
 
-source("code/00_global_options.R")
-
 compustat_annual <- open_dataset("data/compustat_annual.parquet")
 
 crsp_monthly <- open_dataset("data/crsp_monthly.parquet")
