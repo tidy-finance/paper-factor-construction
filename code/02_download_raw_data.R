@@ -6,30 +6,32 @@ library(arrow)
 date_start <- as.Date("1960-01-01")
 date_end <- as.Date("2024-12-31")
 
-source("code/00_global_options.R")
-
 download_data(
   domain = "factors_ff",
-  dataset = "Fama/French 5 Factors (2x3)"
+  dataset = "Fama/French 5 Factors (2x3)",
+  start_date = date_start,
+  end_date = date_end
 ) |>
   write_parquet("data/factors_ff_3_monthly.parquet")
 
 download_data(
   domain = "factors_ff",
-  dataset = "Fama/French 5 Factors (2x3) [Daily]"
+  dataset = "Fama/French 5 Factors (2x3) [Daily]",
+  start_date = date_start,
+  end_date = date_end
 ) |>
   write_parquet("data/factors_ff_3_daily.parquet")
 
 crsp_monthly <- download_data(
   domain = "wrds",
   dataset = "crsp_monthly",
-  version = "v1",
+  version = "v2",
   start_date = date_start,
   end_date = date_end,
-  additional_columns = c("retx", "cfacpr"),
+  additional_columns = c("mthretx"),
   add_ccm_links = TRUE
 ) |>
-  select(-cfacpr) |>
+  rename(retx = mthretx) |>
   mutate(exchange = as.factor(exchange), industry = as.factor(industry))
 
 write_parquet(crsp_monthly, "data/crsp_monthly.parquet")
@@ -37,14 +39,22 @@ write_parquet(crsp_monthly, "data/crsp_monthly.parquet")
 crsp_daily <- download_data(
   domain = "wrds",
   dataset = "crsp_daily",
-  version = "v1",
+  version = "v2",
   start_date = date_start,
   end_date = date_end,
   batch_size = 500,
-  additional_columns = c("shrout", "prc", "vol", "cfacpr", "ret", "exchcd"),
+  additional_columns = c("shrout", "dlyprc", "facprc"),
   adjust_volume = TRUE
 ) |>
-  select(-exchcd, -vol)
+  rename(prc = dlyprc)
+
+# Routine to compute cumulative price adjustment factor for daily data
+crsp_daily <- crsp_daily |>
+    arrange(date) |>
+    group_by(permno) |> 
+    mutate(cfacpr = cumprod(facprc)) |>
+    ungroup() |> 
+    select(-facprc)
 
 write_parquet(crsp_daily, "data/crsp_daily.parquet")
 
