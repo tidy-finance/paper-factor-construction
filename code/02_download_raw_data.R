@@ -44,10 +44,9 @@ crsp_daily <- download_data(
   additional_columns = c("shrout", "dlyprc"),
   adjust_volume = TRUE
 ) |>
-  rename(prc = dlyprc)
+  rename(prc = dlyprc, facprc = dlyfacprc)
 
 write_parquet(crsp_daily, "data/crsp_daily.parquet")
-
 
 compustat_annual <- download_data(
   domain = "wrds",
