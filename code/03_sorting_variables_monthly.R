@@ -301,7 +301,7 @@ crsp_monthly <- crsp_monthly |>
 # Main variables
 sorting_variables_monthly <- crsp_monthly |>
   mutate(
-    sv_csi = log(int_me / int_me_lag5y) - log(int_roll_ret_5y),
+    sv_csi = log(int_me / int_me_lag5y) - log(1 + int_roll_ret_5y),
     sv_mom = int_roll_ret_11m_lag,
     sv_rmom = int_rmom_11m_lag,
     sv_52w = prc_adj / int_max_price_month_52w,
