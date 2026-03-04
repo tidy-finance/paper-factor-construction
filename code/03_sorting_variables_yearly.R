@@ -37,6 +37,7 @@ compustat_annual <- compustat_annual |>
       (fatb + fatl) / ppegt
     ),
     int_sic_2 = substr(siccd, 0, 2),
+    # Minimum sales threshold to avoid extreme capex/sales ratios
     int_ce = if_else(sale >= 10, capx / sale, NA_real_),
     int_noa = (at - che) -
       (at -
@@ -51,10 +52,10 @@ compustat_annual <- compustat_annual |>
     int_o_2 = (dlc + dltt) / at,
     int_o_3 = (act - lct) / at,
     int_o_4 = lct / at,
-    int_o_5 = (lt > at),
+    int_o_5 = as.numeric(lt > at),
     int_o_6 = ni / at,
     int_o_7 = (pi + dp) / lt,
-    int_o_ni_negative = (ni < 0),
+    int_o_ni_negative = as.numeric(ni < 0),
     int_op = revt -
       replace_na(cogs, 0) -
       replace_na(xsga, 0) -
@@ -110,7 +111,8 @@ compustat_annual <- compustat_annual |>
     lag = years(1),
     by = "gvkey"
   ) |>
-  rename_with(contains("lag"), .fn = ~ paste0(.x, "1"))
+  # Append "1" to lag suffix to indicate 1-year lag (e.g., ceq_lag -> ceq_lag1)
+  rename_with(ends_with("_lag"), .fn = ~ paste0(.x, "1"))
 
 ## Two year lag
 compustat_annual <- compustat_annual |>
@@ -145,6 +147,7 @@ compustat_annual_industry <- compustat_annual |>
   drop_na() |>
   group_by(year, int_sic_2) |>
   summarize(
+    # Minimum firms per industry-year for meaningful industry average
     int_rer_industry = if_else(n() >= 5, mean(int_rer), NA_real_),
     .groups = "drop"
   )
@@ -157,7 +160,9 @@ compustat_annual <- compustat_annual |>
     relationship = "many-to-one"
   )
 
-# Main variables ----------------------------------------------------------
+# Sorting variables -------------------------------------------------------
+
+# Financing & issuance
 sorting_variables_yearly <- compustat_annual |>
   mutate(
     sv_cdi = log(int_td) - log(int_td_lag5),
@@ -166,7 +171,11 @@ sorting_variables_yearly <- compustat_annual |>
     sv_dfnl = (int_fnl - int_fnl_lag1) / at_lag1,
     sv_ndf = (dltis - dltr + replace_na(dlcch, 0)) / (1 / 2 * (at + at_lag1)),
     sv_nef = (sstk - prstkc - dv) / (1 / 2 * (at + at_lag1)),
-    sv_nxf = sv_ndf + sv_nef,
+    sv_nxf = sv_ndf + sv_nef
+  ) |>
+
+  # Growth & labor
+  mutate(
     sv_hr = (emp - emp_lag1) / (1 / 2 * (emp + emp_lag1)),
     sv_ol = (cogs + xsga) / at,
     sv_rer = int_rer - int_rer_industry,
@@ -182,7 +191,11 @@ sorting_variables_yearly <- compustat_annual |>
       year < 1988,
       (int_oa_helper - int_oa_helper_lag1 - dp) / at_lag1,
       (ni - oancf) / at_lag1
-    ),
+    )
+  ) |>
+
+  # Profitability
+  mutate(
     sv_cbop = (revt -
       cogs -
       xsga +
@@ -204,10 +217,14 @@ sorting_variables_yearly <- compustat_annual |>
       1.720 * int_o_5 -
       2.370 * int_o_6 -
       1.830 * int_o_7 +
-      0.285 * (int_o_ni_negative & int_o_ni_negative_lag1) -
+      0.285 * as.numeric(int_o_ni_negative & int_o_ni_negative_lag1) -
       0.521 * winsorize((ni - ni_lag1) / (abs(ni) + abs(ni_lag1)), 0.01),
     sv_ope = int_op / int_be,
-    sv_tbi = if_else(pi > 0 & ni > 0, pi / ni, NA_real_),
+    sv_tbi = if_else(pi > 0 & ni > 0, pi / ni, NA_real_)
+  ) |>
+
+  # Valuation
+  mutate(
     sv_bm = int_be / int_me,
     sv_cfm = if_else((ib + dp) > 0, (ib + dp) / int_me, NA_real_),
     sv_dm = (dlc + dltt) / int_me,
@@ -232,17 +249,18 @@ sorting_variables_yearly <- compustat_annual |>
     filter_earnings = ib
   )
 
-# Remove Inf and NaN
+# Remove Inf, NaN, and sign-convention exclusions
 sorting_variables_yearly <- sorting_variables_yearly |>
   mutate(
+    # Zero hiring rate typically indicates missing employment data
     sv_hr = na_if(sv_hr, 0),
+    # Negative net payout yield indicates net issuance; excluded by construction
     sv_npy = if_else(sv_npy < 0, NA_real_, sv_npy),
+    # Negative operating cash flow to market excluded by construction
     sv_ocm = if_else(sv_ocm < 0, NA_real_, sv_ocm)
   ) |>
   mutate(
-    across(starts_with("sv_"), ~ na_if(., Inf)),
-    across(starts_with("sv_"), ~ na_if(., -Inf)),
-    across(starts_with("sv_"), ~ if_else(is.nan(.x), NA_real_, .x))
+    across(starts_with("sv_"), ~ if_else(is.finite(.x), .x, NA_real_))
   )
 
 sorting_variables_yearly <- sorting_variables_yearly |>

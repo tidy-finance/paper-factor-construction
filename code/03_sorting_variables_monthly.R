@@ -26,8 +26,7 @@ crsp_monthly_liquidity <- crsp_daily |>
     int_daily_dollar_volume = (abs(prc) * vol_adj),
     int_daily_turnover = vol_adj / shrout,
     int_amihud = abs(ret_excess) / int_daily_dollar_volume,
-    int_amihud = if_else(is.nan(int_amihud), NA_real_, int_amihud),
-    int_amihud = if_else(is.infinite(int_amihud), NA_real_, int_amihud)
+    int_amihud = if_else(is.finite(int_amihud), int_amihud, NA_real_)
   ) |>
   select(
     permno,
@@ -36,7 +35,7 @@ crsp_monthly_liquidity <- crsp_daily |>
     int_daily_turnover,
     int_amihud
   ) |>
-  filter(across(everything(), ~ !is.na(.))) |>
+  drop_na() |>
   group_by(permno, date = floor_date(date, "month")) |>
   summarize(
     int_amihud = sum(int_amihud),
@@ -169,12 +168,12 @@ crsp_monthly <- crsp_monthly |>
 
 # Rolling maximum
 
+# Minimum daily price observations per month to compute monthly max
 min_obs_for_max_price <- 3
-# Compute monthly max
 crsp_maxima <- crsp_daily |>
   select(permno, date, prc_adj) |>
   arrange(permno, date) |>
-  filter(across(everything(), ~ !is.na(.x))) |>
+  drop_na() |>
   group_by(permno, date = floor_date(date, "month")) |>
   summarise(
     int_max_price_month = if_else(
@@ -218,6 +217,7 @@ crsp_monthly <- crsp_monthly |>
       complete = FALSE,
       na_rm = TRUE
     ),
+    # Require at least 50 daily observations over the 6-month rolling window
     int_rolling_daily_obs = if_else(
       int_rolling_daily_obs < 50,
       NA,
@@ -235,14 +235,16 @@ crsp_monthly <- crsp_monthly |>
       int_daily_dollar_volume,
       date,
       before = months(6 - 1),
-      complete = FALSE
+      complete = FALSE,
+      na_rm = TRUE
     ) /
       int_rolling_daily_obs,
-    int_daily_turnover = slide_index_sum(
+    int_rolling_turnover = slide_index_sum(
       int_daily_turnover,
       date,
       before = months(6 - 1),
-      complete = FALSE
+      complete = FALSE,
+      na_rm = TRUE
     ) /
       int_rolling_daily_obs
   ) |>
@@ -255,6 +257,7 @@ crsp_daily_aggregation <- crsp_daily |>
   mutate(date = floor_date(date, "month")) |>
   select(permno, date, ret_excess, mkt_excess, smb, hml)
 
+# Minimum daily observations to estimate within-month regressions
 min_daily_obs_per_month <- 15
 
 permno_month_combinations <- crsp_daily_aggregation |>
@@ -290,7 +293,7 @@ aggregation_data_all <- crsp_daily_aggregation |>
   collect() |>
   ungroup()
 
-# Merge into monthly sorting variable dataset
+# TODO: Verify if full_join is intended — left_join would preserve only the crsp_monthly universe
 crsp_monthly <- crsp_monthly |>
   full_join(
     aggregation_data_all,
@@ -311,7 +314,7 @@ sorting_variables_monthly <- crsp_monthly |>
     sv_iskew = int_res_iskew,
     sv_ivol = int_res_ivol,
     sv_mdr = int_max_ret,
-    sv_tur = int_daily_turnover,
+    sv_tur = int_rolling_turnover,
     sv_me = log(mktcap * 10^6),
     sv_rev = int_roll_ret_47m_lag
   )
@@ -321,9 +324,7 @@ sorting_variables_monthly <- crsp_monthly |>
 # Remove Inf and NaN
 sorting_variables_monthly <- sorting_variables_monthly |>
   mutate(
-    across(starts_with("sv_"), ~ na_if(., Inf)),
-    across(starts_with("sv_"), ~ na_if(., -Inf)),
-    across(starts_with("sv_"), ~ if_else(is.nan(.x), NA_real_, .x))
+    across(starts_with("sv_"), ~ if_else(is.finite(.x), .x, NA_real_))
   )
 
 # Create column with stock_age to filter later

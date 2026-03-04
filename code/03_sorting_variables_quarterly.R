@@ -6,13 +6,13 @@ library(arrow)
 library(slider)
 library(tidyfinance)
 
+# Quarterly Compustat data quality is insufficient before 1972
 min_analysis_date <- as.Date("1972-01-01")
 
 cluster <- new_cluster(parallel::detectCores() - 1)
 cluster_library(cluster, c("tidyfinance", "dplyr"))
 
 compustat_quarterly <- open_dataset("data/compustat_quarterly.parquet")
-
 
 crsp_monthly <- open_dataset("data/crsp_monthly.parquet")
 
@@ -49,27 +49,34 @@ compustat_quarterly <- compustat_quarterly |>
   ) |>
   rename(int_rps_lag4 = int_rps_lag, int_sue_lag4 = int_sue_lag)
 
+# Compute standardized seasonal surprise for a quarterly variable.
+# Uses year-over-year change (4-quarter delta), standardized by the rolling
+# standard deviation of deltas over the past 8 quarters (min 6 required).
+compute_standardized_surprise <- function(data, delta_col, output_col, cluster) {
+  data |>
+    arrange(gvkey, date) |>
+    group_by(gvkey) |>
+    partition(cluster) |>
+    mutate(int_delta = {{ delta_col }}) |>
+    filter(!is.na(int_delta)) |>
+    mutate(
+      {{ output_col }} := compute_rolling_value(
+        pick(everything()),
+        .f = ~ last(.x$int_delta) / sd(.x$int_delta),
+        period = "quarter",
+        periods = 8,
+        min_obs = 6
+      )
+    ) |>
+    ungroup() |>
+    collect() |>
+    select(gvkey, date, {{ output_col }})
+}
+
 # Revenue surprise
-compustat_quarterly_rs <- compustat_quarterly |>
-  arrange(gvkey, date) |>
-  group_by(gvkey) |>
-  partition(cluster) |>
-  mutate(
-    int_rps_delta = int_rps - int_rps_lag4
-  ) |>
-  filter(!is.na(int_rps_delta)) |>
-  mutate(
-    sv_rs = compute_rolling_value(
-      pick(everything()),
-      .f = ~ last(.x$int_rps_delta) / sd(.x$int_rps_delta),
-      period = "quarter",
-      periods = 8,
-      min_obs = 6
-    )
-  ) |>
-  ungroup() |>
-  collect() |>
-  select(gvkey, date, sv_rs) |>
+compustat_quarterly_rs <- compute_standardized_surprise(
+  compustat_quarterly, int_rps - int_rps_lag4, sv_rs, cluster
+) |>
   filter(date >= min_analysis_date)
 
 compustat_quarterly <- compustat_quarterly |>
@@ -80,26 +87,9 @@ compustat_quarterly <- compustat_quarterly |>
   )
 
 # Standardized unexpected earnings
-compustat_quarterly_sue <- compustat_quarterly |>
-  arrange(gvkey, date) |>
-  group_by(gvkey) |>
-  partition(cluster) |>
-  mutate(
-    int_sue_delta = int_sue - int_sue_lag4
-  ) |>
-  filter(!is.na(int_sue_delta)) |>
-  mutate(
-    sv_sue = compute_rolling_value(
-      pick(everything()),
-      .f = ~ last(.x$int_sue_delta) / sd(.x$int_sue_delta),
-      period = "quarter",
-      periods = 8,
-      min_obs = 6
-    )
-  ) |>
-  ungroup() |>
-  collect() |>
-  select(gvkey, date, sv_sue) |>
+compustat_quarterly_sue <- compute_standardized_surprise(
+  compustat_quarterly, int_sue - int_sue_lag4, sv_sue, cluster
+) |>
   filter(date >= min_analysis_date)
 
 compustat_quarterly <- compustat_quarterly |>
@@ -118,9 +108,7 @@ sorting_variables_quarterly <- compustat_quarterly |>
 # Remove Inf and NaN
 sorting_variables_quarterly <- sorting_variables_quarterly |>
   mutate(
-    across(starts_with("sv_"), ~ na_if(., Inf)),
-    across(starts_with("sv_"), ~ na_if(., -Inf)),
-    across(starts_with("sv_"), ~ if_else(is.nan(.x), NA_real_, .x))
+    across(starts_with("sv_"), ~ if_else(is.finite(.x), .x, NA_real_))
   )
 
 sorting_variables_quarterly <- sorting_variables_quarterly |>
