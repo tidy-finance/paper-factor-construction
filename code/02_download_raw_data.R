@@ -31,8 +31,12 @@ crsp_monthly <- download_data(
   additional_columns = c("mthretx"),
   add_ccm_links = TRUE
 ) |>
+  # TODO: clarify wh
   rename(retx = mthretx) |>
-  mutate(exchange = as.factor(exchange), industry = as.factor(industry))
+  mutate(
+    exchange = as.factor(exchange),
+    industry = as.factor(industry)
+  )
 
 write_parquet(crsp_monthly, "data/crsp_monthly.parquet")
 
@@ -43,21 +47,27 @@ crsp_daily <- download_data(
   start_date = date_start,
   end_date = date_end,
   batch_size = 500,
-  additional_columns = c("shrout", "dlyprc", "facprc"),
-  adjust_volume = TRUE
+  additional_columns = c("shrout", "dlyprc", "dlyfacprc"),
+  adjust_volume = TRUE # TODO: implement volume adjustment for crsp_daily v2
 ) |>
-  rename(prc = dlyprc)
+  rename(prc = dlyprc, facprc = dlyfacprc)
 
 # Routine to compute cumulative price adjustment factor for daily data
+# TODO: migrate this step to r-tidyfinance for crsp_daily v2
 crsp_daily <- crsp_daily |>
-    arrange(date) |>
-    group_by(permno) |> 
-    mutate(cfacpr = cumprod(facprc)) |>
-    ungroup() |> 
-    select(-facprc)
+  group_by(permno) |>
+  arrange(date) |>
+  mutate(
+    cfacpr = cumprod(facprc)
+  ) |>
+  ungroup() |>
+  mutate(
+    prc_adj = abs(na_if(prc, 0)) / cfacpr,
+    prc_adj = if_else(is.infinite(prc_adj), NA_real_, prc_adj)
+  ) |>
+  select(-c(facprc, cfacpr))
 
 write_parquet(crsp_daily, "data/crsp_daily.parquet")
-
 
 compustat_annual <- download_data(
   domain = "wrds",
