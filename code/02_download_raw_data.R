@@ -22,7 +22,7 @@ download_data(
 ) |>
   write_parquet("data/factors_ff_3_daily.parquet")
 
-crsp_monthly <- download_data(
+download_data(
   domain = "wrds",
   dataset = "crsp_monthly",
   version = "v2",
@@ -30,23 +30,24 @@ crsp_monthly <- download_data(
   end_date = date_end,
   add_ccm_links = TRUE
 ) |>
-  mutate(exchange = as.factor(exchange), industry = as.factor(industry))
+  write_parquet("data/crsp_monthly.parquet")
 
-write_parquet(crsp_monthly, "data/crsp_monthly.parquet")
-
-crsp_daily <- download_data(
+download_data(
   domain = "wrds",
   dataset = "crsp_daily",
   version = "v2",
   start_date = date_start,
   end_date = date_end,
-  batch_size = 500,
-  additional_columns = c("shrout", "dlyprc"),
+  additional_columns = c(
+    "shrout",
+    "dlyprc",
+    "dlyvol",
+    "primaryexch",
+    "dlyfacprc"
+  ),
   adjust_volume = TRUE
 ) |>
-  rename(prc = dlyprc, facprc = dlyfacprc)
-
-write_parquet(crsp_daily, "data/crsp_daily.parquet")
+  write_parquet("data/crsp_daily.parquet")
 
 compustat_annual <- download_data(
   domain = "wrds",
@@ -109,8 +110,7 @@ compustat_annual <- download_data(
     "xrd"
   ),
   only_us = TRUE
-) |>
-  select(-curcd)
+)
 
 # Replace negative numbers with missing values
 compustat_annual <- compustat_annual |>
