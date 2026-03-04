@@ -31,8 +31,10 @@ crsp_monthly <- download_data(
   additional_columns = c("mthretx"),
   add_ccm_links = TRUE
 ) |>
-  # TODO: clarify wh
+  # TODO: clarify whether we should use retx anywhere
   rename(retx = mthretx) |>
+  # TODO: I don't see why these should be factors because they are de facto
+  # factors in Parquet files anyways
   mutate(
     exchange = as.factor(exchange),
     industry = as.factor(industry)
@@ -48,7 +50,7 @@ crsp_daily <- download_data(
   end_date = date_end,
   batch_size = 500,
   additional_columns = c("shrout", "dlyprc", "dlyfacprc"),
-  adjust_volume = TRUE # TODO: implement volume adjustment for crsp_daily v2
+  adjust_volume = TRUE # TODO: implement volume adjustment for crsp_daily v2 as well
 ) |>
   rename(prc = dlyprc, facprc = dlyfacprc)
 
