@@ -28,10 +28,8 @@ crsp_monthly <- download_data(
   version = "v2",
   start_date = date_start,
   end_date = date_end,
-  additional_columns = c("mthretx"),
   add_ccm_links = TRUE
 ) |>
-  rename(retx = mthretx) |>
   mutate(exchange = as.factor(exchange), industry = as.factor(industry))
 
 write_parquet(crsp_monthly, "data/crsp_monthly.parquet")
@@ -43,18 +41,10 @@ crsp_daily <- download_data(
   start_date = date_start,
   end_date = date_end,
   batch_size = 500,
-  additional_columns = c("shrout", "dlyprc", "facprc"),
+  additional_columns = c("shrout", "dlyprc"),
   adjust_volume = TRUE
 ) |>
   rename(prc = dlyprc)
-
-# Routine to compute cumulative price adjustment factor for daily data
-crsp_daily <- crsp_daily |>
-    arrange(date) |>
-    group_by(permno) |> 
-    mutate(cfacpr = cumprod(facprc)) |>
-    ungroup() |> 
-    select(-facprc)
 
 write_parquet(crsp_daily, "data/crsp_daily.parquet")
 
@@ -85,14 +75,10 @@ compustat_annual <- download_data(
     "emp",
     "fatb",
     "fatl",
-    "fincf",
     "fopt",
     "ib",
-    "ivncf",
     "invt",
     "itcb",
-    "ivao",
-    "ivst",
     "lct",
     "lt",
     "mib",
@@ -144,9 +130,6 @@ compustat_quarterly <- download_data(
   start_date = date_start,
   end_date = date_end,
   additional_columns = c(
-    "rdq",
-    "fyearq",
-    "fqtr",
     "curcdq",
     "ajexq",
     "atq",
