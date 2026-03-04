@@ -8,7 +8,6 @@ library(tidyfinance)
 library(multidplyr)
 library(moments)
 
-source("code/00_global_options.R")
 options(future.globals.maxSize = 1000 * 1024^2)
 
 crsp_monthly <- open_dataset("data/crsp_monthly.parquet") |>

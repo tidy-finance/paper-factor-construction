@@ -3,7 +3,6 @@ library(lubridate)
 library(arrow)
 library(tidyfinance)
 
-source("code/00_global_options.R")
 min_stock_age <- 2
 
 sorting_variables_yearly <- read_parquet(
