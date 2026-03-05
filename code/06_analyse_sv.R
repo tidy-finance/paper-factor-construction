@@ -1,4 +1,8 @@
-library(tidyverse)
+library(dplyr)
+library(tidyr)
+library(purrr)
+library(stringr)
+library(ggplot2)
 library(arrow)
 
 # Investigate cross-sections of sorting variables

@@ -799,6 +799,25 @@
       "Maintainer": "Matthew Lincoln <matthew.d.lincoln@gmail.com>",
       "Repository": "https://packagemanager.posit.co/cran/latest"
     },
+    "clisymbols": {
+      "Package": "clisymbols",
+      "Version": "1.2.0",
+      "Source": "Repository",
+      "Title": "Unicode Symbols at the R Prompt",
+      "Authors@R": "c( person(\"Gábor\", \"Csárdi\", , \"csardi.gabor@gmail.com\", role = c(\"aut\", \"cre\")), person(\"Sindre\", \"Sorhus\", role = \"aut\") )",
+      "Description": "A small subset of Unicode symbols, that are useful when building command line applications. They fall back to alternatives on terminals that do not support Unicode. Many symbols were taken from the 'figures' 'npm' package (see <https://github.com/sindresorhus/figures>).",
+      "License": "MIT + file LICENSE",
+      "URL": "https://github.com/gaborcsardi/clisymbols",
+      "BugReports": "https://github.com/gaborcsardi/clisymbols/issues",
+      "Suggests": [
+        "testthat"
+      ],
+      "Encoding": "UTF-8",
+      "NeedsCompilation": "no",
+      "Author": "Gábor Csárdi [aut, cre], Sindre Sorhus [aut]",
+      "Maintainer": "Gábor Csárdi <csardi.gabor@gmail.com>",
+      "Repository": "CRAN"
+    },
     "codetools": {
       "Package": "codetools",
       "Version": "0.2-20",
@@ -3908,6 +3927,42 @@
       "RemoteRef": "HEAD",
       "RemoteSha": "c10106e16813931033a701f2d038f0d76ecfe65d",
       "RemoteHost": "api.github.com"
+    },
+    "tidylog": {
+      "Package": "tidylog",
+      "Version": "1.1.0",
+      "Source": "Repository",
+      "Type": "Package",
+      "Title": "Logging for 'dplyr' and 'tidyr' Functions",
+      "Authors@R": "c( person(\"Benjamin\", \"Elbers\", email = \"elbersb@gmail.com\", role = c(\"aut\", \"cre\"), comment = c(ORCID = \"0000-0001-5392-3448\")), person(\"Damiano\", \"Oldoni\", email = \"damiano.oldoni@inbo.be\", role = c(\"ctb\"), comment = c(ORCID = \"0000-0003-3445-7562\")) )",
+      "Description": "Provides feedback about 'dplyr' and 'tidyr' operations.",
+      "License": "MIT + file LICENSE",
+      "Imports": [
+        "dplyr",
+        "tidyr",
+        "glue",
+        "clisymbols",
+        "rlang (>= 0.4.3)"
+      ],
+      "Suggests": [
+        "testthat",
+        "units",
+        "nycflights13",
+        "covr",
+        "forcats",
+        "knitr",
+        "rmarkdown",
+        "bench"
+      ],
+      "Encoding": "UTF-8",
+      "URL": "https://github.com/elbersb/tidylog/",
+      "BugReports": "https://github.com/elbersb/tidylog/issues",
+      "RoxygenNote": "7.3.1",
+      "VignetteBuilder": "knitr",
+      "NeedsCompilation": "no",
+      "Author": "Benjamin Elbers [aut, cre] (<https://orcid.org/0000-0001-5392-3448>), Damiano Oldoni [ctb] (<https://orcid.org/0000-0003-3445-7562>)",
+      "Maintainer": "Benjamin Elbers <elbersb@gmail.com>",
+      "Repository": "CRAN"
     },
     "tidyr": {
       "Package": "tidyr",

@@ -1,4 +1,6 @@
-library(tidyverse)
+library(dplyr)
+library(tidyr)
+library(tidyfinance)
 library(tidylog)
 library(arrow)
 

@@ -1,5 +1,7 @@
-library(tidyverse)
+library(dplyr)
+library(tidyr)
 library(arrow)
+library(ggplot2)
 
 diagnostics <- read_parquet("data/task_diagnostics.parquet")
 
