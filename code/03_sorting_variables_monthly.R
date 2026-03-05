@@ -8,7 +8,7 @@ library(tidyfinance)
 library(multidplyr)
 library(moments)
 
-options(future.globals.maxSize = 1000 * 1024^2)
+options(future.globals.maxSize = 4000 * 1024^2)
 
 crsp_monthly <- open_dataset("data/crsp_monthly.parquet") |>
   mutate(int_me = mktcap) |>
@@ -35,6 +35,7 @@ crsp_monthly_liquidity <- crsp_daily |>
     int_daily_turnover,
     int_amihud
   ) |>
+  collect() |>
   drop_na() |>
   group_by(permno, date = floor_date(date, "month")) |>
   summarize(
@@ -43,8 +44,7 @@ crsp_monthly_liquidity <- crsp_daily |>
     int_daily_turnover = sum(int_daily_turnover),
     int_daily_obs = n(),
     .groups = "drop"
-  ) |>
-  collect()
+  )
 
 crsp_monthly <- crsp_monthly |>
   left_join(
@@ -75,7 +75,7 @@ crsp_monthly <- crsp_monthly |>
 
 # NOTE: cluster needs to be initialized after parallelization with furrr
 cluster <- new_cluster(parallel::detectCores() - 1)
-cluster_library(cluster, c("tidyfinance", "dplyr"))
+cluster_library(cluster, c("tidyfinance", "dplyr", "slider"))
 
 crsp_monthly <- crsp_monthly |>
   group_by(permno) |>
@@ -173,6 +173,7 @@ min_obs_for_max_price <- 3
 crsp_maxima <- crsp_daily |>
   select(permno, date, prc_adj) |>
   arrange(permno, date) |>
+  collect() |>
   drop_na() |>
   group_by(permno, date = floor_date(date, "month")) |>
   summarise(
@@ -182,8 +183,7 @@ crsp_maxima <- crsp_daily |>
       NA_real_
     ),
     .groups = "drop"
-  ) |>
-  collect()
+  )
 
 # Compute rolling window max
 crsp_maxima <- crsp_maxima |>
@@ -307,7 +307,7 @@ sorting_variables_monthly <- crsp_monthly |>
     sv_csi = log(int_me / int_me_lag5y) - log(1 + int_roll_ret_5y),
     sv_mom = int_roll_ret_11m_lag,
     sv_rmom = int_rmom_11m_lag,
-    sv_52w = prc_adj / int_max_price_month_52w,
+    sv_52w = prc / int_max_price_month_52w,
     sv_ami = int_rolling_amihud,
     sv_beta = int_capm_beta,
     sv_dtv = int_rolling_dtv,

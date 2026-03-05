@@ -20,6 +20,7 @@ compustat_annual <- compustat_annual |>
 
 compustat_annual <- compustat_annual |>
   mutate(
+    year = year(datadate),
     int_td = replace_na(dlc, 0) + replace_na(dltt, 0),
     int_td = if_else(int_td <= 0, NA_real_, int_td),
     int_col = lct - replace_na(dlc, 0),

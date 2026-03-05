@@ -4,6 +4,8 @@ library(arrow)
 library(tidyfinance)
 
 min_stock_age <- 2
+date_start <- as.Date("1960-01-01")
+date_end <- as.Date("2024-12-31")
 
 sorting_variables_yearly <- read_parquet(
   "data/sorting_variables_yearly.parquet"
@@ -108,8 +110,7 @@ write_parquet(sv_lag6m, "data/sorting_variables_lag_6m.parquet")
 # Lag FF ------------------------------------------------------------------
 # Lag variables from year t to July t+1
 ## Include: Monthly, quarterly, and yearly variables
-## Allow "old" date up until 12 months after sorting date (not including)
-# TODO: min_lag / max_lag need to be verified by Patrick
+## Allow "old" date up until 18 months after sorting date (not including)
 sv_lag_ff <- crsp_monthly |>
   join_lagged_values(
     sorting_variables_monthly,
