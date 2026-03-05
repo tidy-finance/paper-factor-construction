@@ -6,3 +6,4 @@ factor-library-data/
 data/
 bash.sh
 .Renviron
+.claude/settings.local.json
