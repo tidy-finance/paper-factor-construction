@@ -3,6 +3,7 @@ library(arrow)
 library(tidyr)
 library(tidyfinance)
 library(mirai)
+
 daemons(future::availableCores() - 1)
 
 # Push packages to workers
@@ -18,6 +19,7 @@ sv_directions <- read_parquet("data/sorting_variable_information.parquet") |>
 
 grid <- read_parquet("data/portfolio_sort_grid.parquet") |>
   inner_join(sv_directions, join_by(sorting_variable)) |>
+  sample_n(size = 25) |>
   group_by(sorting_variable, sorting_variable_lag)
 
 process_task <- function(row, sorting_data) {
@@ -37,7 +39,11 @@ process_task <- function(row, sorting_data) {
             group_by(date) |>
             filter(
               mktcap_lag >=
-                quantile(mktcap_lag[exchange == "NYSE"], row$exclude_size)
+                quantile(
+                  mktcap_lag[exchange == "NYSE"],
+                  row$exclude_size,
+                  na.rm = TRUE
+                )
             ) |>
             ungroup()
         }

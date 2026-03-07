@@ -16,7 +16,7 @@ grid <- full_grid |>
 
 # Define task to debug
 row <- grid |>
-  filter(id == 5)
+  filter(id == 16511)
 
 path <- file.path(
   "data",
@@ -61,7 +61,11 @@ result <- tryCatch(
           group_by(date) |>
           filter(
             mktcap_lag >=
-              quantile(mktcap_lag[exchange == "NYSE"], row$exclude_size)
+              quantile(
+                mktcap_lag[exchange == "NYSE"],
+                row$exclude_size,
+                na.rm = TRUE
+              )
           ) |>
           ungroup()
       }
