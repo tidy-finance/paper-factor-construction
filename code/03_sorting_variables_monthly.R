@@ -5,6 +5,7 @@ library(slider)
 library(purrr)
 library(lubridate)
 library(tidyfinance)
+library(future)
 library(multidplyr)
 library(moments)
 
@@ -65,7 +66,8 @@ crsp_monthly <- crsp_monthly |>
   rename(int_me_lag5y = int_me_lag)
 
 # Compute CAPM regression coefficients and FF3 residuals
-plan(multisession, workers = availableCores() - 1)
+# NOTE: multisession needs to be initialized before using furrr for beta estimation
+future::plan(future::multisession, workers = future::availableCores() - 1)
 
 capm_betas <- crsp_monthly |>
   arrange(permno, date) |>
@@ -80,6 +82,7 @@ cluster <- new_cluster(future::availableCores() - 1)
 cluster_library(cluster, c("tidyfinance", "dplyr", "slider"))
 
 crsp_monthly <- crsp_monthly |>
+  arrange(permno, date) |>
   group_by(permno) |>
   partition(cluster) |>
   mutate(
