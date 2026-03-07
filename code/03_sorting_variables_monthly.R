@@ -14,9 +14,10 @@ crsp_monthly <- open_dataset("data/crsp_monthly.parquet") |>
   mutate(int_me = mktcap) |>
   collect()
 
-crsp_daily <- open_dataset("data/crsp_daily.parquet")
+factors_ff_3_monthly <- open_dataset("data/factors_ff_3_monthly.parquet") |>
+  collect()
 
-factors_ff_3_monthly <- open_dataset("data/factors_ff_3_monthly.parquet")
+crsp_daily <- open_dataset("data/crsp_daily.parquet")
 
 factors_ff_3_daily <- open_dataset("data/factors_ff_3_daily.parquet")
 
@@ -53,7 +54,7 @@ crsp_monthly <- crsp_monthly |>
     relationship = "one-to-one"
   ) |>
   left_join(
-    factors_ff_3_monthly |> collect(),
+    factors_ff_3_monthly,
     join_by(date),
     relationship = "many-to-one"
   )
@@ -64,6 +65,7 @@ crsp_monthly <- crsp_monthly |>
   rename(int_me_lag5y = int_me_lag)
 
 # Compute CAPM regression coefficients and FF3 residuals
+plan(multisession, workers = availableCores() - 1)
 
 capm_betas <- crsp_monthly |>
   arrange(permno, date) |>
@@ -74,7 +76,7 @@ crsp_monthly <- crsp_monthly |>
   left_join(capm_betas, join_by(permno, date), relationship = "one-to-one")
 
 # NOTE: cluster needs to be initialized after parallelization with furrr
-cluster <- new_cluster(parallel::detectCores() - 1)
+cluster <- new_cluster(future::availableCores() - 1)
 cluster_library(cluster, c("tidyfinance", "dplyr", "slider"))
 
 crsp_monthly <- crsp_monthly |>

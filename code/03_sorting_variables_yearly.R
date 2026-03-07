@@ -18,6 +18,9 @@ compustat_annual <- compustat_annual |>
   ) |>
   collect()
 
+# Minimum sales threshold to avoid extreme capex/sales ratios
+min_sales <- 10
+
 compustat_annual <- compustat_annual |>
   mutate(
     year = year(datadate),
@@ -37,8 +40,7 @@ compustat_annual <- compustat_annual |>
       (fatb + fatl) / ppegt
     ),
     int_sic_2 = substr(siccd, 0, 2),
-    # Minimum sales threshold to avoid extreme capex/sales ratios
-    int_ce = if_else(sale >= 10, capx / sale, NA_real_),
+    int_ce = if_else(sale >= min_sales, capx / sale, NA_real_),
     int_noa = (at - che) -
       (at -
         replace_na(dlc, 0) -
@@ -209,6 +211,7 @@ sorting_variables_yearly <- compustat_annual |>
       replace_na(xacc - xacc_lag1, 0)) /
       at,
     sv_gpa = (revt - cogs) / at,
+    # TODO: add a source for this formula
     sv_o = -1.32 -
       0.407 * int_o_1 +
       6.030 * int_o_2 -

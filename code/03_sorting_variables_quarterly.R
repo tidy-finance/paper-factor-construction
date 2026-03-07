@@ -9,7 +9,7 @@ library(tidyfinance)
 # Quarterly Compustat data quality is insufficient before 1972
 min_analysis_date <- as.Date("1972-01-01")
 
-cluster <- new_cluster(parallel::detectCores() - 1)
+cluster <- new_cluster(future::availableCores() - 1)
 cluster_library(cluster, c("tidyfinance", "dplyr"))
 
 compustat_quarterly <- open_dataset("data/compustat_quarterly.parquet")
@@ -52,7 +52,13 @@ compustat_quarterly <- compustat_quarterly |>
 # Compute standardized seasonal surprise for a quarterly variable.
 # Uses year-over-year change (4-quarter delta), standardized by the rolling
 # standard deviation of deltas over the past 8 quarters (min 6 required).
-compute_standardized_surprise <- function(data, delta_col, output_col, cluster) {
+# TODO: replace this by function from r-tidyfinance (tbd how and which)
+compute_standardized_surprise <- function(
+  data,
+  delta_col,
+  output_col,
+  cluster
+) {
   data |>
     arrange(gvkey, date) |>
     group_by(gvkey) |>
@@ -75,7 +81,10 @@ compute_standardized_surprise <- function(data, delta_col, output_col, cluster) 
 
 # Revenue surprise
 compustat_quarterly_rs <- compute_standardized_surprise(
-  compustat_quarterly, int_rps - int_rps_lag4, sv_rs, cluster
+  compustat_quarterly,
+  int_rps - int_rps_lag4,
+  sv_rs,
+  cluster
 ) |>
   filter(date >= min_analysis_date)
 
@@ -88,7 +97,10 @@ compustat_quarterly <- compustat_quarterly |>
 
 # Standardized unexpected earnings
 compustat_quarterly_sue <- compute_standardized_surprise(
-  compustat_quarterly, int_sue - int_sue_lag4, sv_sue, cluster
+  compustat_quarterly,
+  int_sue - int_sue_lag4,
+  sv_sue,
+  cluster
 ) |>
   filter(date >= min_analysis_date)
 

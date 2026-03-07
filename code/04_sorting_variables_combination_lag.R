@@ -4,8 +4,6 @@ library(arrow)
 library(tidyfinance)
 
 min_stock_age <- 2
-date_start <- as.Date("1960-01-01")
-date_end <- as.Date("2024-12-31")
 
 sorting_variables_yearly <- read_parquet(
   "data/sorting_variables_yearly.parquet"
@@ -50,7 +48,6 @@ crsp_monthly <- crsp_monthly |>
     max_lag = months(12)
   ) |>
   filter(filter_stock_age >= min_stock_age) |>
-  filter(date >= date_start, date <= date_end) |>
   select(-filter_stock_age)
 
 # Lag 3m ------------------------------------------------------------------

@@ -19,7 +19,7 @@ grid <- full_grid |>
 
 # Define task to debug
 row <- grid |>
-  filter(id == 52810)
+  filter(id == 34966)
 
 path <- file.path(
   "data",
