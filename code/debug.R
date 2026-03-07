@@ -4,6 +4,9 @@ library(tidyfinance)
 library(tidylog)
 library(arrow)
 
+# TODO: sv_mom is always missing
+# TODO: sv_rmom is always missing
+
 full_grid <- read_parquet("data/portfolio_sort_grid.parquet")
 
 colnames(full_grid)
@@ -16,7 +19,7 @@ grid <- full_grid |>
 
 # Define task to debug
 row <- grid |>
-  filter(id == 16511)
+  filter(id == 52810)
 
 path <- file.path(
   "data",
