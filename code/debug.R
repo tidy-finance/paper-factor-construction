@@ -5,6 +5,8 @@ library(arrow)
 
 full_grid <- read_parquet("data/portfolio_sort_grid.parquet")
 
+colnames(full_grid)
+
 sv_directions <- read_parquet("data/sorting_variable_information.parquet") |>
   select(sorting_variable, direction)
 
@@ -105,8 +107,6 @@ result <- tryCatch(
           n_portfolios = row$breakpoints_secondary,
           breakpoint_exchanges = bp_exchanges
         )
-        sorting_data <- sorting_data |>
-          drop_na(mktcap_lag)
       }
 
       min_portfolio_size <- 10

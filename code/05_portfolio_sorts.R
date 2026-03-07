@@ -84,8 +84,6 @@ process_task <- function(row, sorting_data) {
             n_portfolios = row$breakpoints_secondary,
             breakpoint_exchanges = bp_exchanges
           )
-          sorting_data <- sorting_data |>
-            drop_na(mktcap_lag)
         }
 
         min_portfolio_size <- 10
