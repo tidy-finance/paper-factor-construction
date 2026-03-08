@@ -8,14 +8,14 @@ diagnostics <- read_parquet("data/task_diagnostics.parquet")
 diagnostics |>
   summary()
 
-# TODO: resolve task errors
-# ~530 tasks jave no cpr_elapsed_secs because they error with the following:
-# Caused by error in `findInterval()`: ! 'vec' must be sorted non-decreasingly and not contain NAs
-# Examples: task 1, 2, 5, 6
+# No task errors in subsample
 diagnostics |>
   filter(is.na(cpr_elapsed_secs)) |>
   count(status) |>
   pull(status)
+
+diagnostics |>
+  arrange(-elapsed_secs)
 
 diagnostics |>
   pivot_longer(c(elapsed_secs, cpr_elapsed_secs)) |>
@@ -45,7 +45,13 @@ diagnostics |>
 diagnostics |>
   mutate(
     has_errored = status != "success",
-    cluster_warning = str_detect(warnings, "clusters\nin the sorting variable"),
-    constant_warning = str_detect(warnings, "sorting variable is constant")
+    cluster_warning = stringr::str_detect(
+      warnings,
+      "clusters\nin the sorting variable"
+    ),
+    constant_warning = stringr::str_detect(
+      warnings,
+      "sorting variable is constant"
+    )
   ) |>
   count(has_errored, cluster_warning, constant_warning)

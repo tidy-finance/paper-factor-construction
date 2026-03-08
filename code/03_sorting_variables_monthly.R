@@ -172,7 +172,6 @@ crsp_monthly <- crsp_monthly |>
   )
 
 # Rolling maximum
-
 # Minimum daily price observations per month to compute monthly max
 min_obs_for_max_price <- 3
 crsp_maxima <- crsp_daily |>
