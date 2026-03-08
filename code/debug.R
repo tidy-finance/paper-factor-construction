@@ -16,7 +16,7 @@ grid <- full_grid |>
 
 # Define task to debug
 row <- grid |>
-  filter(id == 25568)
+  filter(id == 15515)
 
 path <- file.path(
   "data",
@@ -114,7 +114,12 @@ result <- tryCatch(
         )
       }
 
-      min_portfolio_size <- 10
+      if (row$sorting_method == "univariate") {
+        min_portfolio_size <- options_main$n_portfolios
+      } else {
+        min_portfolio_size <- options_main$n_portfolios *
+          options_secondary$n_portfolios
+      }
 
       cpr_start <- Sys.time()
       portfolio_returns <- compute_portfolio_returns(

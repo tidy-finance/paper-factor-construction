@@ -92,7 +92,12 @@ process_task <- function(row, sorting_data) {
         }
 
         # TODO: adjust min_portfolio size dynamically based on breakpoint options?
-        min_portfolio_size <- 10
+        if (row$sorting_method == "univariate") {
+          min_portfolio_size <- options_main$n_portfolios
+        } else {
+          min_portfolio_size <- options_main$n_portfolios *
+            options_secondary$n_portfolios
+        }
 
         cpr_start <- Sys.time()
         portfolio_returns <- compute_portfolio_returns(
