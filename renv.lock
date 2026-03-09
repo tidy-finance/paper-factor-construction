@@ -3874,7 +3874,7 @@
     },
     "tidyfinance": {
       "Package": "tidyfinance",
-      "Version": "0.4.5.9015",
+      "Version": "0.4.5.9016",
       "Source": "GitHub",
       "Type": "Package",
       "Title": "Tidy Finance Helper Functions",
@@ -3925,7 +3925,7 @@
       "RemoteUsername": "tidy-finance",
       "RemotePkgRef": "tidy-finance/r-tidyfinance",
       "RemoteRef": "HEAD",
-      "RemoteSha": "8b4e214794d6921fbe8bb94b1e1ff29d55f80ed2",
+      "RemoteSha": "ca5ace58d72f8bf006536644e76af6c93cea901f",
       "NeedsCompilation": "no",
       "Author": "Christoph Scheuch [aut, cre, cph] (ORCID: <https://orcid.org/0009-0004-0423-6819>), Stefan Voigt [aut, cph] (ORCID: <https://orcid.org/0000-0001-5619-3161>), Patrick Weiss [aut, cph] (ORCID: <https://orcid.org/0000-0002-9282-5872>), Maximilian Mücke [ctb] (ORCID: <https://orcid.org/0009-0000-9432-9795>)",
       "Maintainer": "Christoph Scheuch <christoph@tidy-intelligence.com>"
