@@ -9,7 +9,7 @@ library(future)
 library(multidplyr)
 library(moments)
 
-options(future.globals.maxSize = 4000 * 1024^2)
+options(future.globals.maxSize = 10000 * 1024^2)
 
 crsp_monthly <- open_dataset("data/crsp_monthly.parquet") |>
   mutate(int_me = mktcap) |>
