@@ -6,6 +6,8 @@ library(arrow)
 
 full_grid <- read_parquet("data/portfolio_sort_grid.parquet")
 
+diagnostics <- read_parquet("data/task_diagnostics.parquet")
+
 colnames(full_grid)
 
 sv_directions <- read_parquet("data/sorting_variable_information.parquet") |>
@@ -14,9 +16,14 @@ sv_directions <- read_parquet("data/sorting_variable_information.parquet") |>
 grid <- full_grid |>
   inner_join(sv_directions, join_by(sorting_variable))
 
+grid |>
+  inner_join(diagnostics) |>
+  filter(elapsed_secs > 1000) |>
+  View()
+
 # Define task to debug
 row <- grid |>
-  filter(id == 15515)
+  filter(id == 154991)
 
 path <- file.path(
   "data",

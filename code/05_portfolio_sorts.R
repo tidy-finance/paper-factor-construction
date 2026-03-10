@@ -4,22 +4,23 @@ library(tidyr)
 library(tidyfinance)
 library(mirai)
 
-daemons(future::availableCores() - 1)
-
-# Push packages to workers
-mirai::everywhere({
-  library(dplyr)
-  library(arrow)
-  library(tidyfinance)
-  library(tidyr)
-})
-
 sv_directions <- read_parquet("data/sorting_variable_information.parquet") |>
   select(sorting_variable, direction)
 
+set.seed(1234)
 grid <- read_parquet("data/portfolio_sort_grid.parquet") |>
   inner_join(sv_directions, join_by(sorting_variable)) |>
-  group_by(sorting_variable, sorting_variable_lag)
+  group_by(sorting_variable) |>
+  sample_n(size = 10) |>
+  ungroup()
+
+grid_splits <- grid |>
+  group_by(sorting_variable, sorting_variable_lag) |>
+  group_split()
+
+grid_keys <- grid |>
+  group_by(sorting_variable, sorting_variable_lag) |>
+  group_keys()
 
 process_task <- function(row, sorting_data) {
   start <- Sys.time()
@@ -91,7 +92,6 @@ process_task <- function(row, sorting_data) {
           )
         }
 
-        # TODO: adjust min_portfolio size dynamically based on breakpoint options?
         if (row$sorting_method == "univariate") {
           min_portfolio_size <- options_main$n_portfolios
         } else {
@@ -165,59 +165,64 @@ process_task <- function(row, sorting_data) {
   }
 }
 
-tasks <- lapply(seq_along(group_split(grid)), \(i) {
-  mirai(
-    {
-      path <- file.path(
-        "data",
-        paste0(
-          "sorting_variables_lag_",
-          .group_key$sorting_variable_lag,
-          ".parquet"
-        )
-      )
+daemons(future::availableCores() - 1)
 
-      sv_lag_data <- open_dataset(path) |>
-        select(
-          permno,
-          date,
-          ret_excess,
-          exchange,
-          industry,
-          filter_earnings,
-          mktcap_lag,
-          all_of(.group_key$sorting_variable)
-        ) |>
-        collect()
-
-      rows <- split(.group_data, seq_len(nrow(.group_data)))
-      results <- lapply(seq_along(rows), \(j) {
-        process_task(rows[[j]], sv_lag_data)
-      })
-
-      all_returns <- bind_rows(lapply(results, \(r) r$returns))
-      if (nrow(all_returns) > 0) {
-        all_returns |>
-          group_by(
-            sorting_variable,
-            sorting_variable_lag = .group_key$sorting_variable_lag
-          ) |>
-          write_dataset(
-            path = "data/portfolio_returns",
-            format = "parquet",
-            existing_data_behavior = "overwrite"
-          )
-      }
-
-      bind_rows(lapply(results, \(r) r$diagnostics))
-    },
-    .group_data = group_split(grid)[[i]],
-    .group_key = group_keys(grid)[i, ],
-    process_task = process_task
-  )
+everywhere({
+  library(dplyr)
+  library(arrow)
+  library(tidyfinance)
+  library(tidyr)
 })
 
-diagnostics <- bind_rows(lapply(tasks, \(t) collect_mirai(t)))
+everywhere({}, process_task = process_task)
+
+tasks <- mirai_map(
+  seq_along(grid_splits),
+  function(i) {
+    key <- .keys[i, ]
+    rows <- .splits[[i]]
+
+    path <- file.path(
+      "data",
+      paste0("sorting_variables_lag_", key$sorting_variable_lag, ".parquet")
+    )
+
+    sv_lag_data <- open_dataset(path) |>
+      select(
+        permno,
+        date,
+        ret_excess,
+        exchange,
+        industry,
+        filter_earnings,
+        mktcap_lag,
+        all_of(key$sorting_variable)
+      ) |>
+      collect()
+
+    row_list <- split(rows, seq_len(nrow(rows)))
+    results <- lapply(row_list, \(row) process_task(row, sv_lag_data))
+
+    all_returns <- bind_rows(lapply(results, \(r) r$returns))
+    if (nrow(all_returns) > 0) {
+      all_returns |>
+        mutate(sorting_variable_lag = key$sorting_variable_lag) |>
+        group_by(sorting_variable, sorting_variable_lag) |>
+        write_dataset(
+          path = "data/portfolio_returns",
+          format = "parquet",
+          existing_data_behavior = "overwrite"
+        )
+    }
+
+    bind_rows(lapply(results, \(r) r$diagnostics))
+  },
+  .keys = grid_keys,
+  .splits = grid_splits
+)
+
+diagnostics <- bind_rows(tasks[.progress])
+
 write_parquet(diagnostics, "data/task_diagnostics.parquet")
 
 daemons(0)
