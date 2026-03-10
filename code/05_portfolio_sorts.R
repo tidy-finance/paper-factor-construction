@@ -22,7 +22,7 @@ grid_keys <- grid |>
   group_by(sorting_variable, sorting_variable_lag) |>
   group_keys()
 
-process_task <- function(row, sorting_data) {
+process_task <- function(row, sorting_data, output_dir) {
   start <- Sys.time()
 
   warnings_collected <- character(0)
@@ -126,7 +126,13 @@ process_task <- function(row, sorting_data) {
           ) |>
           select(id, sorting_variable, date, ret_type, ret)
 
-        long_short_return
+        dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
+        write_parquet(
+          long_short_return,
+          file.path(output_dir, paste0("id_", row$id, ".parquet"))
+        )
+
+        "success"
       },
       warning = function(w) {
         warnings_collected <<- c(warnings_collected, conditionMessage(w))
@@ -138,29 +144,23 @@ process_task <- function(row, sorting_data) {
 
   elapsed <- as.numeric(difftime(Sys.time(), start, units = "secs"))
 
-  if (is.data.frame(result)) {
-    list(
-      returns = result,
-      diagnostics = tibble(
-        id = row$id,
-        status = "success",
-        elapsed_secs = elapsed,
-        cpr_elapsed_secs = state$cpr_elapsed,
-        n_warnings = length(warnings_collected),
-        warnings = paste(warnings_collected, collapse = " | ")
-      )
+  if (is.character(result)) {
+    tibble(
+      id = row$id,
+      status = result,
+      elapsed_secs = elapsed,
+      cpr_elapsed_secs = state$cpr_elapsed,
+      n_warnings = length(warnings_collected),
+      warnings = paste(warnings_collected, collapse = " | ")
     )
   } else {
-    list(
-      returns = NULL,
-      diagnostics = tibble(
-        id = row$id,
-        status = paste("error:", as.character(result)),
-        elapsed_secs = elapsed,
-        cpr_elapsed_secs = state$cpr_elapsed,
-        n_warnings = length(warnings_collected),
-        warnings = paste(warnings_collected, collapse = " | ")
-      )
+    tibble(
+      id = row$id,
+      status = paste("error:", as.character(result)),
+      elapsed_secs = elapsed,
+      cpr_elapsed_secs = state$cpr_elapsed,
+      n_warnings = length(warnings_collected),
+      warnings = paste(warnings_collected, collapse = " | ")
     )
   }
 }
@@ -200,22 +200,20 @@ tasks <- mirai_map(
       ) |>
       collect()
 
+    output_dir <- file.path(
+      "data",
+      "portfolio_returns",
+      paste0("sorting_variable=", key$sorting_variable),
+      paste0("sorting_variable_lag=", key$sorting_variable_lag)
+    )
+
     row_list <- split(rows, seq_len(nrow(rows)))
-    results <- lapply(row_list, \(row) process_task(row, sv_lag_data))
-
-    all_returns <- bind_rows(lapply(results, \(r) r$returns))
-    if (nrow(all_returns) > 0) {
-      all_returns |>
-        mutate(sorting_variable_lag = key$sorting_variable_lag) |>
-        group_by(sorting_variable, sorting_variable_lag) |>
-        write_dataset(
-          path = "data/portfolio_returns",
-          format = "parquet",
-          existing_data_behavior = "overwrite"
-        )
-    }
-
-    bind_rows(lapply(results, \(r) r$diagnostics))
+    diag <- bind_rows(
+      lapply(row_list, \(row) {
+        process_task(row, sv_lag_data, output_dir)
+      })
+    )
+    diag
   },
   .keys = grid_keys,
   .splits = grid_splits
