@@ -7,11 +7,9 @@ library(mirai)
 sv_directions <- read_parquet("data/sorting_variable_information.parquet") |>
   select(sorting_variable, direction)
 
-set.seed(1234)
 grid <- read_parquet("data/portfolio_sort_grid.parquet") |>
   inner_join(sv_directions, join_by(sorting_variable)) |>
   group_by(sorting_variable) |>
-  # sample_n(size = 10) |>
   ungroup()
 
 grid_splits <- grid |>
