@@ -1,6 +1,6 @@
 library(dplyr)
 library(arrow)
-library(mirai)
+library(furrr)
 
 sv_directions <- read_parquet("data/sorting_variable_information.parquet") |>
   select(sorting_variable, direction)
@@ -150,21 +150,13 @@ process_task <- function(row, sorting_data, output_dir, diag_dir) {
   invisible(NULL)
 }
 
-daemons(future::availableCores() - 1)
+plan(multisession, workers = future::availableCores() - 1)
 
-everywhere({
-  library(dplyr)
-  library(tidyfinance)
-  library(tidyr)
-})
-
-everywhere({}, process_task = process_task, diagnostics_dir = diagnostics_dir)
-
-tasks <- mirai_map(
+future_walk(
   seq_along(grid_splits),
   function(i) {
-    key <- .keys[i, ]
-    rows <- .splits[[i]]
+    key <- grid_keys[i, ]
+    rows <- grid_splits[[i]]
 
     path <- file.path(
       "data",
@@ -205,17 +197,14 @@ tasks <- mirai_map(
     gc()
     invisible(NULL)
   },
-  .keys = grid_keys,
-  .splits = grid_splits
+  .options = furrr_options(packages = c("dplyr", "tidyfinance", "tidyr", "arrow"))
 )
 
 rm(grid, grid_splits, grid_keys, sv_directions)
 gc()
 
-tasks[.progress]
-
 diagnostics <- open_dataset(diagnostics_dir) |> collect()
 write_parquet(diagnostics, "data/task_diagnostics.parquet")
 unlink(diagnostics_dir, recursive = TRUE)
 
-daemons(0)
+plan(sequential)
