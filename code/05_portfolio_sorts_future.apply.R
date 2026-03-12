@@ -11,6 +11,7 @@ plan(multicore, workers = n_workers)
 sv_directions <- read_parquet("data/sorting_variable_information.parquet") |>
   select(sorting_variable, direction)
 
+# set.seed(1234)
 grid <- read_parquet("data/portfolio_sort_grid.parquet") |>
   inner_join(sv_directions, join_by(sorting_variable)) |>
   mutate(
@@ -20,7 +21,7 @@ grid <- read_parquet("data/portfolio_sort_grid.parquet") |>
     )
   ) |>
   group_by(parquet_path) |>
-  sample_n(size = 50) |>
+  # sample_n(size = 100) |>
   ungroup()
 
 process_task <- function(row, sorting_data, output_dir) {
