@@ -1,6 +1,8 @@
 library(dplyr)
+library(tidyr)
 library(arrow)
 library(furrr)
+library(tidyfinance)
 
 sv_directions <- read_parquet("data/sorting_variable_information.parquet") |>
   select(sorting_variable, direction)
@@ -195,12 +197,11 @@ future_walk(
     }
     rm(sv_lag_data, row_list, rows, row, diag_dir)
     gc()
-    invisible(NULL)
   },
   .options = furrr_options(packages = c("dplyr", "tidyfinance", "tidyr", "arrow"))
 )
 
-rm(grid, grid_splits, grid_keys, sv_directions)
+rm(grid, grid_grouped, grid_splits, grid_keys, sv_directions)
 gc()
 
 diagnostics <- open_dataset(diagnostics_dir) |> collect()
