@@ -21,7 +21,7 @@ grid <- read_parquet("data/portfolio_sort_grid.parquet") |>
     )
   ) |>
   group_by(parquet_path) |>
-  # sample_n(size = 100) |>
+  # sample_n(size = 1000) |>
   ungroup()
 
 process_task <- function(row, sorting_data, output_dir) {
@@ -98,7 +98,8 @@ process_task <- function(row, sorting_data, output_dir) {
           rebalancing_month,
           options_main,
           options_secondary,
-          min_portfolio_size = min_portfolio_size
+          min_portfolio_size = min_portfolio_size,
+          quiet = TRUE
         )
         state$cpr_elapsed <- as.numeric(difftime(
           Sys.time(),
