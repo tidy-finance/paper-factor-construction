@@ -2,25 +2,26 @@ library(dplyr)
 library(arrow)
 library(tidyr)
 library(tidyfinance)
-library(mirai)
+library(future.apply)
+
+n_workers <- max(1L, availableCores() - 1L)
+options(future.globals.maxSize = Inf)
+plan(multicore, workers = n_workers)
 
 sv_directions <- read_parquet("data/sorting_variable_information.parquet") |>
   select(sorting_variable, direction)
 
-# set.seed(1234)
 grid <- read_parquet("data/portfolio_sort_grid.parquet") |>
   inner_join(sv_directions, join_by(sorting_variable)) |>
-  group_by(sorting_variable) |>
-  # sample_n(size = 10) |>
+  mutate(
+    parquet_path = file.path(
+      "data",
+      paste0("sorting_variables_lag_", sorting_variable_lag, ".parquet")
+    )
+  ) |>
+  group_by(parquet_path) |>
+  sample_n(size = 50) |>
   ungroup()
-
-grid_splits <- grid |>
-  group_by(sorting_variable, sorting_variable_lag) |>
-  group_split()
-
-grid_keys <- grid |>
-  group_by(sorting_variable, sorting_variable_lag) |>
-  group_keys()
 
 process_task <- function(row, sorting_data, output_dir) {
   start <- Sys.time()
@@ -154,39 +155,23 @@ process_task <- function(row, sorting_data, output_dir) {
   }
 }
 
-daemons(future::availableCores() - 1)
+unique_paths <- unique(grid$parquet_path)
+all_diagnostics <- vector("list", length(unique_paths))
 
-everywhere({
-  library(dplyr)
-  library(arrow)
-  library(tidyfinance)
-  library(tidyr)
-})
+for (p in seq_along(unique_paths)) {
+  path <- unique_paths[p]
+  group_grid <- grid[grid$parquet_path == path, ]
 
-everywhere({}, process_task = process_task)
-
-n_keys <- nrow(grid_keys)
-all_diagnostics <- vector("list", n_keys)
-
-for (i in seq_len(n_keys)) {
-  key <- grid_keys[i, ]
-  rows <- grid_splits[[i]]
+  sv_cols_needed <- unique(group_grid$sorting_variable)
 
   message(
     sprintf(
-      "[%s] Processing key %d/%d: sorting_variable=%s, sorting_variable_lag=%s (%d rows)",
-      format(Sys.time(), "%Y-%m-%d %H:%M:%S"),
-      i,
-      n_keys,
-      key$sorting_variable,
-      key$sorting_variable_lag,
-      nrow(rows)
+      "[%s] Loading %s (%d tasks, %d sorting variables)...",
+      Sys.time(),
+      basename(path),
+      nrow(group_grid),
+      length(sv_cols_needed)
     )
-  )
-
-  path <- file.path(
-    "data",
-    paste0("sorting_variables_lag_", key$sorting_variable_lag, ".parquet")
   )
 
   sv_lag_data <- open_dataset(path) |>
@@ -198,57 +183,58 @@ for (i in seq_len(n_keys)) {
       industry,
       filter_earnings,
       mktcap_lag,
-      all_of(key$sorting_variable)
+      all_of(sv_cols_needed)
     ) |>
-    collect() |>
-    drop_na()
+    collect()
 
-  message(
-    sprintf(
-      "[%s] Loaded dataset: %d rows x %d cols",
-      format(Sys.time(), "%Y-%m-%d %H:%M:%S"),
-      nrow(sv_lag_data),
-      ncol(sv_lag_data)
-    )
-  )
-
-  output_dir <- file.path(
+  output_dirs <- file.path(
     "data",
     "portfolio_returns",
-    paste0("sorting_variable=", key$sorting_variable),
-    paste0("sorting_variable_lag=", key$sorting_variable_lag)
+    paste0("sorting_variable=", group_grid$sorting_variable),
+    paste0("sorting_variable_lag=", group_grid$sorting_variable_lag)
   )
 
-  row_list <- split(rows, seq_len(nrow(rows)))
+  group_start <- Sys.time()
 
-  tasks <- mirai_map(
-    row_list,
-    function(row) {
-      process_task(row, .sv_lag_data, .output_dir)
+  results <- future_lapply(
+    seq_len(nrow(group_grid)),
+    function(i) {
+      row <- group_grid[i, ]
+
+      task_data <- sv_lag_data[,
+        c(
+          "permno",
+          "date",
+          "ret_excess",
+          "exchange",
+          "industry",
+          "filter_earnings",
+          "mktcap_lag",
+          row$sorting_variable
+        ),
+        drop = FALSE
+      ]
+
+      process_task(row, task_data, output_dirs[i])
     },
-    .sv_lag_data = sv_lag_data,
-    .output_dir = output_dir
+    future.seed = TRUE,
+    future.chunk.size = max(1L, nrow(group_grid) %/% (n_workers * 4L))
   )
 
-  all_diagnostics[[i]] <- bind_rows(tasks[.progress])
-
-  n_ok <- sum(all_diagnostics[[i]]$status == "success")
-  n_err <- nrow(all_diagnostics[[i]]) - n_ok
+  all_diagnostics[[p]] <- bind_rows(results)
 
   message(
     sprintf(
-      "[%s] Finished key %d/%d: %d succeeded, %d failed",
-      format(Sys.time(), "%Y-%m-%d %H:%M:%S"),
-      i,
-      n_keys,
-      n_ok,
-      n_err
+      "[%s] Finished %s — %d tasks in %.1f seconds",
+      Sys.time(),
+      basename(path),
+      nrow(group_grid),
+      as.numeric(difftime(Sys.time(), group_start, units = "secs"))
     )
   )
 }
 
+plan(sequential)
 diagnostics <- bind_rows(all_diagnostics)
-
 write_parquet(diagnostics, "data/task_diagnostics.parquet")
-
-daemons(0)
+message("All done! ", nrow(diagnostics), " tasks processed.")
