@@ -144,13 +144,14 @@ compustat_annual <- compustat_annual |>
   rename(int_td_lag5 = int_td_lag)
 
 # Create industry averages
+min_n_firms <- 5
 compustat_annual_industry <- compustat_annual |>
   select(year, int_sic_2, int_rer) |>
   drop_na() |>
   group_by(year, int_sic_2) |>
   summarize(
     # Minimum firms per industry-year for meaningful industry average
-    int_rer_industry = if_else(n() >= 5, mean(int_rer), NA_real_),
+    int_rer_industry = if_else(n() >= min_n_firms, mean(int_rer), NA_real_),
     .groups = "drop"
   )
 

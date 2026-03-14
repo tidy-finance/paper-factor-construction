@@ -23,7 +23,7 @@ grid |>
 
 # Define task to debug
 row <- grid |>
-  filter(id == 154991)
+  filter(id == 17592)
 
 path <- file.path(
   "data",
@@ -48,8 +48,8 @@ sorting_data_raw <- open_dataset(path) |>
   collect()
 
 # Verify issue
-res <- process_task(row, sorting_data_raw)
-res$diagnostics$status
+res <- process_task(row, sorting_data_raw, output_dir = "debug")
+res$status
 
 start <- Sys.time()
 
