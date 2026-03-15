@@ -32,26 +32,27 @@ diagnostics |>
 
 # Example for warnings
 diagnostics |>
-  filter(n_warnings > 1) |>
+  filter(n_warnings > 0) |>
   count(warnings) |>
   arrange(-n) |>
   slice(1) |>
   pull(warnings)
 
-# TODO: resolve warnings - maybe we should not compute portfolio returns for
-# these cases?
-# "The number of portfolios differs from the specified parameter due to clusters\nin the sorting variable."
-# "The sorting variable is constant and only one portfolio is returned."
+# "The number of portfolios differs from the specified parameter due to cluster in the sorting variable."
+# "The sorting variable is constant and only one portfolio is returned." -> never occurs?
 diagnostics |>
   mutate(
     has_errored = status != "success",
     cluster_warning = stringr::str_detect(
       warnings,
-      "clusters\nin the sorting variable"
+      "clusters"
     ),
     constant_warning = stringr::str_detect(
       warnings,
-      "sorting variable is constant"
+      "constant"
     )
   ) |>
   count(has_errored, cluster_warning, constant_warning)
+
+
+sorting_variables <- read_parquet("data/sorting_variables_lag_3m.parquet")

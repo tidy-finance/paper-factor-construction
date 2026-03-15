@@ -36,11 +36,13 @@ compustat_quarterly <- compustat_quarterly |>
   rename(int_me = mktcap)
 
 ## One quarter lag
+# NOTE: atq /int_beq has 25% / 23% missing
 compustat_quarterly <- compustat_quarterly |>
   add_lag_columns(cols = c("atq", "int_beq"), by = "gvkey", lag = months(3)) |>
   rename(atq_lag1 = atq_lag, int_beq_lag1 = int_beq_lag)
 
 ## Four quarter lag
+# NOTE: int_rps / int_sue has 20% missing
 compustat_quarterly <- compustat_quarterly |>
   add_lag_columns(
     cols = c("int_rps", "int_sue"),
@@ -52,7 +54,8 @@ compustat_quarterly <- compustat_quarterly |>
 # Compute standardized seasonal surprise for a quarterly variable.
 # Uses year-over-year change (4-quarter delta), standardized by the rolling
 # standard deviation of deltas over the past 8 quarters (min 6 required).
-# TODO: replace this by function from r-tidyfinance (tbd how and which)
+# TODO: align computation with Jegadeesh & Livnat (2006): https://www.jstor.org/stable/pdf/4480742.pdf
+# They estimate a random walk with drift to compute the surprise!
 compute_standardized_surprise <- function(
   data,
   delta_col,
@@ -80,6 +83,7 @@ compute_standardized_surprise <- function(
 }
 
 # Revenue surprise
+# NOTE: sv_rs contains 89% missing values
 compustat_quarterly_rs <- compute_standardized_surprise(
   compustat_quarterly,
   int_rps - int_rps_lag4,
@@ -96,6 +100,7 @@ compustat_quarterly <- compustat_quarterly |>
   )
 
 # Standardized unexpected earnings
+# NOTE: sv_sue contains 91% missing values
 compustat_quarterly_sue <- compute_standardized_surprise(
   compustat_quarterly,
   int_sue - int_sue_lag4,
