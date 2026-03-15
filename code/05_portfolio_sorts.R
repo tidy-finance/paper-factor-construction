@@ -1,29 +1,34 @@
 library(dplyr)
-library(tidyr)
 library(arrow)
-library(furrr)
+library(tidyr)
 library(tidyfinance)
+library(future.apply)
+
+n_workers <- max(1L, availableCores() - 1L)
+options(future.globals.maxSize = Inf)
+options(parallelly.fork.enable = TRUE)
+plan(multicore, workers = n_workers)
 
 sv_directions <- read_parquet("data/sorting_variable_information.parquet") |>
   select(sorting_variable, direction)
 
 grid <- read_parquet("data/portfolio_sort_grid.parquet") |>
-  inner_join(sv_directions, join_by(sorting_variable))
+  inner_join(sv_directions, join_by(sorting_variable)) |>
+  mutate(
+    parquet_path = file.path(
+      "data",
+      paste0("sorting_variables_lag_", sorting_variable_lag, ".parquet")
+    )
+  ) |>
+  group_by(parquet_path) |>
+  ungroup()
 
-grid_grouped <- grid |>
-  group_by(sorting_variable, sorting_variable_lag)
-
-grid_splits <- group_split(grid_grouped)
-grid_keys <- group_keys(grid_grouped)
-
-diagnostics_dir <- "data/task_diagnostics"
-dir.create(diagnostics_dir, recursive = TRUE, showWarnings = FALSE)
-
-process_task <- function(row, sorting_data, output_dir, diag_dir) {
+process_task <- function(row, sorting_data, output_dir) {
   start <- Sys.time()
 
   warnings_collected <- character(0)
-  cpr_elapsed <- NA_real_
+  state <- new.env(parent = emptyenv())
+  state$cpr_elapsed <- NA_real_
 
   result <- tryCatch(
     withCallingHandlers(
@@ -59,17 +64,6 @@ process_task <- function(row, sorting_data, output_dir, diag_dir) {
             filter(filter_earnings > 0)
         }
 
-        sorting_data <- sorting_data |>
-          select(
-            permno,
-            date,
-            ret_excess,
-            contains("sv_"),
-            exchange,
-            mktcap_lag
-          ) |>
-          drop_na(all_of(sorting_variables))
-
         rebalancing_month <- if (row$rebalancing == "monthly") NULL else 7
         bp_exchanges <- strsplit(row$breakpoints_exchanges, split = "\\|")[[1]]
 
@@ -103,9 +97,14 @@ process_task <- function(row, sorting_data, output_dir, diag_dir) {
           rebalancing_month,
           options_main,
           options_secondary,
-          min_portfolio_size = min_portfolio_size
+          min_portfolio_size = min_portfolio_size,
+          quiet = TRUE
         )
-        cpr_elapsed <- as.numeric(difftime(Sys.time(), cpr_start, units = "secs"))
+        state$cpr_elapsed <- as.numeric(difftime(
+          Sys.time(),
+          cpr_start,
+          units = "secs"
+        ))
 
         long_short_return <- portfolio_returns |>
           compute_long_short_returns(direction = row$direction) |>
@@ -119,7 +118,7 @@ process_task <- function(row, sorting_data, output_dir, diag_dir) {
           select(id, sorting_variable, date, ret_type, ret)
 
         dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
-        arrow::write_parquet(
+        write_parquet(
           long_short_return,
           file.path(output_dir, paste0("id_", row$id, ".parquet"))
         )
@@ -136,76 +135,121 @@ process_task <- function(row, sorting_data, output_dir, diag_dir) {
 
   elapsed <- as.numeric(difftime(Sys.time(), start, units = "secs"))
 
-  status <- if (is.character(result)) result else paste("error:", as.character(result))
-
-  diag <- tibble(
-    id = row$id,
-    status = status,
-    elapsed_secs = elapsed,
-    cpr_elapsed_secs = cpr_elapsed,
-    n_warnings = length(warnings_collected),
-    warnings = paste(warnings_collected, collapse = " | ")
-  )
-
-  dir.create(diag_dir, recursive = TRUE, showWarnings = FALSE)
-  arrow::write_parquet(diag, file.path(diag_dir, paste0("id_", row$id, ".parquet")))
-  invisible(NULL)
+  if (is.character(result)) {
+    tibble(
+      id = row$id,
+      status = result,
+      elapsed_secs = elapsed,
+      cpr_elapsed_secs = state$cpr_elapsed,
+      n_warnings = length(warnings_collected),
+      warnings = paste(warnings_collected, collapse = " | ")
+    )
+  } else {
+    tibble(
+      id = row$id,
+      status = paste("error:", as.character(result)),
+      elapsed_secs = elapsed,
+      cpr_elapsed_secs = state$cpr_elapsed,
+      n_warnings = length(warnings_collected),
+      warnings = paste(warnings_collected, collapse = " | ")
+    )
+  }
 }
 
-plan(multisession, workers = future::availableCores() - 1)
+unique_paths <- unique(grid$parquet_path)
+all_diagnostics <- vector("list", length(unique_paths))
 
-future_walk(
-  seq_along(grid_splits),
-  function(i) {
-    key <- grid_keys[i, ]
-    rows <- grid_splits[[i]]
+for (p in seq_along(unique_paths)) {
+  path <- unique_paths[p]
+  group_grid <- grid[grid$parquet_path == path, ]
 
-    path <- file.path(
-      "data",
-      paste0("sorting_variables_lag_", key$sorting_variable_lag, ".parquet")
+  sv_cols_needed <- unique(group_grid$sorting_variable)
+
+  message(
+    sprintf(
+      "[%s] Loading %s (%d tasks, %d sorting variables)...",
+      Sys.time(),
+      basename(path),
+      nrow(group_grid),
+      length(sv_cols_needed)
     )
+  )
 
-    sv_lag_data <- arrow::open_dataset(path) |>
-      select(
-        permno,
-        date,
-        ret_excess,
-        exchange,
-        industry,
-        filter_earnings,
-        mktcap_lag,
-        all_of(key$sorting_variable)
-      ) |>
-      collect()
+  sv_lag_data <- open_dataset(path) |>
+    select(
+      permno,
+      date,
+      ret_excess,
+      exchange,
+      industry,
+      filter_earnings,
+      mktcap_lag,
+      all_of(sv_cols_needed)
+    ) |>
+    collect()
 
-    output_dir <- file.path(
-      "data",
-      "portfolio_returns",
-      paste0("sorting_variable=", key$sorting_variable),
-      paste0("sorting_variable_lag=", key$sorting_variable_lag)
+  output_dirs <- file.path(
+    "data",
+    "portfolio_returns",
+    paste0("sorting_variable=", group_grid$sorting_variable),
+    paste0("sorting_variable_lag=", group_grid$sorting_variable_lag)
+  )
+
+  group_start <- Sys.time()
+
+  results <- future_lapply(
+    seq_len(nrow(group_grid)),
+    function(i) {
+      row <- group_grid[i, ]
+
+      task_data <- sv_lag_data[,
+        c(
+          "permno",
+          "date",
+          "ret_excess",
+          "exchange",
+          "industry",
+          "filter_earnings",
+          "mktcap_lag",
+          row$sorting_variable
+        ),
+        drop = FALSE
+      ]
+
+      process_task(row, task_data, output_dirs[i])
+    },
+    future.seed = TRUE,
+    future.chunk.size = max(1L, nrow(group_grid) %/% (n_workers * 4L))
+  )
+
+  all_diagnostics[[p]] <- bind_rows(results)
+
+  message(
+    sprintf(
+      "[%s] Finished %s — %d tasks in %.1f seconds",
+      Sys.time(),
+      basename(path),
+      nrow(group_grid),
+      as.numeric(difftime(Sys.time(), group_start, units = "secs"))
     )
-
-    diag_dir <- file.path(
-      diagnostics_dir,
-      paste0("sorting_variable=", key$sorting_variable),
-      paste0("sorting_variable_lag=", key$sorting_variable_lag)
-    )
-
-    row_list <- split(rows, seq_len(nrow(rows)))
-    for (row in row_list) {
-      process_task(row, sv_lag_data, output_dir, diag_dir)
-    }
-    rm(sv_lag_data, row_list, rows, row, diag_dir)
-    gc()
-  },
-  .options = furrr_options(packages = c("dplyr", "tidyfinance", "tidyr", "arrow"))
-)
-
-rm(grid, grid_grouped, grid_splits, grid_keys, sv_directions)
-gc()
-
-diagnostics <- open_dataset(diagnostics_dir) |> collect()
-write_parquet(diagnostics, "data/task_diagnostics.parquet")
-unlink(diagnostics_dir, recursive = TRUE)
+  )
+}
 
 plan(sequential)
+diagnostics <- bind_rows(all_diagnostics)
+write_parquet(diagnostics, "data/task_diagnostics.parquet")
+message("All done! ", nrow(diagnostics), " tasks processed.")
+
+# Clean up and finalize partition
+
+temporary_folder <- "data/portfolio_returns_new"
+open_dataset("data/portfolio_returns/") |>
+  mutate(sorting_variable = str_remove(sorting_variable, "^sv_")) |>
+  write_dataset(
+    path = temporary_folder,
+    partitioning = c("sorting_variable", "sorting_variable_lag")
+  )
+
+fs::dir_delete("data/portfolio_returns/")
+fs::dir_copy(temporary_folder, "data/portfolio_returns/")
+fs::dir_delete(temporary_folder)
