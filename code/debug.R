@@ -16,14 +16,9 @@ sv_directions <- read_parquet("data/sorting_variable_information.parquet") |>
 grid <- full_grid |>
   inner_join(sv_directions, join_by(sorting_variable))
 
-grid |>
-  inner_join(diagnostics) |>
-  filter(elapsed_secs > 1000) |>
-  View()
-
 # Define task to debug
 row <- grid |>
-  filter(id == 17592)
+  filter(id == 142384)
 
 path <- file.path(
   "data",
@@ -166,25 +161,3 @@ result <- tryCatch(
 )
 
 elapsed <- as.numeric(difftime(Sys.time(), start, units = "secs"))
-
-# Example: id = 76106
-# "The number of portfolios differs from the specified parameter due to clusters
-# in the sorting variable."
-# > sorting_data |> filter(date == "1962-09-01")
-# filter: removed 898,904 rows (>99%), 2 rows remaining
-# # A tibble: 2 × 6
-#   permno date       ret_excess  sv_dbe exchange mktcap_lag
-#    <dbl> <date>          <dbl>   <dbl> <chr>         <dbl>
-# 1  19043 1962-06-01    -0.0860 0.00440 NYSE          298.
-# 2  25160 1962-06-01    -0.128  0.0178  NYSE           45.5
-# Solution: min_portfolio_size should be used to prevent drop dates without
-# sufficient observations
-
-# Example: id = 25568
-# "The sorting variable is constant and only one portfolio is returned.
-# > sorting_data |> filter(date == "1962-07-01")
-# filter: removed 1,070,257 rows (>99%), one row remaining
-# # A tibble: 1 × 6
-#   permno date       ret_excess sv_ebm exchange mktcap_lag
-#    <dbl> <date>          <dbl>  <dbl> <chr>         <dbl>
-# 1  25160 1962-07-01    -0.0419   1.10 NYSE           39.8

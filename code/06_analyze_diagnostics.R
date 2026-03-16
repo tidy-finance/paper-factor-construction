@@ -10,9 +10,7 @@ diagnostics |>
 
 # No task errors in subsample
 diagnostics |>
-  filter(is.na(cpr_elapsed_secs)) |>
-  count(status) |>
-  pull(status)
+  filter(is.na(cpr_elapsed_secs))
 
 diagnostics |>
   arrange(-elapsed_secs)
@@ -52,7 +50,17 @@ diagnostics |>
       "constant"
     )
   ) |>
+  filter(cluster_warning) |>
   count(has_errored, cluster_warning, constant_warning)
 
 
 sorting_variables <- read_parquet("data/sorting_variables_lag_3m.parquet")
+
+full_grid <- read_parquet("data/portfolio_sort_grid.parquet")
+
+diagnostics |>
+  left_join(full_grid) |>
+  group_by(sorting_variable) |>
+  summarize(n = n(), warnings = sum(n_warnings > 0)) |>
+  mutate(share = warnings / n) |>
+  arrange(desc(n))
