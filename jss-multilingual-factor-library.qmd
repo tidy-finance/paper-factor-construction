@@ -30,17 +30,8 @@ bibliography: bibliography.bib
 #| include: false
 #| echo: false
 #| message: false
-
-library(ggplot2)
-library(dplyr)
-library(tidyr)
-
-date_start <- as.Date("1960-01-01")
-date_end <- as.Date("2024-12-31")
-
 tf_dark_blue <- "#3B9AB2FF"
-theme_set(theme_bw() + theme(legend.position = "none"))
-
+ggplot2::theme_set(ggplot2::theme_bw() + ggplot2::theme(legend.position = "none"))
 ```
 
 ## Introduction: Constructing financial risk factors {#sec-intro}
@@ -61,14 +52,6 @@ We publish a curated factor library with preprocessed time series across sorting
 
 ## Vignette: A case study in factor construction {#sec-ag}
 
-Load required variables
-```{r}
-#| label: load-libraries
-library(dplyr)
-library(tidyr)
-library(lubridate)
-```
-
 Our focus is on presenting `tidyfinance`. You can install the released version of `tidyfinance` [from CRAN](https://cran.r-project.org/package=tidyfinance) via:
 
 ```{r}
@@ -86,16 +69,22 @@ You can install the development version of `tidyfinance` from [GitHub](https://g
 pak::pak("tidy-finance/r-tidyfinance")
 ```
 
-Load the package:
-
 ```{r}
-#| label: load-tidyfinance
+#| label: load-libraries
+#| message: false
+library(dplyr)
+library(tidyr)
+library(lubridate)
+library(ggplot2)
 library(tidyfinance)
+
 ```
 
-### Data acquisition {#sec-data-acquisition}
+### Data sources {#sec-data-acquisition}
 
 For our example, we rely on two datasets: CRSP monthly stock returns and Compustat annual financial statement data. We use `tidyfinance` to download and preprocess these datasets, ensuring that they are ready for factor construction. The code snippet below demonstrates how to acquire the necessary data for our analysis.
+
+TODO Describe data sources: CRSP, Compustat, etc and easy access via tidyfinance packages.
 
 ```{r}
 #| label: set-date-range
@@ -138,7 +127,11 @@ compustat_annual <- arrow::read_parquet("data/compustat_annual.parquet")
 ```
 
 TODO: Explain all the cleaning steps in the background: remove canadians, etc. 
+
 @tbl-data-sources provides an overview of all data sources accessible via the `download_data()` interface in both `tidyfinance` and `py-tidyfinance`.
+
+TODO highlight that the same functionality is available in Python via py-tidyfinance. - 
+
 
 | Source | Description | Example |
 |---|---|---|
@@ -153,54 +146,46 @@ TODO: Explain all the cleaning steps in the background: remove canadians, etc.
 | WRDS -- Compustat | Annual and quarterly financial statements with customizable columns | `download_data("wrds", "compustat_annual")` |
 | WRDS -- CCM Links | CRSP-Compustat linking table mapping permno to gvkey | `download_data("wrds", "ccm_links")` |
 | WRDS -- FISD | Mergent Fixed Income Securities Database with bond characteristics | `download_data("wrds", "fisd")` |
-| WRDS -- TRACE | Enhanced TRACE corporate bond transactions with Dick-Nielsen cleaning | `download_data("wrds", "trace_enhanced", cusips = "00101JAH6")` |
+| WRDS -- TRACE | Enhanced TRACE corporate bond transactions with Dick-Nielsen cleaning | `download_data("wrds", "trace_enhanced")` |
 
 : Data sources available via `download_data()` in `tidyfinance` and `py-tidyfinance`. {#tbl-data-sources}
 
 A programmatic overview of all `{r} nrow(list_supported_types())` supported dataset types can be retrieved via `list_supported_types()`, which returns a tibble of domains and datasets. Similarly, `list_supported_indexes()` returns the names of all supported stock market indexes whose current constituents can be downloaded via the `"constituents"` domain — useful, for instance, to identify the member firms of a benchmark index before constructing portfolios.
 
 ### Data cleaning and variable construction {#sec-data-cleaning}
-we compute AG year-over-year change in total assets scaled by prior year
+
+TODO: Describe asset growh: AG year-over-year change in total assets scaled by prior year
 TODO: Describe major tools and steps for data cleaning and explain how `tidyfinance` helps (particular focus on lagging). 
+
+TODO: Explain we remove non-finite values
+TODO: I removed stock filtering by age (> 2 years) for the sake of simplicity.
+
 ```{r}
 #| label: compute-sorting-variables
-compustat_annual <- compustat_annual |>
+sorting_variables <- compustat_annual |>
   add_lag_columns(
     "at",
     lag = years(1),
     by = "gvkey"
   ) |>
-  rename(at_lag1 = at_lag)
-
-sorting_variables_yearly <- compustat_annual |>
+  rename(at_lag1 = at_lag) |>
   mutate(
     sv_ag = (at - at_lag1) / at_lag1,
+    sv_ag = if_else(is.finite(sv_ag), sv_ag, NA_real_),
     filter_earnings = ib
-  )
-print(names(sorting_variables_yearly))
-
-```
-
-Remove non-finite values
-
-```{r}
-#| label: clean-sorting-variables
-sorting_variables_yearly <- sorting_variables_yearly |>
-  mutate(sv_ag = if_else(is.finite(sv_ag), sv_ag, NA_real_)) |> 
+  ) |>
   select(gvkey, date, filter_earnings, sv_ag)
 ```
 
-TODO: Break down the lagging code chunk in one example and leave the others out in terms of code. However, make sure to discuss that the same process applies to all sorting variables and that the API allows to retrieve lagged values for all of them.
-TODO: Illustration of lagging a la FF
-TODO: I removed stock filtering by age (> 2 years) for the sake of simplicity.
 TODO: I only show how to do lagging based on FF convention
+TODO: Make sure to discuss that the same lagging process applies to all sorting variables and that the API allows to retrieve lagged values for all of them.
 
 ```{r}
 #| label: lag-sorting-variables
 #| eval: false
-sorting_data <- crsp_monthly|>
+sorting_data <- crsp_monthly |>
   join_lagged_values(
-    sorting_variables_yearly ,
+    sorting_variables ,
     "gvkey",
     min_lag = months(12),
     max_lag = months(18),
@@ -218,6 +203,34 @@ sorting_data <- arrow::read_parquet("data/sorting_variables_lag_ff.parquet") |>
 
 ### Portfolio sorts
 
+TODO: Explain portfolio sort methodology
+TODO: Explain `compute_portfolio_returns()` function and its modular components, which allow for flexible portfolio construction based on different methodological choices (e.g., breakpoints, weighting schemes, rebalancing frequency).
+TODO:   Describe the portfolio sort process: defining breakpoints, forming portfolios, and calculating returns.
+TODO:   Discuss the modular components of the portfolio sort process, allowing for customization and flexibility.
+TODO:   Provide examples of different portfolio sort configurations and their implications for risk factor construction.
+TODO:   Describe in depth the details of sorting: Bunching of sorting variables, aggregation, etc.
+TODO:   Univariate and bivariate sorts. (Bivariate sorts require standardized data output for stock characteristics and can be retrieved from the API). Give a code snippet on how to perform arbitrary wild sorts.
+
+TODO:   Tidy finance functions require Bali adjustment and capped value weighting to replace Kelly et al. 
+
+
+: Preprocessing choices in the portfolio sort grid. For double sorts, the secondary quantiles and exchange choices apply to the size dimension only; for univariate sorts, those rows are not applicable. FF refers to the lag procedure of @fama.1993. {#tbl-sorting-decisions}
+
+| Preprocessing choice        | Options                                      |
+|-----------------------------|----------------------------------------------|
+| Size exclusion              | None; bottom 20th NYSE percentile            |
+| Exclusion of financials     | No; Yes                                      |
+| Exclusion of utilities      | No; Yes                                      |
+| Exclusion of neg. earnings  | No; Yes                                      |
+| Sorting variable lag        | 3 months; 6 months; FF                       |
+| Rebalancing                 | Monthly; Annual                              |
+| BP: Quantiles (main)        | 5; 10                                        |
+| Double sort                 | Single; Double dependent; Double independent |
+| BP: Quantiles (secondary)   | 2; 5                                         |
+| BP: Exchanges               | NYSE; All                                    |
+| Weighting scheme            | EW; VW                                       |
+
+
 TODO: Replace call to grid by proper r-tidyfinance function once implemented
 TODO: For now I describe the process for one sample subset (exclude_financials is variable), and only for univariate sorts
 ```{r}
@@ -234,7 +247,7 @@ grid <-  full_grid |>
 
 ```{r}
 #| label: set-direction
-direction = "bottom_minus_top"
+direction <- "bottom_minus_top"
 ```
 
 TODO: Explain the necessary columns and what they are needed for
@@ -272,7 +285,7 @@ process_task <- function(row, sorting_data, direction = direction) {
     sorting_method = row$sorting_method,
     rebalancing_month,
     options_main,
-    min_portfolio_size = min_portfolio_size )
+    min_portfolio_size = min_portfolio_size)
 
   long_short_return <- portfolio_returns |>
     compute_long_short_returns(direction) |>
@@ -291,7 +304,8 @@ process_task <- function(row, sorting_data, direction = direction) {
 TODO: Explain that we replace portfolio-months with insufficient stocks by zero returns, assuming that the factor would not have been tradable in those month. 
 ```{r}
 #| label: compute-portfolio-returns
-#| eval: false
+#| include: false
+#| cache: true
 results <- vector("list", nrow(grid))
 for (i in seq_len(nrow(grid))) {
   results[[i]] <- process_task(grid[i, ], sorting_data, direction)
@@ -300,6 +314,7 @@ results_combined <- bind_rows(results)
 ```
 
 TODO: Explain that the factor library contains this output (and all other combinations as well)
+TBD: The example below shows a socalled specification curve analysis for asset growth. I am not sure it conveys any meaningful economic insights but I lack another appealing example of what to make with results_combined. I think it is important to show some of the results to make the point that different methodological choices can lead to different factor returns and risk premia.
 
 ```{r}
 #| label: fig-spec-curve-ag
@@ -309,7 +324,8 @@ library(patchwork)
 
 specification_data <- results_combined |> 
   group_by(id) |> 
-  summarise(risk_premium = 100 * 12 * mean(ret)) |> left_join(full_grid, join_by(id)) |>
+  summarise(risk_premium = 100 * 12 * mean(ret)) |> 
+  left_join(full_grid, join_by(id)) |>
   arrange(risk_premium) |>
   mutate(rank = row_number())
 
@@ -340,59 +356,11 @@ p_top / p_bottom + plot_layout(heights = c(1, 2))
 
 ```
 
-## Vignette: Asset growth as a sorting variable {#sec-data}
-
-### Data acquisition and cleaning {#sec-data-acquisition}
-
-- *We provide R code snippets only. We highlight that the same functionality is available in Python via py-tidyfinance. Simultaneously we include the full Python script for the examples in the main text in the supplementary material.* 
-- *Content of the paper: We use one, maximum two examples for a sorting variable to guide through the entire pipeline of data gathering, cleaning, sorting. When it comes to sorting we refer to the many different options and considerations. Final chapter(s) present the factor library and summary of the "results" + code snippets to download the time series. *
-- *I envision a variable based on compustat data without much complitations, e.g. `sv_roa = ibq / atq_lag1`. That way we can focus on the entire pipeline without getting lost in the details of the sorting variable construction.* 
-
-- $\square$ Pin down sorting variables (in my view we have the most important ones except for market and risk-free)
-
--   Describe data sources: CRSP, Compustat, etc and easy access via tidyfinance packages.
--   Describe the data cleaning process: handling missing values, outliers, and data inconsistencies.
--   Describe available sorting variables.
-
-### Portfolio sorts {#sec-sorts}
-
--   Describe the portfolio sort process: defining breakpoints, forming portfolios, and calculating returns.
--   Discuss the modular components of the portfolio sort process, allowing for customization and flexibility.
--   Provide examples of different portfolio sort configurations and their implications for risk factor construction.
--   Describe in depth the details of sorting: Bunching of sorting variables, aggregation, etc.
--   Univariate and bivariate sorts. (Bivariate sorts require standardized data output for stock characteristics and can be retrieved from the API). Give a code snippet on how to perform arbitrary wild sorts.
--   The API also allows to retrieve univariate sorted portfolios.
-
-- $\square$ Tidy finance functions require Bali adjustment and capped value weighting to replace Kelly et al. 
-- $\square$ API needs to be constructed
-
-
-: Preprocessing choices in the portfolio sort grid. For double sorts, the secondary quantiles and exchange choices apply to the size dimension only; for univariate sorts, those rows are not applicable. FF refers to the lag procedure of @fama.1993. {#tbl-sorting-decisions}
-
-| Preprocessing choice        | Options                                      |
-|-----------------------------|----------------------------------------------|
-| Size exclusion              | None; bottom 20th NYSE percentile            |
-| Exclusion of financials     | No; Yes                                      |
-| Exclusion of utilities      | No; Yes                                      |
-| Exclusion of neg. earnings  | No; Yes                                      |
-| Sorting variable lag        | 3 months; 6 months; FF                       |
-| Rebalancing                 | Monthly; Annual                              |
-| BP: Quantiles (main)        | 5; 10                                        |
-| Double sort                 | Single; Double dependent; Double independent |
-| BP: Quantiles (secondary)   | 2; 5                                         |
-| BP: Exchanges               | NYSE; All                                    |
-| Weighting scheme            | EW; VW                                       |
-
-
-### Illustrations {#sec-illustrations}
-
--   Summary statistics for sorting variables
--   Summary statistics for risk factor time series
--   Example with difference in estimation of risk premia using different portfolio sort configurations.
-
-- $\square$ Shiny app for simple download [https://app-download-center.cloud.sdu.dk/](https://app-download-center.cloud.sdu.dk/)
-
 ## Factor library and API {#sec-library}
+
+TODO: Describe available sorting variables.
+TODO: Shiny app for simple download [https://app-download-center.cloud.sdu.dk/](https://app-download-center.cloud.sdu.dk/)
+
 
 ```{r}
 #| label: tbl-sorting-variables
@@ -461,10 +429,15 @@ portfolio_performance |>
 
 ## Computational details {.unnumbered}
 
+TODO: Fill out details on the computational environment, including software versions, packages used, and any relevant hardware specifications. This section should provide enough information for others to replicate the computational aspects of the research.
+TODO: Reference to github repository with all code and data workflows.
+
 -   The results in this paper were obtained using [R]{.proglang}\~4.5.2 with the [MASS]{.pkg}\~7.3.47 package. [R]{.proglang} itself and all packages used are available from the Comprehensive [R]{.proglang} Archive Network (CRAN) at
 -   \[https://CRAN.R-project.org/\]. Python environment details.
 
 ## Acknowledgments {.unnumbered}
+
+Stefan Voigt is grateful to the Danish Finance Institute for financial support. 
 
 ## References {.unnumbered}
 
