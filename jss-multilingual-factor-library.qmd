@@ -3,13 +3,6 @@ title: "A transparent financial risk factor library"
 format:
     jss-pdf:
         keep-tex: false
-        include-in-header:
-         - text: |
-              \usepackage{colortbl}
-              \usepackage{booktabs}
-              \usepackage{longtable}
-              \usepackage{array}
-              \usepackage{caption}
 author:
   - name: Christoph Frey
     affiliation: Lancaster University
@@ -85,22 +78,32 @@ We publish a curated factor library with preprocessed time series across sorting
 
 ## Factor library and API {#sec-library}
 
+```{=latex}
+\begin{footnotesize}
+```
+
 ```{r}
 #| label: tbl-sorting-variables
 #| tbl-cap: "Sorting variables included in the factor library. The direction column indicates whether the long-short factor return is constructed as top-minus-bottom (↑) or bottom-minus-top (↓) of the characteristic distribution."
+#| echo: false
 
-tbl <- tibble::tibble(
-  model = c("A", "B"),
-  description = c("Baseline", "Extended"),
-  ref = c("\\cite{smith2020,miller2019}", "\\cite{doe2021}")
-)
+arrow::read_parquet("data/sorting_variable_information.parquet") |>
+  dplyr::mutate(
+    sorting_variable = stringr::str_remove(sorting_variable, "^sv_"),
+    direction = dplyr::if_else(direction == "top_minus_bottom", "$\\uparrow$", "$\\downarrow$")
+  ) |>
+  dplyr::arrange(full_name) |>
+  dplyr::select(sorting_variable, full_name, direction, citation) |>
+  knitr::kable(
+    format = "latex",
+    escape = FALSE,
+    booktabs = TRUE,
+    col.names = c("Variable", "Name", "", "Reference")
+  )
+```
 
-kableExtra::kable(
-  tbl,
-  format = "latex",
-  escape = FALSE, 
-  booktabs = TRUE   
-)
+```{=latex}
+\end{footnotesize}
 ```
 
 ## Summary and discussion {#sec-summary}
@@ -161,7 +164,7 @@ $$
 
 **DBE - Change in Common Equity**
 
-Following @richardson.2005, we calculate the change in common equity as the ratio of common equity (CEQ) over one year scaled by lagged assets (AT), i.e.,
+Following @richardson.2005, we calculate the change in common equity as the change in common equity (CEQ) over one year scaled by lagged assets (AT), i.e.,
 
 $$
 DBE_{t} = \frac{CEQ_{t} - CEQ_{t-12}}{AT_{t-12}}
@@ -278,7 +281,7 @@ $$
 NOA^{int}_{t} = (AT_{t} - CHE_{t}) - (AT_{t} - DLC_{t} - DLTT_{t} - MIB_{t} - PSTK_{t} - CEQ_{t})
 $$
 
-where AT corresponds to total assets, CHE to cash and short-term investments, DLC to current liabilities, DLTT to long-term debt, MIB to minority interests, PSTK to the value of preferred stocks, and CEQ to common equity.
+where AT corresponds to total assets, CHE to cash and short-term investments, DLC to current debt, DLTT to long-term debt, MIB to minority interests, PSTK to the value of preferred stocks, and CEQ to common equity.
 Missing values in DLC, DLTT, MIB, and PSTK are set to zero.
 Then, the change in net operating assets is the difference between net operating assets of fiscal year $t$ and fiscal year $t-12$ scaled by lagged assets (AT), i.e.,
 
@@ -304,7 +307,7 @@ $$
 
 where ACT corresponds to current assets, CHE to cash, LCT to current liabilities, and DLC to short-term debt.
 We set missing values of DLC to zero.
-Then, the change in net non-cash working capital corresponds to the change of $WC$ from fiscal year $t$ to fiscal year $t-1$ scaled by lagged total assets (AT), i.e.,
+Then, the change in net non-cash working capital corresponds to the change in $WC$ from fiscal year $t-12$ to fiscal year $t$ scaled by lagged total assets (AT), i.e.,
 
 $$
 DWC_{t} = \frac{WC_{t} - WC_{t-12}}{AT_{t-12}}
@@ -334,7 +337,7 @@ $$
 NOA^{int}_{t} = (AT_{t} - CHE_{t}) - (AT_{t} - DLC_{t} - DLTT_{t} - MIB_{t} - PSTK_{t} - CEQ_{t})
 $$
 
-where AT corresponds to total assets, CHE to cash and short-term investments, DLC to current liabilities, DLTT to long-term debt, MIB to minority interests, PSTK to the value of preferred stocks, and CEQ to common equity.
+where AT corresponds to total assets, CHE to cash and short-term investments, DLC to current debt, DLTT to long-term debt, MIB to minority interests, PSTK to the value of preferred stocks, and CEQ to common equity.
 Missing values in DLC, DLTT, MIB, and PSTK are set to zero.
 Then, net operating assets is the net operating assets of fiscal year $t$ scaled by lagged assets (AT), i.e.,
 
@@ -352,7 +355,7 @@ $$
 
 where ACT is current assets, CHE cash, LCT current liabilities, DLC short-term debt, TXP taxes payable, and DP depreciation and amortization.
 Moreover, we replace the missing values of DLC and TXP with zero.
-$\Delta$ represented changes over one year.
+$\Delta$ represents changes over one year.
 From 1988 onwards, we measure operating accruals as
 
 $$
@@ -373,13 +376,13 @@ $$
 
 **RMOM - Residual Momentum**
 
-Following @blitz.2011, we define the 11-month residual momentum (RMOM) in each month and for each stock as cumulative residual returns from month $t-1$ to month $t-11$, scaled by the standard deviation of residual returns over the same time horizon.
+Following @blitz.2011, we define the 11-month residual momentum (RMOM) in each month and for each stock as cumulative residual returns from month $t-11$ to month $t-1$, scaled by the standard deviation of residual returns over the same time horizon.
 Residual returns $\epsilon$ are obtained in each month from regressing monthly simple, excess stock returns from month $t-1$ to month $t-36$ on the Fama and French (1993) three-factor model.
 Throughout these rolling regressions, we always require 36 monthly returns.
 
 **RS - Revenue Surprise**
 
-Following @jegadeesh.2006, we measure the change revenues per share (DRPS) from quarterly Compustat data as quarterly sales (SALEQ) scaled by the product of quarterly shares outstanding (CHSPRQ) times their cumulative adjustment factor (AJEXQ), i.e.,
+Following @jegadeesh.2006, we measure the change in revenues per share (DRPS) from quarterly Compustat data as quarterly sales (SALEQ) scaled by the product of quarterly shares outstanding (CSHPRQ) times their cumulative adjustment factor (AJEXQ), i.e.,
 
 $$
 DRPS_{q}= \frac{SALEQ_{q}}{CSHPRQ_{q} \cdot AJEXQ_{q}} - \frac{SALEQ_{q-4}}{CSHPRQ_{q-4} \cdot AJEXQ_{q-4}}
@@ -452,7 +455,7 @@ $$
 OPE_{t} = \frac{REVT_{t} - COGS_{t} - XSGA_{t} - XINT_{t}}{BE_{t}}
 $$
 
-where REVT corresponds to total revenues, COGS to cost of goods sold, XSGA to selling, general and administrative expenses XINT to interest expenses, and BE to book equity.
+where REVT corresponds to total revenues, COGS to cost of goods sold, XSGA to selling, general and administrative expenses, XINT to interest expenses, and BE to book equity.
 The definition of book equity is (a) the book equity of shareholders plus (b) deferred taxes and investment tax credit (Compustat item TXDITC or TXDB + ITCB if TXDITC is unavailable) minus (c) the book value of preferred stock.
 Regarding (a), the book equity of shareholders is shareholders' equity (SEQ), or the sum of common equity (CEQ) and the par value of preferred stock (PSTK), or, if all previous items are unavailable, total assets (AT) minus total liabilities (LT).
 Regarding (b), deferred taxes (TXDITC) or investment tax credits (TXDB plus ITCB) if deferred taxes is unavailable.
@@ -479,7 +482,7 @@ ROE_{q} = \frac{IBQ_{q}}{BEQ_{q-1}}
 $$
 
 Quarterly book equity (BEQ) is computed as the (a) book equity of shareholders plus (b) balance sheet deferred taxes and investment tax credit minus (c) the book value of preferred stock.
-Regarding (a), we measure book equity of shares holders by shareholders' equity (SEQQ), or the sum of common equity (CEQQ) and the par value of preferred stock (PSTKQ), or if all previous items are unavailable by total assets (ATQ) minus total liabilities (LTQ).
+Regarding (a), we measure book equity of shareholders by shareholders' equity (SEQQ), or the sum of common equity (CEQQ) and the par value of preferred stock (PSTKQ), or if all previous items are unavailable by total assets (ATQ) minus total liabilities (LTQ).
 Regarding (b), the balance sheet deferred taxes and investment tax credit is TXDITCQ, or TXDBQ, or zero if both are missing.
 Regarding (c), the book value of preferred stocks corresponds to PSTKRQ, or PSTKQ, or zero if both are unavailable.
 Finally, the earnings announcement date has to be after the fiscal quarter end date.
@@ -499,7 +502,7 @@ We require positive pretax and net income.
 **ME - Size**
 
 Following @fama.1992, we measure size as the natural logarithm of the market equity.
-We obtain market equity data from CRSP by multiplying the shares outstanding (shrout \* 1,000, as they are given in thousands) with the corresponding share price (the absolute value of altprc)), i.e.,
+We obtain market equity data from CRSP by multiplying the shares outstanding (shrout \* 1,000, as they are given in thousands) with the corresponding share price (the absolute value of altprc), i.e.,
 
 $$
 ME_{t} = \log\left(shrout_{t}*1000*|altprc_{t}|\right)
@@ -516,7 +519,7 @@ RV_{t} = \frac{|r_{d}|}{prc_{t} * vol_{t}}
 $$
 
 Then, the Amihud illiquidity measure corresponds to the average return to volume estimate over the last six months.
-We require at least 50 observations for this average and adjust the trading volume of NASDAQ stocks according to Ga and Ri (2010).
+We require at least 50 observations for this average and adjust the trading volume of NASDAQ stocks according to @gao.2010.
 
 **BETA - Beta Relative to the Market**
 
@@ -532,7 +535,7 @@ Moreover, we require at least 24 monthly observations for the regression above.
 **DTV - Dollar Trading Volume**
 
 Following @brennan.1998, we measure dollar trading volume from daily CRSP data as the average dollar trading volume (product of vol and prc) from month $t-6$ to month $t-1$ (with at least 50 observations).
-Moreover, we adjust dollar trading volume from NASDAQ according to Ga and Ri (2010).
+Moreover, we adjust dollar trading volume from NASDAQ according to @gao.2010.
 
 **ISKEW - Idiosyncratic Skewness Relative to the Fama and French (1993) three-factor model**
 
@@ -546,7 +549,7 @@ Then, idiosyncratic skewness is measured as the skewness of residuals $u_{t}$.
 
 **IVOL - Idiosyncratic Volatility Relative to the Fama and French (1993) model**
 
-Follow @ang.2006, we compute idiosyncratic volatility relative to the @fama.1993 three-factor model as the volatility of residuals from the following regression (with a minimum of 15 daily observations)
+Following @ang.2006, we compute idiosyncratic volatility relative to the @fama.1993 three-factor model as the volatility of residuals from the following regression (with a minimum of 15 daily observations)
 
 $$
 r_{t}^{e} = \alpha + \beta_{1} \cdot (MKT_{t} - R_{t}^{f}) + \beta_{2} \cdot SMB_{t} + \beta_{3} \cdot HML_{t} + u_{t}
@@ -554,7 +557,7 @@ $$
 
 **MDR - Maximum Daily Return**
 
-Following @bali.2011, we measure the maximum daily (excess) return in each month from daily CRSP data (with a minimum of at least 15 return observations).
+Following @bali.2011, we measure the maximum daily (excess) return in each month from daily CRSP data (with at least 15 return observations).
 
 **TUR - Share Turnover**
 
@@ -611,7 +614,7 @@ $$
 EBM_{t} = \frac{(DLTT_{t} + DLC_{t} + PSTK_{t} + DVPA_{t} - TSTKP_{t}) - CHE_{t} + BE_{t}}{(DLTT_{t} + DLC_{t} + PSTK_{t} + DVPA_{t} - TSTKP_{t}) - CHE_{t} + ME_{t}}
 $$
 
-where DLTT corresponds to long-term debt, DLC to current liabilities, PSTK to the value of preferred stock, DVPA to preferred dividends in arrears, TSTKP to preferred treasury stock, CHE to cash and short-term investments, and ME to the market equity from CRSP (i.e., the fiscal-year end's shares outstanding, shrout, times the absolute value of their price, altprc, in million USD).
+where DLTT corresponds to long-term debt, DLC to current debt, PSTK to the value of preferred stock, DVPA to preferred dividends in arrears, TSTKP to preferred treasury stock, CHE to cash and short-term investments, and ME to the market equity from CRSP (i.e., the fiscal-year end's shares outstanding, shrout, times the absolute value of their price, altprc, in million USD).
 Lastly, in this case, book equity BE is computed as common equity (CEQ) plus TSTKP minus DVPA.
 Missing observations in DVPA and TSTKP are set to zero.
 Additionally, we require that the sum of net debt and book equity, as well as the sum of net debt plus market equity, are positive.
@@ -634,7 +637,7 @@ $$
 NDM_{t} = \frac{(DLTT_{t} + DLC_{t} + PSTK_{t} + DVPA_{t} - TSTKP_{t}) - CHE_{t}}{ME_{t}}
 $$
 
-where DLTT corresponds to long-term debt, DLC to current liabilities, PSTK to the value of preferred stock, DVPA to preferred dividends in arrears, TSTKP to preferred treasury stock, CHE to cash and short-term investments.
+where DLTT corresponds to long-term debt, DLC to current debt, PSTK to the value of preferred stock, DVPA to preferred dividends in arrears, TSTKP to preferred treasury stock, CHE to cash and short-term investments.
 Lastly, missing observations in DVPA and TSTKP are set to zero.
 
 **NPY - Net Payout Yield**
