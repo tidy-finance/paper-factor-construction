@@ -26,6 +26,23 @@ keywords-formatted: [financial risk factors, reproducible research, asset pricin
 bibliography: bibliography.bib  
 ---
 
+```{r setup}
+#| include: false
+#| echo: false
+#| message: false
+
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+
+date_start <- as.Date("1960-01-01")
+date_end <- as.Date("2024-12-31")
+
+tf_dark_blue <- "#3B9AB2FF"
+theme_set(theme_bw() + theme(legend.position = "None"))
+
+```
+
 ## Introduction: Constructing financial risk factors {#sec-intro}
 
 In empirical finance, a key question is which sources of systematic risk drive asset returns. Researchers address this by constructing factor returns—portfolios isolating single economic characteristics or exposures. Factor returns allow model evaluation, hypothesis testing, benchmarking, and decomposition of returns into systematic and idiosyncratic components [@fama.1993; @cochrane.2011; @harvey.2016].
@@ -68,6 +85,24 @@ We publish a curated factor library with preprocessed time series across sorting
 - $\square$ Tidy finance functions require Bali adjustment and capped value weighting to replace Kelly et al. 
 - $\square$ API needs to be constructed
 
+
+: Preprocessing choices in the portfolio sort grid. For double sorts, the secondary quantiles and exchange choices apply to the size dimension only; for univariate sorts, those rows are not applicable. FF refers to the lag procedure of @fama.1993. {#tbl-sorting-decisions}
+
+| Preprocessing choice        | Options                                      |
+|-----------------------------|----------------------------------------------|
+| Size exclusion              | None; bottom 20th NYSE percentile            |
+| Exclusion of financials     | No; Yes                                      |
+| Exclusion of utilities      | No; Yes                                      |
+| Exclusion of neg. earnings  | No; Yes                                      |
+| Sorting variable lag        | 3 months; 6 months; FF                       |
+| Rebalancing                 | Monthly; Annual                              |
+| BP: Quantiles (main)        | 5; 10                                        |
+| Double sort                 | Single; Double dependent; Double independent |
+| BP: Quantiles (secondary)   | 2; 5                                         |
+| BP: Exchanges               | NYSE; All                                    |
+| Weighting scheme            | EW; VW                                       |
+
+
 ### Illustrations {#sec-illustrations}
 
 -   Summary statistics for sorting variables
@@ -78,16 +113,12 @@ We publish a curated factor library with preprocessed time series across sorting
 
 ## Factor library and API {#sec-library}
 
-```{=latex}
-\begin{footnotesize}
-```
-
 ```{r}
 #| label: tbl-sorting-variables
 #| tbl-cap: "Sorting variables included in the factor library. The direction column indicates whether the long-short factor return is constructed as top-minus-bottom (↑) or bottom-minus-top (↓) of the characteristic distribution."
 #| echo: false
 
-arrow::read_parquet("data/sorting_variable_information.parquet") |>
+tab <- arrow::read_parquet("data/sorting_variable_information.parquet") |>
   dplyr::mutate(
     sorting_variable = stringr::str_remove(sorting_variable, "^sv_"),
     direction = dplyr::if_else(direction == "top_minus_bottom", "$\\uparrow$", "$\\downarrow$")
@@ -98,13 +129,54 @@ arrow::read_parquet("data/sorting_variable_information.parquet") |>
     format = "latex",
     escape = FALSE,
     booktabs = TRUE,
-    col.names = c("Variable", "Name", "", "Reference")
+    longtable = TRUE,
+    col.names = c("Variable", "Name", "", "Main reference")
   )
+
+# Replace the second column spec (l -> p{5cm}) to allow line wrapping in Name column
+tab[1] <- sub("llll", "lp{5cm}ll", tab[1], fixed = TRUE)
+tab
 ```
 
-```{=latex}
-\end{footnotesize}
+```{r}
+#| fig-width: 6
+#| fig-height: 4.7
+#| out-width: 95%
+#| dpi: 300
+#| fig-pos: t
+#| fig-cap: "\\textbf{Sharpe ratios.} The ridge plots indicate the distribution of annualized Sharpe ratios of long-short return differentials for a given sorting variable across all data preprocessing choices illustrated in @tbl-sorting-decisions. The brown triangles indicate the Sharpe ratio of the published version of each risk factor. The estimates incorporate data from July 1973 until December 2022."
+#| label: fig-sharpe-ratio
+#| echo: false
+
+if(!file.exists("data/portfolio_performance.parquet")){
+portfolio_performance <- arrow::open_dataset("data/portfolio_returns") |>
+  filter(date >= date_start & date < date_end) |>
+  group_by(sorting_variable, id) |>
+  summarise(
+    sharpe_ratio = sqrt(12) * mean(ret, na.rm = TRUE) / sd(ret, na.rm = TRUE), 
+    .groups = "drop") |>
+  collect()
+
+write_parquet(portfolio_performance, "data/portfolio_performance.parquet")
+}
+
+arrow::read_parquet("data/portfolio_performance.parquet") |> 
+  mutate(
+    sorting_variable = forcats::fct_reorder(
+      .f = sorting_variable,
+      .x = sharpe_ratio,
+      .fun = median
+    )
+  ) |> 
+    ggplot(aes(x = sorting_variable, y = sharpe_ratio)) +
+  ggdist::stat_halfeye(alpha = 0.3, fatten_point=0, color = tf_dark_blue) +
+    coord_flip(clip = "off") +
+  guides(col = "none") +
+  labs(y = "Sharpe ratio (annualized)", x = NULL) +
+  geom_hline(aes(yintercept=0), linetype="dotted") +
+  theme(axis.text.y = element_text(size = 7))
 ```
+
 
 ## Summary and discussion {#sec-summary}
 
