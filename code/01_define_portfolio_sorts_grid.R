@@ -12,7 +12,7 @@ sorting_variable_information <- tribble(
   "52w"             , "52-Week High"                            , "top_minus_bottom" , "\\cite{george.2004}"                           ,
   "me"              , "Market Equity"                           , "bottom_minus_top" , "\\cite{banz.1981}"                             ,
   "cbop"            , "Cash-Based Operating Profitability"      , "top_minus_bottom" , "\\cite{ball.2016}"                             ,
-  "gpa"             , "Gross Profit Asset"                      , "top_minus_bottom" , "\\cite{novy-marx.2013}"                        ,
+  "gpa"             , "Gross Profits to Assets"                 , "top_minus_bottom" , "\\cite{novy-marx.2013}"                        ,
   "o"               , "O-Score"                                 , "bottom_minus_top" , "\\cite{ohlson.1980,dichev.1998}"               ,
   "ope"             , "Operating Efficiency"                    , "top_minus_bottom" , "\\cite{fama.2015}"                             ,
   "roa"             , "Return on Assets"                        , "top_minus_bottom" , "\\cite{balakrishnan.2010}"                     ,

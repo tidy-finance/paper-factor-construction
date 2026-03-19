@@ -39,7 +39,7 @@ date_start <- as.Date("1960-01-01")
 date_end <- as.Date("2024-12-31")
 
 tf_dark_blue <- "#3B9AB2FF"
-theme_set(theme_bw() + theme(legend.position = "None"))
+theme_set(theme_bw() + theme(legend.position = "none"))
 
 ```
 
@@ -144,23 +144,21 @@ tab
 #| out-width: 95%
 #| dpi: 300
 #| fig-pos: t
-#| fig-cap: "\\textbf{Sharpe ratios.} The ridge plots indicate the distribution of annualized Sharpe ratios of long-short return differentials for a given sorting variable across all data preprocessing choices illustrated in @tbl-sorting-decisions. The brown triangles indicate the Sharpe ratio of the published version of each risk factor. The estimates incorporate data from July 1973 until December 2022."
+#| fig-cap: "\\textbf{Sharpe ratios.} The ridge plots indicate the distribution of annualized Sharpe ratios of long-short return differentials for a given sorting variable across all data preprocessing choices illustrated in @tbl-sorting-decisions. The estimates are based on the available sample period for each factor."
 #| label: fig-sharpe-ratio
 #| echo: false
+#| cache: true
 
-if(!file.exists("data/portfolio_performance.parquet")){
 portfolio_performance <- arrow::open_dataset("data/portfolio_returns") |>
   filter(date >= date_start & date < date_end) |>
   group_by(sorting_variable, id) |>
   summarise(
     sharpe_ratio = sqrt(12) * mean(ret, na.rm = TRUE) / sd(ret, na.rm = TRUE), 
-    .groups = "drop") |>
+    .groups = "drop"
+  ) |>
   collect()
 
-write_parquet(portfolio_performance, "data/portfolio_performance.parquet")
-}
-
-arrow::read_parquet("data/portfolio_performance.parquet") |> 
+portfolio_performance |> 
   mutate(
     sorting_variable = forcats::fct_reorder(
       .f = sorting_variable,
@@ -168,9 +166,9 @@ arrow::read_parquet("data/portfolio_performance.parquet") |>
       .fun = median
     )
   ) |> 
-    ggplot(aes(x = sorting_variable, y = sharpe_ratio)) +
+  ggplot(aes(x = sorting_variable, y = sharpe_ratio)) +
   ggdist::stat_halfeye(alpha = 0.3, fatten_point=0, color = tf_dark_blue) +
-    coord_flip(clip = "off") +
+  coord_flip(clip = "off") +
   guides(col = "none") +
   labs(y = "Sharpe ratio (annualized)", x = NULL) +
   geom_hline(aes(yintercept=0), linetype="dotted") +
