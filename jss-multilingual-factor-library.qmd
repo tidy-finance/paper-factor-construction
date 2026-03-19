@@ -288,7 +288,7 @@ process_task <- function(row, sorting_data, direction = direction) {
     min_portfolio_size = min_portfolio_size)
 
   long_short_return <- portfolio_returns |>
-    compute_long_short_returns(direction) |>
+    compute_long_short_returns(direction = direction) |>
     pivot_longer(-date, names_to = "ret_type", values_to = "ret") |>
     mutate(
       id = row$id,
