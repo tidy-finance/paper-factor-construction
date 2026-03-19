@@ -42,6 +42,287 @@ We illustrate the full workflow in R, from raw data to factor returns, including
 
 We publish a curated factor library with preprocessed time series across sorting variables, weighting schemes, and adjustments. We demonstrate how methodological choices affect factor returns to highlight empirical relevance. Finally, a programmatic API provides access to standardized series and preprocessed panels. The database supports versioning and batch retrievals. All software, workflows, and documentation are published to enable replication, sensitivity analysis, and extension, promoting standardized benchmarking and transparent empirical research.
 
+## Vignette: A case study in factor construction {#sec-ag}
+
+Load required variables
+```{r}
+#| label: load-libraries
+library(dplyr)
+library(tidyr)
+library(lubridate)
+```
+
+Our focus is on presenting `tidyfinance`. You can install the released version of `tidyfinance` [from CRAN](https://cran.r-project.org/package=tidyfinance) via:
+
+```{r}
+#| label: install-tidyfinance-cran
+#| eval: false
+install.packages("tidyfinance")
+```
+
+You can install the development version of `tidyfinance` from [GitHub](https://github.com/tidy-finance/r-tidyfinance) via:
+
+```{r}
+#| label: install-tidyfinance-dev
+#| eval: false
+# install.packages("pak")
+pak::pak("tidy-finance/r-tidyfinance")
+```
+
+Load the package:
+
+```{r}
+#| label: load-tidyfinance
+library(tidyfinance)
+```
+
+### Data acquisition {#sec-data-acquisition}
+
+For our example, we rely on two datasets: CRSP monthly stock returns and Compustat annual financial statement data. We use `tidyfinance` to download and preprocess these datasets, ensuring that they are ready for factor construction. The code snippet below demonstrates how to acquire the necessary data for our analysis.
+
+```{r}
+#| label: set-date-range
+date_start <- as.Date("1960-01-01")
+date_end <- as.Date("2024-12-31")
+```
+
+```{r}
+#| label: download-crsp
+#| eval: false
+crsp_monthly <- download_data(
+  domain = "wrds",
+  dataset = "crsp_monthly",
+  version = "v2",
+  start_date = date_start,
+  end_date = date_end,
+  add_ccm_links = TRUE
+)
+
+```
+
+```{r}
+#| label: download-compustat
+#| eval: false
+compustat_annual <- download_data(
+  domain = "wrds",
+  dataset = "compustat_annual",
+  start_date = date_start,
+  end_date = date_end,
+  additional_columns = c("at", "ib"),
+  only_us = TRUE
+)
+```
+
+```{r}
+#| label: load-crsp-compustat
+#| echo: false
+crsp_monthly <- arrow::read_parquet("data/crsp_monthly.parquet")
+compustat_annual <- arrow::read_parquet("data/compustat_annual.parquet")
+```
+
+TODO: Explain all the cleaning steps in the background: remove canadians, etc. 
+@tbl-data-sources provides an overview of all data sources accessible via the `download_data()` interface in both `tidyfinance` and `py-tidyfinance`.
+
+| Source | Description | Example |
+|---|---|---|
+| Ken French's Data Library | Fama-French factor models, portfolio returns, and industry classifications (169+ datasets at daily/weekly/monthly frequencies) | `download_data("famafrench", "Fama/French 5 Factors (2x3) [Daily]")` |
+| Global Q | Hou-Xue-Zhang Q5 factor model (market, size, investment, ROE, expected growth) at multiple frequencies | `download_data("globalq", "factors_q5_monthly")` |
+| Goyal-Welch Macro Predictors | Macroeconomic predictors: dividend-price ratio, earnings-price ratio, book-to-market, term spread, default yield spread, T-bill rate, inflation | `download_data("macro_predictors", "monthly")` |
+| FRED | Any economic time series from the St. Louis Fed (GDP, CPI, unemployment, etc.) | `download_data("fred", series = c("GDP", "CPIAUCNS"))` |
+| Yahoo Finance | Daily OHLCV stock price data with adjusted close for any ticker | `download_data("stock_prices", symbols = c("AAPL", "MSFT"))` |
+| Index Constituents | Current constituents for 21 major indexes (S&P 500, Russell 2000, DAX, MSCI World, etc.) | `download_data("constituents", index = "DAX")` |
+| Open Source Asset Pricing | 213+ monthly asset pricing signals and anomaly variables | `download_data("osap")` |
+| WRDS -- CRSP | Monthly and daily stock returns, market cap, exchange, industry, excess returns | `download_data("wrds", "crsp_monthly")` |
+| WRDS -- Compustat | Annual and quarterly financial statements with customizable columns | `download_data("wrds", "compustat_annual")` |
+| WRDS -- CCM Links | CRSP-Compustat linking table mapping permno to gvkey | `download_data("wrds", "ccm_links")` |
+| WRDS -- FISD | Mergent Fixed Income Securities Database with bond characteristics | `download_data("wrds", "fisd")` |
+| WRDS -- TRACE | Enhanced TRACE corporate bond transactions with Dick-Nielsen cleaning | `download_data("wrds", "trace_enhanced", cusips = "00101JAH6")` |
+
+: Data sources available via `download_data()` in `tidyfinance` and `py-tidyfinance`. {#tbl-data-sources}
+
+A programmatic overview of all `{r} nrow(list_supported_types())` supported dataset types can be retrieved via `list_supported_types()`, which returns a tibble of domains and datasets. Similarly, `list_supported_indexes()` returns the names of all supported stock market indexes whose current constituents can be downloaded via the `"constituents"` domain — useful, for instance, to identify the member firms of a benchmark index before constructing portfolios.
+
+### Data cleaning and variable construction {#sec-data-cleaning}
+we compute AG year-over-year change in total assets scaled by prior year
+TODO: Describe major tools and steps for data cleaning and explain how `tidyfinance` helps (particular focus on lagging). 
+```{r}
+#| label: compute-sorting-variables
+compustat_annual <- compustat_annual |>
+  add_lag_columns(
+    "at",
+    lag = years(1),
+    by = "gvkey"
+  ) |>
+  rename(at_lag1 = at_lag)
+
+sorting_variables_yearly <- compustat_annual |>
+  mutate(
+    sv_ag = (at - at_lag1) / at_lag1,
+    filter_earnings = ib
+  )
+print(names(sorting_variables_yearly))
+
+```
+
+Remove non-finite values
+
+```{r}
+#| label: clean-sorting-variables
+sorting_variables_yearly <- sorting_variables_yearly |>
+  mutate(sv_ag = if_else(is.finite(sv_ag), sv_ag, NA_real_)) |> 
+  select(gvkey, date, filter_earnings, sv_ag)
+```
+
+TODO: Break down the lagging code chunk in one example and leave the others out in terms of code. However, make sure to discuss that the same process applies to all sorting variables and that the API allows to retrieve lagged values for all of them.
+TODO: Illustration of lagging a la FF
+TODO: I removed stock filtering by age (> 2 years) for the sake of simplicity.
+TODO: I only show how to do lagging based on FF convention
+
+```{r}
+#| label: lag-sorting-variables
+#| eval: false
+sorting_data <- crsp_monthly|>
+  join_lagged_values(
+    sorting_variables_yearly ,
+    "gvkey",
+    min_lag = months(12),
+    max_lag = months(18),
+    ff_adjustment = TRUE
+  ) 
+```
+
+```{r}
+#| label: load-sorting-data
+#| echo: false
+# TODO: Replace chunk with actual evaluation at least once to ensure the output is consistent
+sorting_data <- arrow::read_parquet("data/sorting_variables_lag_ff.parquet") |> 
+  select(permno, date, ret_excess, exchange, industry, mktcap_lag, filter_earnings, sv_ag)
+```
+
+### Portfolio sorts
+
+TODO: Replace call to grid by proper r-tidyfinance function once implemented
+TODO: For now I describe the process for one sample subset (exclude_financials is variable), and only for univariate sorts
+```{r}
+#| label: load-grid
+full_grid <- get_available_hf_files("tidy-finance",
+      "factor-library-grid"
+    )|> pull(url) |> 
+  arrow::read_parquet() 
+  
+grid <-  full_grid |>
+  filter(sorting_variable == "sv_ag", sorting_variable_lag == "ff",
+  exclude_size == 0, exclude_utilities == 0, sorting_method == "univariate")
+```
+
+```{r}
+#| label: set-direction
+direction = "bottom_minus_top"
+```
+
+TODO: Explain the necessary columns and what they are needed for
+
+Loop over all remaining tasks and construct factor returns
+```{r}
+#| label: define-process-task
+sorting_variable <- "sv_ag"
+
+process_task <- function(row, sorting_data, direction = direction) {
+
+  if (row$exclude_financials) {
+    sorting_data <- sorting_data |>
+      filter(industry != "Finance")
+  }
+
+  if (row$exclude_negative_earnings) {
+    sorting_data <- sorting_data |>
+      filter(filter_earnings > 0)
+  }
+
+  rebalancing_month <- if (row$rebalancing == "monthly") NULL else 7
+  bp_exchanges <- strsplit(row$breakpoints_exchanges, split = "\\|")[[1]]
+
+  options_main <- breakpoint_options(
+    n_portfolios = row$breakpoints_main,
+    breakpoint_exchanges = bp_exchanges
+  )
+
+  min_portfolio_size <- options_main$n_portfolios
+
+  portfolio_returns <- compute_portfolio_returns(
+    sorting_data,
+    sorting_variable,
+    sorting_method = row$sorting_method,
+    rebalancing_month,
+    options_main,
+    min_portfolio_size = min_portfolio_size )
+
+  long_short_return <- portfolio_returns |>
+    compute_long_short_returns(direction) |>
+    pivot_longer(-date, names_to = "ret_type", values_to = "ret") |>
+    mutate(
+      id = row$id,
+      ret_type = gsub("ret_excess_", "", ret_type),
+      sorting_variable = row$sorting_variable,
+      ret = replace_na(ret, 0)
+    ) |>
+    select(id, sorting_variable, date, ret_type, ret)
+  return(long_short_return)
+}
+```
+
+TODO: Explain that we replace portfolio-months with insufficient stocks by zero returns, assuming that the factor would not have been tradable in those month. 
+```{r}
+#| label: compute-portfolio-returns
+#| eval: false
+results <- vector("list", nrow(grid))
+for (i in seq_len(nrow(grid))) {
+  results[[i]] <- process_task(grid[i, ], sorting_data, direction)
+}
+results_combined <- bind_rows(results)
+```
+
+TODO: Explain that the factor library contains this output (and all other combinations as well)
+
+```{r}
+#| label: fig-spec-curve-ag
+#| fig-cap: "Specification curve for the asset growth factor. Each point in the top panel shows the annualized risk premium for one specification, sorted from lowest to highest. The bottom panel indicates the corresponding modeling choices."
+
+library(patchwork)
+
+specification_data <- results_combined |> 
+  group_by(id) |> 
+  summarise(risk_premium = 100 * 12 * mean(ret)) |> left_join(full_grid, join_by(id)) |>
+  arrange(risk_premium) |>
+  mutate(rank = row_number())
+
+decision_cols <- setdiff(names(specification_data), c("id", "sorting_variable", "risk_premium", "rank"))
+
+p_top <- specification_data |>
+  ggplot(aes(x = rank, y = risk_premium)) +
+  geom_point(size = 0.3, alpha = 0.5) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "red") +
+  labs(x = NULL, y = "Annualized risk premium (%)") +
+  theme_minimal() +
+  theme(axis.text.x = element_blank(), axis.ticks.x = element_blank())
+
+p_bottom <- specification_data |>
+  mutate(across(all_of(decision_cols), as.character)) |>
+  pivot_longer(cols = all_of(decision_cols), names_to = "decision", values_to = "choice") |>
+  ggplot(aes(x = rank, y = decision, color = choice)) +
+  geom_point(size = 0.3) +
+  scale_y_discrete(labels = \(x) gsub("_", " ", x)) +
+  labs(x = NULL, y = NULL, color = NULL) +
+  theme_minimal() +
+  theme(
+    axis.text.y = element_text(hjust = 0),
+    legend.position = "none"
+  )
+
+p_top / p_bottom + plot_layout(heights = c(1, 2))
+
+```
+
 ## Data sources and aggregation {#sec-data}
 
 - *We provide R code snippets only. We highlight that the same functionality is available in Python via py-tidyfinance. Simultaneously we include the full Python script for the examples in the main text in the supplementary material.* 
