@@ -273,6 +273,14 @@ $$
 AG_{t} = \frac{AT_{t} - AT_{t-12}}{AT_{t-12}}
 $$
 
+**DINV - Inventory Changes**
+
+Following @thomas.2002, we measure the change in inventory as the annual change in inventories (INVT) scaled by average total assets (AT) over the current and the last year, i.e.,
+
+$$
+DINV_{t} = \frac{INVT_{t} - INVT_{t-12}}{\frac{1}{2} \big(AT_{t} + AT_{t-12} \big)}
+$$
+
 **DNOA - Change in Net Operating Assets**
 
 Following @hirshleifer.2004, we measure net operating assets (defined as $NOA^{int}$) as
@@ -319,14 +327,6 @@ Following @xing.2008, we measure investment growth as the annual change in capit
 
 $$
 IG_{t} = \frac{CAPX_{t} - CAPX_{t-12}}{CAPX_{t-12}}
-$$
-
-**DINV - Inventory Changes**
-
-Following @thomas.2002, we measure the change in inventory as the annual change in inventories (INVT) scaled by average total assets (AT) over the current and the last year, i.e.,
-
-$$
-DINV_{t} = \frac{INVT_{t} - INVT_{t-12}}{\frac{1}{2} \big(AT_{t} + AT_{t-12} \big)}
 $$
 
 **NOA - Net Operating Assets**
@@ -409,6 +409,14 @@ Finally, the earnings announcement date has to be after the fiscal quarter end d
 Following @george.2004, we measure the 52-week high as month $t$'s closing split-adjusted stock price scaled by the highest daily split-adjusted stock price over the previous twelve months.
 We only consider stock-month pairs with more than three valid price observations.
 
+**REV - Long-Term Reversal**
+
+Following @debondt.1985, we measure the long-term reversal effect by the cumulative returns from month $t-60$ to month $t-13$, i.e.,
+
+$$
+\text{REV}_t = \text{exp}\left(\sum^{t-13}_{\tau = t-60}\log(1 + r_{\tau})\right) - 1
+$$
+
 ## Profitability
 
 **CBOP - Cash-Based Operating Profitability**
@@ -440,8 +448,8 @@ Following @ohlson.1980, we measure O-score with the following linear relation
 \begin{align*}
 O_{t} = &- 1.32 - 0.407 \cdot \log(AT_{t}) + 6.03 \cdot \frac{DLC_{t} + DLTT_{t}}{AT_{t}} \\
 &- 1.43 \cdot \frac{ACT_{t} - LCT_{t}}{AT_{t}} + 0.076 \cdot \frac{LCT_{t}}{AT_{t}} \\
-&- 1.72 \cdot {1}_{LT_{t} > AT_{t}} - 2.37 \cdot \frac{NI_{t}}{AT_{t}} - 1.83 \cdot \frac{PI_{t} + DP_{t}}{LT_{t}} \\
-&+ 0.285 \cdot {1}_{NI_{t} < 0 \textbf{  } \& \text{   } NI_{t-12} < 0} - 0.521 \cdot \frac{NI_{t}-NI_{t-12}}{|NI_{t}| + |NI_{t-12}|}
+&- 1.72 \cdot \mathbf{1}_{LT_{t} > AT_{t}} - 2.37 \cdot \frac{NI_{t}}{AT_{t}} - 1.83 \cdot \frac{PI_{t} + DP_{t}}{LT_{t}} \\
+&+ 0.285 \cdot \mathbf{1}_{NI_{t} < 0 \text{ and } NI_{t-12} < 0} - 0.521 \cdot \frac{NI_{t}-NI_{t-12}}{|NI_{t}| + |NI_{t-12}|}
 \end{align*}
 
 where AT corresponds to total assets, DLC to short-term debt, DLTT to long-term debt, ACT to current assets, LCT to current liabilities, LT to total liabilities, PI to pretax income, DP to depreciation and amortization, and NI to net income.
@@ -664,14 +672,6 @@ $$
 Before 1988, we measure OC as funds from operations (FOPT) minus the change in working capital (item WCAP).
 Thereafter, we measure OC as net cash flows from operating activities (OANCF).
 Moreover, we exclude firms with negative operating cash flows.
-
-**REV - Long-Term Reversal**
-
-Following @debondt.1985, we measure the long-term reversal effect by the cumulative returns from month $t-60$ to month $t-13$, i.e.,
-
-$$
-\text{REV}_t = \text{exp}\left(\sum^{t-13}_{\tau = t-60}\log(1 + r_{\tau})\right) - 1
-$$
 
 **SM - Sales to Market Equity**
 
