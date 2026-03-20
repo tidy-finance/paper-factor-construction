@@ -86,20 +86,10 @@ We walk through the construction of a single factor, asset growth, from raw data
 
 ```{mermaid}
 %%| label: fig-workflow-diagram
-%%| fig-cap: "Research workflow for factor construction with `tidyfinance`. Rounded boxes indicate `tidyfinance` functions; rectangular boxes indicate data objects."
-flowchart TD
-    A["download_data()"] -->|"CRSP, Compustat, ..."| B["Raw Data"]
-    B --> C["add_lag_columns()\njoin_lagged_values()"]
-    C --> D["Sorting Variables"]
-    D --> E["compute_portfolio_returns()\nbreakpoint_options()"]
-    E --> F["Portfolio Returns"]
-    F --> G["compute_long_short_returns()"]
-    G --> H["Factor Returns"]
-
-    style A fill:#e8f4f8,stroke:#2c7fb8
-    style C fill:#e8f4f8,stroke:#2c7fb8
-    style E fill:#e8f4f8,stroke:#2c7fb8
-    style G fill:#e8f4f8,stroke:#2c7fb8
+%%| fig-cap: "Research workflow for factor construction with `tidyfinance`. Each box lists the main function calls for that stage."
+flowchart LR
+    A("<b>Data acquisition</b><br><code>download_data()</code>") --> B("<b>Data processing</b><br><code>add_lag_columns()</code><br><code>compute_portfolio_returns()</code>")
+    B --> C("<b>Data sharing</b><br><code>download_data()</code>")
 ```
 
 ### Data sources {#sec-data-acquisition}
