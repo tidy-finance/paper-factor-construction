@@ -106,7 +106,7 @@ flowchart TD
 
 A central design goal of `tidyfinance` is to provide a single, consistent interface, `download_data()`, to a wide range of financial and economic data sources. The vignette only requires two of them (CRSP monthly stock returns and Compustat annual financial statements), but the same function gives access to `{r} nrow(list_supported_types())` dataset types spanning equity returns, fixed-income transactions, macroeconomic predictors, and more. The package serves researchers well beyond asset pricing: macro forecasting (FRED, Goyal-Welch), credit markets (FISD, TRACE), and portfolio benchmarking (index constituents) all use the same unified workflow.
 
-For our asset growth example, we download and preprocess the two required datasets as follows.
+For our asset growth example, we download and preprocess the two required datasets as follows. Before the first WRDS download, users call `set_wrds_credentials()` to store their WRDS username and password securely in `.Renviron`; subsequent `download_data()` calls then establish the database connection automatically.
 
 ```{r}
 #| label: set-date-range
