@@ -89,9 +89,10 @@ We walk through the construction of a single factor, asset growth, from raw data
 ```{mermaid}
 %%| label: fig-workflow-diagram
 %%| fig-cap: "Research workflow for factor construction with `tidyfinance`. Each box lists the main function calls for that stage."
+%%| fig-width: 6
 flowchart LR
-    A("<b>Data acquisition</b><br><code>download_data()</code>") --> B("<b>Data processing</b><br><code>add_lag_columns()</code><br><code>compute_portfolio_returns()</code>")
-    B --> C("<b>Data sharing</b><br><code>download_data()</code>")
+    A("<b>Data acquisition</b><br><code>download_data()</code><br>&nbsp;") --> B("<b>Data processing</b><br><code>add_lag_columns()</code><br><code>compute_portfolio_returns()</code>")
+    B --> C("<b>Data sharing</b><br><code>download_data()</code><br>&nbsp;")
 ```
 
 ### Data sources {#sec-data-acquisition}
@@ -208,7 +209,7 @@ The next step merges annual sorting variables onto the monthly CRSP stock panel 
 ```{r}
 #| label: fig-lagging-illustration
 #| fig-cap: "Illustration of the lagging mechanism in `join_lagged_values()`. Filled dots represent observed values; hollow dots represent missing observations. The function searches the window between `min_lag` and `max_lag` and selects the most recent available value (arrow)."
-#| fig-width: 7
+#| fig-width: 6
 #| fig-height: 2.5
 #| echo: false
 library(ggforce)
