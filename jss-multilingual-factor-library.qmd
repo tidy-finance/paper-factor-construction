@@ -32,7 +32,9 @@ bibliography: bibliography.bib
 #| include: false
 #| echo: false
 #| message: false
-tf_dark_blue <- "#3B9AB2FF"
+  tf_dark_blue <- "#3B9AB2FF"
+  tf_orange <- "#E1AF00FF"
+
 ggplot2::theme_set(ggplot2::theme_bw() + ggplot2::theme(legend.position = "none"))
 ```
 
@@ -200,6 +202,135 @@ sorting_variable_data <- compustat_annual |>
 ```
 
 The next step merges annual sorting variables onto the monthly CRSP stock panel using `join_lagged_values()`. The function aligns fiscal-year-end data with monthly observations through a configurable lag window. Setting `ff_adjustment = TRUE` implements the Fama-French convention [@fama.1993], aligning fiscal-year data from year $t$ with portfolio formation in July of year $t+1$ through a 12-to-18-month look-back window. The same lagging process generalizes to all sorting variables in the full factor library. The factor library API provides precomputed lagged panels for all variables.
+
+@fig-lagging-illustration shows how `join_lagged_values()` resolves missing observations. Given a target month $t$, the function searches backward from `min_lag` to `max_lag` and returns the most recent available value within that window.
+
+```{r}
+#| label: fig-lagging-illustration
+#| fig-cap: "Illustration of the lagging mechanism in `join_lagged_values()`. Filled dots represent observed values; hollow dots represent missing observations. The function searches the window between `min_lag` and `max_lag` and selects the most recent available value (arrow)."
+#| fig-width: 7
+#| fig-height: 2.5
+#| echo: false
+library(ggforce)
+
+n  <- 10
+ts <- 0.94  # tile size (width = height)
+
+rescale_alpha <- function(x, lo = 0.2, hi = 0.9) {
+  r <- range(x, na.rm = TRUE)
+  lo + (x - r[1]) / (r[2] - r[1]) * (hi - lo)
+}
+
+# y = n (top, t-9) … y = 1 (bottom, t)
+df_lag <- data.frame(
+  y        = n:1,
+  observed = c(TRUE, TRUE, TRUE, FALSE, TRUE, FALSE, FALSE, TRUE, TRUE, TRUE),
+  label    = c(paste0("t\u2013", 9:1), "t"),
+  ts_alpha = rescale_alpha((n + 1 - n:1) / n, lo = 0.35, hi = 0.9),
+  data_val = c(0.55, 0.30, 0.80, NA, 0.50, NA, NA, 0.90, 0.40, 0.70)
+)
+df_lag$data_alpha <- rescale_alpha(df_lag$data_val)
+
+window_y_top    <- n + 1 - 4   # 7  max_lag boundary (upper)
+window_y_bottom <- n + 1 - 7   # 4  min_lag boundary (lower)
+matched_y       <- n + 1 - 5   # 6  t-5
+target_y        <- 1            # t
+
+corner <- unit(4, "pt")
+
+x_label <- 0
+x_data  <- 1
+
+obs  <- df_lag[df_lag$observed, ]
+miss <- df_lag[!df_lag$observed, ]
+
+# Build polygon data for geom_shape (rounded tiles)
+tiles <- function(rows, cx, grp_offset = 0, alpha_col = NULL) {
+  do.call(rbind, lapply(seq_len(nrow(rows)), function(i) {
+    data.frame(
+      x     = cx + c(-1,  1, 1, -1) * ts / 2,
+      y     = rows$y[i] + c(-1, -1, 1,  1) * ts / 2,
+      group = grp_offset + i,
+      alpha = if (!is.null(alpha_col)) rows[[alpha_col]][i] else NA_real_
+    )
+  }))
+}
+
+label_poly <- tiles(df_lag, x_label, 0,       "ts_alpha")
+obs_poly   <- tiles(obs,    x_data,  n,        "data_alpha")
+miss_poly  <- tiles(miss,   x_data,  n + nrow(obs))
+
+ggplot() +
+  # Blue date label tiles (strictly increasing alpha)
+  geom_shape(
+    data = label_poly, aes(x = x, y = y, group = group, alpha = alpha),
+    fill = tf_dark_blue, color = "white", linewidth = 0.8, radius = corner
+  ) +
+  # Orange data tiles — observed (random alpha)
+  geom_shape(
+    data = obs_poly, aes(x = x, y = y, group = group, alpha = alpha),
+    fill = tf_orange, color = "white", linewidth = 0.8, radius = corner
+  ) +
+  # Grey data tiles — missing
+  geom_shape(
+    data = miss_poly, aes(x = x, y = y, group = group),
+    fill = "grey97", color = "grey80", linewidth = 0.8, radius = corner
+  ) +
+  scale_alpha_identity() +
+  # Date labels (white on blue)
+  geom_text(
+    data = df_lag, aes(x = x_label, y = y, label = label),
+    size = 2.8, color = "white", fontface = "bold"
+  ) +
+  # "NA" in missing cells
+  geom_text(
+    data = miss, aes(x = x_data, y = y),
+    label = "NA", size = 2.5, color = "grey65", fontface = "italic"
+  ) +
+  # Dashed window outline
+  annotate(
+    "rect",
+    xmin = x_data - ts / 2, xmax = x_data + ts / 2,
+    ymin = window_y_bottom - ts / 2, ymax = window_y_top + ts / 2,
+    fill = NA, color = tf_dark_blue, linewidth = 0.7, linetype = "dashed"
+  ) +
+  # max_lag / min_lag labels (combined)
+  geom_text(
+    data = data.frame(
+      x     = x_data + ts / 2 + 0.06,
+      y     = c(window_y_top + ts / 2, window_y_bottom - ts / 2),
+      label = c("max_lag", "min_lag"),
+      vjust = c(-0.4, 1.4)
+    ),
+    aes(x = x, y = y, label = label, vjust = vjust),
+    color = tf_dark_blue, size = 2.6, fontface = "italic", hjust = 0
+  ) +
+  # Grey arrows: t-1 … t-5 each pointing to their lagged match
+  geom_curve(
+    data = data.frame(
+      y    = c(2, 3, 4, 5, 6),
+      yend = c(6, 6, 8, 8, 9) - 0.15,
+      x    = x_data + ts / 2,
+      xend = x_data + ts / 2
+    ),
+    aes(x = x, y = y, xend = xend, yend = yend),
+    curvature = 0.4, color = "grey60", alpha = 0.5,
+    arrow = arrow(length = unit(0.10, "cm"), type = "closed"), linewidth = 0.45
+  ) +
+  # Main blue arrow: t → t-5
+  annotate(
+    "curve",
+    x = x_data + ts / 2, xend = x_data + ts / 2,
+    y = target_y, yend = matched_y - 0.15,
+    curvature = 0.4, color = tf_dark_blue, linewidth = 0.7,
+    arrow = arrow(length = unit(0.12, "cm"), type = "closed")
+  ) +
+  scale_x_continuous(limits = c(-0.52, 2.4), expand = c(0, 0)) +
+  scale_y_continuous(limits = c(0.45, 10.55), expand = c(0, 0)) +
+  theme_void() +
+  theme(plot.margin = margin(5, 10, 5, 10))
+
+```
 
 ```{r}
 #| label: lag-sorting-variables
