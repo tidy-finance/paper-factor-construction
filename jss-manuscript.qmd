@@ -185,6 +185,8 @@ list_supported_indexes() |> head(5)
 
 We illustrate data cleaning and variable construction using asset growth (AG) as our running example. Asset growth is the year-over-year percentage change in total assets, $AG_t = (AT_t - AT_{t-1}) / AT_{t-1}$ [@cooper.2008]. The `add_lag_columns()` function from `tidyfinance` handles temporal alignment by creating a lagged version of total assets grouped by firm identifier (`gvkey`) with a one-year lag. Non-finite values (arising when lagged total assets are zero or missing) become `NA`. We also retain income before extraordinary items (`ib`) as a filter variable for optional exclusion of firms with negative earnings in the portfolio sort stage.
 
+TODO: we use the age filter to calculate the actual factors, not shown in the paper.
+
 ```{r}
 #| label: compute-sorting-variables
 sorting_variable_data <- compustat_annual |>

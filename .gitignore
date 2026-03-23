@@ -8,5 +8,4 @@ bash.sh
 .Renviron
 .claude/settings.local.json
 .vscode/
-/jss-multilingual-factor-library_cache
-/jss-multilingual-factor-library_files
+/jss-manuscript_*
