@@ -63,8 +63,8 @@ Our core focus is to present the [R]{.proglang} package `tidyfinance`. We walk t
 %%| fig-cap: "Research workflow for factor construction with `tidyfinance`. Each box lists the main function calls for that stage."
 %%| fig-width: 6
 flowchart LR
-    A("<b>Data acquisition</b><br><code>download_data()</code><br>&nbsp;") --> B("<b>Data processing</b><br><code>add_lag_columns()</code><br><code>compute_portfolio_returns()</code>")
-    B --> C("<b>Data sharing</b><br><code>download_data()</code><br>&nbsp;")
+    A("<b>Data acquisition</b><br><code>download_data()</code>") --> B("<b>Variable construction</b><br><code>add_lag_columns()</code>")
+    B --> C("<b>Portfolio returns</b><br><code>compute_portfolio_returns()</code>")
 ```
 
 You can install the released version of `tidyfinance` [from CRAN](https://cran.r-project.org/package=tidyfinance) via:
@@ -385,24 +385,28 @@ sorting_data <- crsp_monthly |>
     ff_adjustment = TRUE
   )
 
-sorting_data <- sorting_data |> select(date, permno, industry, exchange, ret_excess, mktcap_lag, asset_growth)
+sorting_data <- sorting_data |> select(date, permno, exchange, ret_excess, mktcap_lag, asset_growth)
 ```
 
 The resulting dataset merges monthly stock returns with the lagged sorting variable. Each row represents a stock-month observation, containing the information needed for portfolio construction: excess returns, exchange membership, industry classification, lagged market capitalization (for value-weighting), and the sorting variable itself.
 
-@fig-ag-by-industry shows median asset growth across broad industry groups over time. Pronounced spikes during economic expansions and contractions highlight the cyclical nature of corporate investment that portfolio sorts aim to exploit.
+@fig-ag-by-industry shows the 33rd, 50th, and 66th percentiles of asset growth over time. Pronounced spikes during economic expansions and contractions highlight the cyclical nature of corporate investment that portfolio sorts aim to exploit.
 
 ```{r}
 #| label: fig-ag-by-industry
-#| fig-cap: "Median asset growth by industry group over time. Each line shows the cross-sectional median of asset growth within a broad SIC-based industry classification."
+#| fig-cap: "Distribution of asset growth over time. Lines show the 33rd, 50th, and 66th percentiles of the cross-sectional distribution of asset growth."
 sorting_data |>
-  drop_na(asset_growth) |> 
-  group_by(date, industry) |>
-  filter(n() >= 10) |>
-  summarise(median_ag = median(asset_growth), .groups = "drop") |>
-  ggplot(aes(x = date, y = median_ag, color = industry)) +
+  group_by(date) |>
+  summarise(
+    p33 = quantile(asset_growth, 0.33, na.rm = TRUE),
+    p50 = quantile(asset_growth, 0.50, na.rm = TRUE),
+    p66 = quantile(asset_growth, 0.66, na.rm = TRUE),
+    .groups = "drop"
+  ) |>
+  pivot_longer(cols = c(p33, p50, p66), names_to = "quantile", values_to = "asset_growth") |>
+  ggplot(aes(x = date, y = asset_growth, color = quantile)) +
   geom_line() +
-  labs(x = NULL, y = "Median asset growth", color = "Industry") +
+  labs(x = NULL, y = "Asset growth", color = "Quantile") +
   theme(legend.position = "bottom")
 ```
 
@@ -434,6 +438,8 @@ The `tidyfinance` package implements this workflow through three functions. Firs
 
 #### Univariate sorts {#sec-univariate-sorts}
 
+TODO: Discuss the subfunctions from within `compute_portfolio_returns()`, such as `tidyfinance::assign_portfolios()`, which assigns each stock-month observation to a quantile portfolio based on the breakpoints, and `?tidyfinance::compute_breakpoints()`, which computes the quantile breakpoints for the sorting variable based on the specified exchange universe. These functions are modular and can be used independently for more customized portfolio constructions, such as overlapping portfolios or alternative weighting schemes.
+
 In a univariate sort, stocks are ranked solely on a single characteristic. We illustrate this with asset growth, forming decile portfolios using NYSE breakpoints and value-weighted returns, rebalanced annually in July.
 
 ```{r}
@@ -449,25 +455,25 @@ The `breakpoint_options()` call specifies that breakpoints come from NYSE-listed
 ```{r}
 #| label: univariate-sort-ag
 #| cache: true
-portfolio_returns_uni <- compute_portfolio_returns(
+portfolio_returns <- compute_portfolio_returns(
   sorting_data,
-  "asset_growth",
+  sorting_variables = "asset_growth",
   sorting_method = "univariate",
   rebalancing_month = 7,
   options_main
 )
 
-portfolio_returns_uni |> head(10)
+portfolio_returns |> head()
 ```
 
 The output contains monthly excess returns for each decile portfolio. To obtain the asset growth factor return, we compute the long-short portfolio using `compute_long_short_returns()`. The `direction = "bottom_minus_top"` argument means the factor is long low-AG stocks and short high-AG stocks, consistent with the finding that firms with high asset growth earn lower subsequent returns.
 
 ```{r}
 #| label: long-short-ag
-factor_returns_ag <- portfolio_returns_uni |>
+factor_returns_ag <- portfolio_returns |>
   compute_long_short_returns(direction = "bottom_minus_top")
 
-factor_returns_ag |> head(10)
+factor_returns_ag |> tail()
 ```
 
 #### Bivariate sorts {#sec-bivariate-sorts}
@@ -498,10 +504,13 @@ portfolio_returns_biv <- compute_portfolio_returns(
 factor_returns_biv <- portfolio_returns_biv |>
   compute_long_short_returns(direction = "bottom_minus_top")
 
-factor_returns_biv |> head(10)
+factor_returns_biv |> head()
 ```
 
 Dependent sorts are appropriate when the secondary variable (here, size) strongly affects the distribution of the primary sorting variable, as is typical for many accounting-based characteristics. Independent sorts treat both dimensions symmetrically and work best when both variables are of equal conceptual interest. The `sorting_method` argument supports both methods (`"bivariate-dependent"` or `"bivariate-independent"`).
+
+## Factor library and API {#sec-library}
+
 
 #### Specification grid and the factor library {#sec-specification-grid}
 
@@ -535,8 +544,6 @@ ag_returns <- get_available_hf_files("tidy-finance", "factor-library-grid") |>
 ```
 
 @sec-library provides a comprehensive overview of all available sorting variables and their empirical properties.
-
-## Factor library and API {#sec-library}
 
 ```{r}
 #| label: load-sorting-variables
@@ -607,6 +614,23 @@ portfolio_performance |>
   labs(y = "Sharpe ratio (annualized)", x = NULL) +
   geom_hline(aes(yintercept=0), linetype="dotted") +
   theme(axis.text.y = element_text(size = 7))
+```
+
+To download factor returns from the factor library, simply call
+```{r}
+#| label: download-factor-library
+#| eval: false
+download_data("hf", "factor-library", sorting_variable = "52w", sorting_variable_lag = "6m", sorting_method = "univariate")
+download_data("hf", "factor-library", sorting_variable = "52w", sorting_variable_lag = "6m", fill_all = TRUE)
+
+```
+
+To provide specific requests for handselected ids, users can call
+
+```{r}
+#| eval: false
+#| label: download-factor-library-ids
+download_factor_library_returns_ids(c(123, 456))
 ```
 
 ## Summary and discussion {#sec-summary}
