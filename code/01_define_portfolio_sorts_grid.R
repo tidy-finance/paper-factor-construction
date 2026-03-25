@@ -70,7 +70,7 @@ full_grid <- expand_grid(
   exclude_negative_earnings = c(TRUE, FALSE),
   sorting_variable_lag = c("3m", "6m", "ff"),
   rebalancing = c("monthly", "annual"),
-  breakpoints_main = c(5, 10),
+  breakpoints_main = c(3, 5, 10),
   sorting_method = c(
     "univariate",
     "bivariate-dependent",
@@ -78,7 +78,7 @@ full_grid <- expand_grid(
   ),
   breakpoints_secondary = c(2, 5),
   breakpoints_exchanges = c("NYSE", "AMEX|NASDAQ|NYSE"),
-  weighting_scheme = c("EW", "VW")
+  weighting_scheme = c("EW", "VW", "capped VW")
 )
 
 grid <- full_grid |>
