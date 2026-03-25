@@ -55,8 +55,7 @@ sorting_variable_information <- tribble(
   "ivol"            , "Idiosyncratic Volatility"                , "bottom_minus_top" , "\\cite{ang.2006}"                              ,
   "mdr"             , "Maximum Daily Return"                    , "bottom_minus_top" , "\\cite{bali.2011}"                             ,
   "tur"             , "Share Turnover"                          , "bottom_minus_top" , "\\cite{datar.1998}"
-) |>
-  mutate(sorting_variable = paste0("sv_", sorting_variable))
+)
 
 write_parquet(
   sorting_variable_information,
@@ -64,7 +63,7 @@ write_parquet(
 )
 
 full_grid <- expand_grid(
-  sorting_variable = unique(sorting_variable_information$sorting_variable),
+  sorting_variable = paste0("sv_", unique(sorting_variable_information$sorting_variable)),
   exclude_size = c(0, 0.2),
   exclude_financials = c(TRUE, FALSE),
   exclude_utilities = c(TRUE, FALSE),
@@ -82,36 +81,30 @@ full_grid <- expand_grid(
   weighting_scheme = c("EW", "VW")
 )
 
-# Revise breakpoints_secondary
-
-# For univariate sorting, the secondary breakpoints do not apply as there is no secondary variable
 grid <- full_grid |>
-  filter(
-    !(sorting_method == "univariate" &
-      breakpoints_secondary > min(full_grid$breakpoints_secondary))
-  ) |>
+  # For univariate sorting, secondary breakpoints do not apply
+  filter_out(when_all(
+    sorting_method == "univariate",
+    breakpoints_secondary > min(full_grid$breakpoints_secondary)
+  )) |>
   mutate(
     breakpoints_secondary = if_else(
       sorting_method == "univariate",
       NA_real_,
       breakpoints_secondary
     )
-  )
-
-# Revise sv_me's double sorts
-# The 'sv_me' (Market Equity) variable is excluded from bivariate sorts because size is already accounted for in the first sort
-grid <- grid |>
-  filter(
-    !(sorting_variable == "sv_me" &
-      sorting_method %in% c("bivariate-dependent", "bivariate-independent"))
-  )
-
-# Exclude configurations where the 'Earnings to Market' (sv_em) is combined with allowing negative earnings
-grid <- grid |>
-  filter(!(sorting_variable == "sv_em" & exclude_negative_earnings == FALSE))
-
-# id is used for parallelization later
-grid <- grid |>
+  ) |>
+  # sv_me is excluded from bivariate sorts (size already in first sort)
+  filter_out(when_all(
+    sorting_variable == "sv_me",
+    sorting_method %in% c("bivariate-dependent", "bivariate-independent")
+  )) |>
+  # sv_em cannot be combined with allowing negative earnings
+  filter_out(when_all(
+    sorting_variable == "sv_em",
+    exclude_negative_earnings == FALSE
+  )) |>
+  # id is used for parallelization later
   arrange(sorting_variable_lag, sorting_variable) |>
   rowid_to_column(var = "id")
 
