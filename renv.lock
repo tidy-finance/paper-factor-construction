@@ -1008,8 +1008,8 @@
     },
     "dbplyr": {
       "Package": "dbplyr",
-      "Version": "2.5.1",
-      "Source": "Repository",
+      "Version": "2.5.2.9000",
+      "Source": "GitHub",
       "Type": "Package",
       "Title": "A 'dplyr' Back End for Databases",
       "Authors@R": "c( person(\"Hadley\", \"Wickham\", , \"hadley@posit.co\", role = c(\"aut\", \"cre\")), person(\"Maximilian\", \"Girlich\", role = \"aut\"), person(\"Edgar\", \"Ruiz\", role = \"aut\"), person(\"Posit Software, PBC\", role = c(\"cph\", \"fnd\")) )",
@@ -1018,7 +1018,7 @@
       "URL": "https://dbplyr.tidyverse.org/, https://github.com/tidyverse/dbplyr",
       "BugReports": "https://github.com/tidyverse/dbplyr/issues",
       "Depends": [
-        "R (>= 3.6)"
+        "R (>= 4.1)"
       ],
       "Imports": [
         "blob (>= 1.2.0)",
@@ -1047,6 +1047,7 @@
         "Lahman",
         "nycflights13",
         "odbc (>= 1.4.2)",
+        "RJDBC",
         "RMariaDB (>= 1.2.2)",
         "rmarkdown",
         "RPostgres (>= 1.4.5)",
@@ -1060,12 +1061,19 @@
       "Config/testthat/parallel": "TRUE",
       "Encoding": "UTF-8",
       "Language": "en-gb",
+      "Roxygen": "list(markdown = TRUE)",
       "RoxygenNote": "7.3.3",
-      "Collate": "'db-sql.R' 'utils-check.R' 'import-standalone-types-check.R' 'import-standalone-obj-type.R' 'utils.R' 'sql.R' 'escape.R' 'translate-sql-cut.R' 'translate-sql-quantile.R' 'translate-sql-string.R' 'translate-sql-paste.R' 'translate-sql-helpers.R' 'translate-sql-window.R' 'translate-sql-conditional.R' 'backend-.R' 'backend-access.R' 'backend-hana.R' 'backend-hive.R' 'backend-impala.R' 'verb-copy-to.R' 'backend-mssql.R' 'backend-mysql.R' 'backend-odbc.R' 'backend-oracle.R' 'backend-postgres.R' 'backend-postgres-old.R' 'backend-redshift.R' 'backend-snowflake.R' 'backend-spark-sql.R' 'backend-sqlite.R' 'backend-teradata.R' 'build-sql.R' 'data-cache.R' 'data-lahman.R' 'data-nycflights13.R' 'db-escape.R' 'db-io.R' 'db.R' 'dbplyr.R' 'explain.R' 'ident.R' 'import-standalone-s3-register.R' 'join-by-compat.R' 'join-cols-compat.R' 'lazy-join-query.R' 'lazy-ops.R' 'lazy-query.R' 'lazy-select-query.R' 'lazy-set-op-query.R' 'memdb.R' 'optimise-utils.R' 'pillar.R' 'progress.R' 'sql-build.R' 'query-join.R' 'query-select.R' 'query-semi-join.R' 'query-set-op.R' 'query.R' 'reexport.R' 'remote.R' 'rows.R' 'schema.R' 'simulate.R' 'sql-clause.R' 'sql-expr.R' 'src-sql.R' 'src_dbi.R' 'table-name.R' 'tbl-lazy.R' 'tbl-sql.R' 'test-frame.R' 'testthat.R' 'tidyeval-across.R' 'tidyeval.R' 'translate-sql.R' 'utils-format.R' 'verb-arrange.R' 'verb-compute.R' 'verb-count.R' 'verb-distinct.R' 'verb-do-query.R' 'verb-do.R' 'verb-expand.R' 'verb-fill.R' 'verb-filter.R' 'verb-group_by.R' 'verb-head.R' 'verb-joins.R' 'verb-mutate.R' 'verb-pivot-longer.R' 'verb-pivot-wider.R' 'verb-pull.R' 'verb-select.R' 'verb-set-ops.R' 'verb-slice.R' 'verb-summarise.R' 'verb-uncount.R' 'verb-window.R' 'zzz.R'",
+      "Collate": "'verb-copy-inline.R' 'verb-copy-to.R' 'db-sql.R' 'db.R' 'utils-check.R' 'import-standalone-types-check.R' 'import-standalone-obj-type.R' 'utils.R' 'sql.R' 'escape.R' 'translate-sql-cut.R' 'translate-sql-string.R' 'translate-sql-aggregate.R' 'translate-sql-scalar.R' 'translate-sql-helpers.R' 'translate-sql-window.R' 'translate-sql-conditional.R' 'backend-.R' 'backend-access.R' 'backend-hana.R' 'backend-hive.R' 'backend-impala.R' 'backend-jdbc.R' 'backend-mssql.R' 'backend-mysql.R' 'backend-odbc.R' 'backend-oracle.R' 'backend-postgres.R' 'backend-postgres-old.R' 'backend-redshift.R' 'backend-snowflake.R' 'backend-spark-sql.R' 'backend-sqlite.R' 'backend-teradata.R' 'backward-compatibility.R' 'bind-queries.R' 'data-cache.R' 'data-lahman.R' 'data-nycflights13.R' 'db-io.R' 'dbplyr.R' 'ident.R' 'import-standalone-s3-register.R' 'join-by-compat.R' 'join-cols-compat.R' 'lazy-ops.R' 'memdb.R' 'optimise-utils.R' 'progress.R' 'query-base.R' 'query-join.R' 'query-rf-join.R' 'query-select.R' 'query-semi-join.R' 'query-set-op.R' 'query-union.R' 'query.R' 'remote.R' 'rows.R' 'schema.R' 'sql-build.R' 'sql-clause.R' 'sql-dialect.R' 'sql-glue.R' 'sql-quote.R' 'sql-superseded.R' 'src-sql.R' 'src_dbi.R' 'table-name.R' 'tbl-lazy.R' 'tbl-sql.R' 'tidyeval-across.R' 'tidyeval.R' 'translate-sql.R' 'utils-format.R' 'verb-arrange.R' 'verb-collapse.R' 'verb-collect.R' 'verb-compute.R' 'verb-count.R' 'verb-distinct.R' 'verb-do-query.R' 'verb-do.R' 'verb-expand.R' 'verb-explain.R' 'verb-fill.R' 'verb-filter.R' 'verb-group_by.R' 'verb-head.R' 'verb-joins.R' 'verb-mutate.R' 'verb-pivot-longer.R' 'verb-pivot-wider.R' 'verb-pull.R' 'verb-select.R' 'verb-set-ops.R' 'verb-slice.R' 'verb-summarise.R' 'verb-uncount.R' 'verb-window.R' 'with-dialect.R' 'zzz.R'",
+      "RemoteType": "github",
+      "RemoteHost": "api.github.com",
+      "RemoteRepo": "dbplyr",
+      "RemoteUsername": "tidyverse",
+      "RemotePkgRef": "tidyverse/dbplyr",
+      "RemoteRef": "HEAD",
+      "RemoteSha": "d5184b3e2d5b9fb82f3e509b5996cbd5f58b5562",
       "NeedsCompilation": "no",
       "Author": "Hadley Wickham [aut, cre], Maximilian Girlich [aut], Edgar Ruiz [aut], Posit Software, PBC [cph, fnd]",
-      "Maintainer": "Hadley Wickham <hadley@posit.co>",
-      "Repository": "CRAN"
+      "Maintainer": "Hadley Wickham <hadley@posit.co>"
     },
     "digest": {
       "Package": "digest",
@@ -1141,7 +1149,7 @@
     },
     "dplyr": {
       "Package": "dplyr",
-      "Version": "1.1.4",
+      "Version": "1.2.0",
       "Source": "Repository",
       "Type": "Package",
       "Title": "A Grammar of Data Manipulation",
@@ -1151,27 +1159,25 @@
       "URL": "https://dplyr.tidyverse.org, https://github.com/tidyverse/dplyr",
       "BugReports": "https://github.com/tidyverse/dplyr/issues",
       "Depends": [
-        "R (>= 3.5.0)"
+        "R (>= 4.1.0)"
       ],
       "Imports": [
-        "cli (>= 3.4.0)",
+        "cli (>= 3.6.2)",
         "generics",
         "glue (>= 1.3.2)",
-        "lifecycle (>= 1.0.3)",
+        "lifecycle (>= 1.0.5)",
         "magrittr (>= 1.5)",
         "methods",
         "pillar (>= 1.9.0)",
         "R6",
-        "rlang (>= 1.1.0)",
+        "rlang (>= 1.1.7)",
         "tibble (>= 3.2.0)",
         "tidyselect (>= 1.2.0)",
         "utils",
-        "vctrs (>= 0.6.4)"
+        "vctrs (>= 0.7.1)"
       ],
       "Suggests": [
-        "bench",
         "broom",
-        "callr",
         "covr",
         "DBI",
         "dbplyr (>= 2.2.1)",
@@ -1179,12 +1185,9 @@
         "knitr",
         "Lahman",
         "lobstr",
-        "microbenchmark",
         "nycflights13",
         "purrr",
         "rmarkdown",
-        "RMySQL",
-        "RPostgreSQL",
         "RSQLite",
         "stringi (>= 1.7.6)",
         "testthat (>= 3.1.5)",
@@ -1192,15 +1195,16 @@
         "withr"
       ],
       "VignetteBuilder": "knitr",
-      "Config/Needs/website": "tidyverse, shiny, pkgdown, tidyverse/tidytemplate",
+      "Config/build/compilation-database": "true",
+      "Config/Needs/website": "tidyverse/tidytemplate",
       "Config/testthat/edition": "3",
       "Encoding": "UTF-8",
       "LazyData": "true",
-      "RoxygenNote": "7.2.3",
+      "RoxygenNote": "7.3.3",
       "NeedsCompilation": "yes",
-      "Author": "Hadley Wickham [aut, cre] (<https://orcid.org/0000-0003-4757-117X>), Romain François [aut] (<https://orcid.org/0000-0002-2444-4226>), Lionel Henry [aut], Kirill Müller [aut] (<https://orcid.org/0000-0002-1416-3412>), Davis Vaughan [aut] (<https://orcid.org/0000-0003-4777-038X>), Posit Software, PBC [cph, fnd]",
+      "Author": "Hadley Wickham [aut, cre] (ORCID: <https://orcid.org/0000-0003-4757-117X>), Romain François [aut] (ORCID: <https://orcid.org/0000-0002-2444-4226>), Lionel Henry [aut], Kirill Müller [aut] (ORCID: <https://orcid.org/0000-0002-1416-3412>), Davis Vaughan [aut] (ORCID: <https://orcid.org/0000-0003-4777-038X>), Posit Software, PBC [cph, fnd]",
       "Maintainer": "Hadley Wickham <hadley@posit.co>",
-      "Repository": "https://packagemanager.posit.co/cran/latest"
+      "Repository": "CRAN"
     },
     "evaluate": {
       "Package": "evaluate",
@@ -2474,7 +2478,7 @@
     },
     "lifecycle": {
       "Package": "lifecycle",
-      "Version": "1.0.4",
+      "Version": "1.0.5",
       "Source": "Repository",
       "Title": "Manage the Life Cycle of your Package Functions",
       "Authors@R": "c( person(\"Lionel\", \"Henry\", , \"lionel@posit.co\", role = c(\"aut\", \"cre\")), person(\"Hadley\", \"Wickham\", , \"hadley@posit.co\", role = \"aut\", comment = c(ORCID = \"0000-0003-4757-117X\")), person(\"Posit Software, PBC\", role = c(\"cph\", \"fnd\")) )",
@@ -2487,31 +2491,30 @@
       ],
       "Imports": [
         "cli (>= 3.4.0)",
-        "glue",
         "rlang (>= 1.1.0)"
       ],
       "Suggests": [
         "covr",
-        "crayon",
         "knitr",
-        "lintr",
+        "lintr (>= 3.1.0)",
         "rmarkdown",
         "testthat (>= 3.0.1)",
         "tibble",
         "tidyverse",
         "tools",
         "vctrs",
-        "withr"
+        "withr",
+        "xml2"
       ],
       "VignetteBuilder": "knitr",
       "Config/Needs/website": "tidyverse/tidytemplate, usethis",
       "Config/testthat/edition": "3",
       "Encoding": "UTF-8",
-      "RoxygenNote": "7.2.1",
+      "RoxygenNote": "7.3.3",
       "NeedsCompilation": "no",
-      "Author": "Lionel Henry [aut, cre], Hadley Wickham [aut] (<https://orcid.org/0000-0003-4757-117X>), Posit Software, PBC [cph, fnd]",
+      "Author": "Lionel Henry [aut, cre], Hadley Wickham [aut] (ORCID: <https://orcid.org/0000-0003-4757-117X>), Posit Software, PBC [cph, fnd]",
       "Maintainer": "Lionel Henry <lionel@posit.co>",
-      "Repository": "https://packagemanager.posit.co/cran/latest"
+      "Repository": "CRAN"
     },
     "listenv": {
       "Package": "listenv",
@@ -3534,7 +3537,7 @@
     },
     "rlang": {
       "Package": "rlang",
-      "Version": "1.1.6",
+      "Version": "1.1.7",
       "Source": "Repository",
       "Title": "Functions for Base Types and Core R and 'Tidyverse' Features",
       "Description": "A toolbox for working with base types, core R features like the condition system, and core 'Tidyverse' features like tidy evaluation.",
@@ -3543,7 +3546,7 @@
       "ByteCompile": "true",
       "Biarch": "true",
       "Depends": [
-        "R (>= 3.5.0)"
+        "R (>= 4.0.0)"
       ],
       "Imports": [
         "utils"
@@ -3572,7 +3575,7 @@
         "winch"
       ],
       "Encoding": "UTF-8",
-      "RoxygenNote": "7.3.2",
+      "RoxygenNote": "7.3.3",
       "URL": "https://rlang.r-lib.org, https://github.com/r-lib/rlang",
       "BugReports": "https://github.com/r-lib/rlang/issues",
       "Config/build/compilation-database": "true",
@@ -3581,7 +3584,7 @@
       "NeedsCompilation": "yes",
       "Author": "Lionel Henry [aut, cre], Hadley Wickham [aut], mikefc [cph] (Hash implementation based on Mike's xxhashlite), Yann Collet [cph] (Author of the embedded xxHash library), Posit, PBC [cph, fnd]",
       "Maintainer": "Lionel Henry <lionel@posit.co>",
-      "Repository": "https://packagemanager.posit.co/cran/latest"
+      "Repository": "CRAN"
     },
     "rmarkdown": {
       "Package": "rmarkdown",
@@ -4231,7 +4234,7 @@
     },
     "tidyfinance": {
       "Package": "tidyfinance",
-      "Version": "0.4.5.9017",
+      "Version": "0.4.5.9018",
       "Source": "GitHub",
       "Type": "Package",
       "Title": "Tidy Finance Helper Functions",
@@ -4274,18 +4277,17 @@
       "VignetteBuilder": "knitr",
       "Config/testthat/edition": "3",
       "Encoding": "UTF-8",
+      "LazyData": "true",
       "Roxygen": "list(markdown = TRUE)",
       "RoxygenNote": "7.3.3",
-      "RemoteType": "github",
-      "RemoteHost": "api.github.com",
-      "RemoteRepo": "r-tidyfinance",
-      "RemoteUsername": "tidy-finance",
-      "RemotePkgRef": "tidy-finance/r-tidyfinance",
-      "RemoteRef": "HEAD",
-      "RemoteSha": "90d69c7939025c191ecfcced75e7b99401e72368",
-      "NeedsCompilation": "no",
       "Author": "Christoph Scheuch [aut, cre, cph] (ORCID: <https://orcid.org/0009-0004-0423-6819>), Stefan Voigt [aut, cph] (ORCID: <https://orcid.org/0000-0001-5619-3161>), Patrick Weiss [aut, cph] (ORCID: <https://orcid.org/0000-0002-9282-5872>), Maximilian Mücke [ctb] (ORCID: <https://orcid.org/0009-0000-9432-9795>)",
-      "Maintainer": "Christoph Scheuch <christoph@tidy-intelligence.com>"
+      "Maintainer": "Christoph Scheuch <christoph@tidy-intelligence.com>",
+      "RemoteType": "github",
+      "RemoteUsername": "tidy-finance",
+      "RemoteRepo": "r-tidyfinance",
+      "RemoteRef": "HEAD",
+      "RemoteSha": "2cb694f2163b5685d8e190cad0424f7e95346172",
+      "RemoteHost": "api.github.com"
     },
     "tidylog": {
       "Package": "tidylog",
@@ -4566,7 +4568,7 @@
     },
     "vctrs": {
       "Package": "vctrs",
-      "Version": "0.6.5",
+      "Version": "0.7.2",
       "Source": "Repository",
       "Title": "Vector Helpers",
       "Authors@R": "c( person(\"Hadley\", \"Wickham\", , \"hadley@posit.co\", role = \"aut\"), person(\"Lionel\", \"Henry\", , \"lionel@posit.co\", role = \"aut\"), person(\"Davis\", \"Vaughan\", , \"davis@posit.co\", role = c(\"aut\", \"cre\")), person(\"data.table team\", role = \"cph\", comment = \"Radix sort based on data.table's forder() and their contribution to R's order()\"), person(\"Posit Software, PBC\", role = c(\"cph\", \"fnd\")) )",
@@ -4575,13 +4577,13 @@
       "URL": "https://vctrs.r-lib.org/, https://github.com/r-lib/vctrs",
       "BugReports": "https://github.com/r-lib/vctrs/issues",
       "Depends": [
-        "R (>= 3.5.0)"
+        "R (>= 4.0.0)"
       ],
       "Imports": [
         "cli (>= 3.4.0)",
         "glue",
         "lifecycle (>= 1.0.3)",
-        "rlang (>= 1.1.0)"
+        "rlang (>= 1.1.7)"
       ],
       "Suggests": [
         "bit64",
@@ -4601,15 +4603,17 @@
         "zeallot"
       ],
       "VignetteBuilder": "knitr",
+      "Config/build/compilation-database": "true",
       "Config/Needs/website": "tidyverse/tidytemplate",
       "Config/testthat/edition": "3",
+      "Config/testthat/parallel": "true",
       "Encoding": "UTF-8",
       "Language": "en-GB",
-      "RoxygenNote": "7.2.3",
+      "RoxygenNote": "7.3.3",
       "NeedsCompilation": "yes",
       "Author": "Hadley Wickham [aut], Lionel Henry [aut], Davis Vaughan [aut, cre], data.table team [cph] (Radix sort based on data.table's forder() and their contribution to R's order()), Posit Software, PBC [cph, fnd]",
       "Maintainer": "Davis Vaughan <davis@posit.co>",
-      "Repository": "https://packagemanager.posit.co/cran/latest"
+      "Repository": "CRAN"
     },
     "viridisLite": {
       "Package": "viridisLite",

@@ -2,7 +2,6 @@ library(dplyr)
 library(tidyr)
 library(arrow)
 library(slider)
-library(purrr)
 library(lubridate)
 library(tidyfinance)
 library(future)
@@ -15,12 +14,12 @@ crsp_monthly <- open_dataset("data/crsp_monthly.parquet") |>
   mutate(int_me = mktcap) |>
   collect()
 
-factors_ff_3_monthly <- open_dataset("data/factors_ff_3_monthly.parquet") |>
+factors_ff_5_monthly <- open_dataset("data/factors_ff_5_monthly.parquet") |>
   collect()
 
 crsp_daily <- open_dataset("data/crsp_daily.parquet")
 
-factors_ff_3_daily <- open_dataset("data/factors_ff_3_daily.parquet")
+factors_ff_5_daily <- open_dataset("data/factors_ff_5_daily.parquet")
 
 # Daily and monthly Amihud measure
 crsp_monthly_liquidity <- crsp_daily |>
@@ -55,7 +54,7 @@ crsp_monthly <- crsp_monthly |>
     relationship = "one-to-one"
   ) |>
   left_join(
-    factors_ff_3_monthly,
+    factors_ff_5_monthly,
     join_by(date),
     relationship = "many-to-one"
   )
@@ -257,7 +256,7 @@ crsp_monthly <- crsp_monthly |>
   collect()
 
 crsp_daily_aggregation <- crsp_daily |>
-  left_join(factors_ff_3_daily, join_by(date), relationship = "many-to-one") |>
+  left_join(factors_ff_5_daily, join_by(date), relationship = "many-to-one") |>
   mutate(date = floor_date(date, "month")) |>
   select(permno, date, ret_excess, mkt_excess, smb, hml)
 

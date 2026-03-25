@@ -12,7 +12,7 @@ download_data(
   start_date = date_start,
   end_date = date_end
 ) |>
-  write_parquet("data/factors_ff_3_monthly.parquet")
+  write_parquet("data/factors_ff_5_monthly.parquet")
 
 download_data(
   domain = "factors_ff",
@@ -20,7 +20,7 @@ download_data(
   start_date = date_start,
   end_date = date_end
 ) |>
-  write_parquet("data/factors_ff_3_daily.parquet")
+  write_parquet("data/factors_ff_5_daily.parquet")
 
 download_data(
   domain = "wrds",
@@ -112,7 +112,7 @@ compustat_annual <- download_data(
   only_us = TRUE
 )
 
-# Replace negative numbers with missing values
+# Replace negative values with missing values
 compustat_annual <- compustat_annual |>
   mutate(
     across(
@@ -148,7 +148,7 @@ compustat_quarterly <- download_data(
 ) |>
   select(-curcdq)
 
-# Replace negative values of total assets and sales with zero
+# Replace negative values of total assets and sales with missing values
 compustat_quarterly <- compustat_quarterly |>
   mutate(
     across(

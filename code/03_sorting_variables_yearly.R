@@ -12,7 +12,7 @@ crsp_monthly <- open_dataset("data/crsp_monthly.parquet")
 compustat_annual <- compustat_annual |>
   left_join(
     crsp_monthly |>
-      select(gvkey, permno, date, mktcap, siccd),
+      select(gvkey, date, mktcap, siccd),
     join_by(gvkey, date),
     relationship = "one-to-one"
   ) |>
@@ -212,7 +212,7 @@ sorting_variables_yearly <- compustat_annual |>
       replace_na(xacc - xacc_lag1, 0)) /
       at,
     sv_gpa = (revt - cogs) / at,
-    # TODO: add a source for this formula
+    # O-score (Ohlson 1980)
     sv_o = -1.32 -
       0.407 * int_o_1 +
       6.030 * int_o_2 -

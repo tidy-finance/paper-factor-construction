@@ -1,9 +1,7 @@
 library(dplyr)
-library(tidyr)
 library(lubridate)
 library(multidplyr)
 library(arrow)
-library(slider)
 library(tidyfinance)
 
 # Quarterly Compustat data quality is insufficient before 1972
@@ -54,8 +52,6 @@ compustat_quarterly <- compustat_quarterly |>
 # Compute standardized seasonal surprise for a quarterly variable.
 # Uses year-over-year change (4-quarter delta), standardized by the rolling
 # standard deviation of deltas over the past 8 quarters (min 6 required).
-# TODO: align computation with Jegadeesh & Livnat (2006): https://www.jstor.org/stable/pdf/4480742.pdf
-# They estimate a random walk with drift to compute the surprise!
 compute_standardized_surprise <- function(
   data,
   delta_col,
