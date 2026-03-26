@@ -32,10 +32,12 @@ bibliography: bibliography.bib
 #| include: false
 #| echo: false
 #| message: false
-  tf_dark_blue <- "#3B9AB2FF"
-  tf_orange <- "#E1AF00FF"
+tf_dark_blue <- "#3B9AB2FF"
+tf_orange <- "#E1AF00FF"
 
-ggplot2::theme_set(ggplot2::theme_bw() + ggplot2::theme(legend.position = "none"))
+ggplot2::theme_set(
+  ggplot2::theme_bw() + ggplot2::theme(legend.position = "none")
+)
 ```
 
 ## Introduction: Constructing financial risk factors {#sec-intro}
@@ -60,12 +62,34 @@ Our core focus is to present the [R]{.proglang} package `tidyfinance`. We walk t
 
 ```{mermaid}
 %%| label: fig-workflow-diagram
-%%| fig-cap: "Research workflow for factor construction with `tidyfinance`. Each box lists the main function calls for that stage."
-%%| fig-width: 6
+%%| fig-cap: "Research workflow for factor construction with `tidyfinance`. Path A builds custom factors from raw data. Path B retrieves pre-built factor time series directly from Hugging Face."
+%%| fig-width: 8
 flowchart LR
+    PA("<i>Path A:<br>Custom factors</i>") --- A
     A("<b>Data acquisition</b><br><code>download_data()</code>") --> B("<b>Variable construction</b><br><code>add_lagged_columns()</code>")
-    B --> C("<b>Portfolio returns</b><br><code>compute_portfolio_returns()</code>")
+    B --> C("<b>Portfolio sorts</b><br><code>assign_portfolio()</code>")
+    C --> D("<b>Portfolio returns</b><br><code>compute_portfolio_returns()</code>")
+    PB("<i>Path B:<br>Pre-built factors</i>") --- F
+    F("<b>Factor library</b><br><code>download_data('factor_...')</code>") --> D
+
+    classDef green fill:#F0FFF4,stroke:#276749,color:#1a202c
+    classDef blue fill:#EBF4FF,stroke:#2B6CB0,color:#1a202c
+    classDef grey fill:#F7FAFC,stroke:#A0AEC0,color:#1a202c
+    classDef labelA fill:none,stroke:none,color:#276749,font-size:16px
+    classDef labelB fill:none,stroke:none,color:#2B6CB0,font-size:16px
+
+    class A,B,C green
+    class F blue
+    class D grey
+    class PA labelA
+    class PB labelB
+
+    linkStyle 0 stroke:none
+    linkStyle 1,2,3 stroke:#276749,stroke-width:1px
+    linkStyle 4 stroke:none
+    linkStyle 5 stroke:#2B6CB0,stroke-width:1px
 ```
+
 
 You can install the released version of `tidyfinance` [from CRAN](https://cran.r-project.org/package=tidyfinance) via:
 
@@ -243,222 +267,344 @@ rescale_alpha <- function(x, lo = 0.35, hi = 0.9) {
 
 month_labels <- c(
   "Dec Y\u20131",
-  paste(c("Jan","Feb","Mar","Apr","May","Jun",
-          "Jul","Aug","Sep","Oct","Nov","Dec"), "Y"),
-  paste(c("Jan","Feb","Mar","Apr","May","Jun","Jul"), "Y+1")
+  paste(
+    c(
+      "Jan",
+      "Feb",
+      "Mar",
+      "Apr",
+      "May",
+      "Jun",
+      "Jul",
+      "Aug",
+      "Sep",
+      "Oct",
+      "Nov",
+      "Dec"
+    ),
+    "Y"
+  ),
+  paste(c("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul"), "Y+1")
 )
 
 x_labels <- 0
-x_std    <- 1.1
-x_ff     <- 2.6
+x_std <- 1.1
+x_ff <- 2.6
 
 time_df <- data.frame(
-  y     = 1:n,
+  y = 1:n,
   label = month_labels,
   alpha = rescale_alpha(1:n)
 )
 
 obs_pattern <- c(
-  TRUE, FALSE, FALSE, FALSE, FALSE, TRUE, FALSE, FALSE, TRUE, FALSE,
-  TRUE, FALSE, FALSE, TRUE, FALSE, TRUE, FALSE, TRUE, TRUE, TRUE
+  TRUE,
+  FALSE,
+  FALSE,
+  FALSE,
+  FALSE,
+  TRUE,
+  FALSE,
+  FALSE,
+  TRUE,
+  FALSE,
+  TRUE,
+  FALSE,
+  FALSE,
+  TRUE,
+  FALSE,
+  TRUE,
+  FALSE,
+  TRUE,
+  TRUE,
+  TRUE
 )
 
 df_data <- data.frame(
-  y        = 1:n,
+  y = 1:n,
   observed = obs_pattern,
-  alpha    = rescale_alpha(sample(seq(0.3, 1, length.out = n)))
+  alpha = rescale_alpha(sample(seq(0.3, 1, length.out = n)))
 )
-obs  <- df_data[df_data$observed, ]
+obs <- df_data[df_data$observed, ]
 miss <- df_data[!df_data$observed, ]
 
 # Standard window: lag=7, max_lag=18 from Jul Y+1 (pos 20)
 # Window: [20-18, 20-7] = [2, 13]
-std_win_left  <- 2
+std_win_left <- 2
 std_win_right <- 13
-std_matched   <- 11  # Oct Y (most recent observed in [2,13])
+std_matched <- 11 # Oct Y (most recent observed in [2,13])
 
 # FF window: lag=7, max_lag=18 from Jul Y+1 (pos 20), with ff_adjustment
 # Window [2, 13] same as standard, but ff_adjustment anchors ALL months
 # (Jul Y through Jun Y+1) to the SAME rebalancing-date match
-ff_win_left  <- 2
+ff_win_left <- 2
 ff_win_right <- 13
-ff_matched   <- 11  # Oct Y (most recent observed in [2,13])
+ff_matched <- 11 # Oct Y (most recent observed in [2,13])
 
 target <- 20
 
 # Build rounded-rectangle polygons for geom_shape
 tiles <- function(rows, cx, grp_offset = 0, alpha_col = NULL, xsize = ts) {
-  do.call(rbind, lapply(seq_len(nrow(rows)), function(i) {
-    data.frame(
-      x     = cx + c(-1, 1, 1, -1) * xsize / 2,
-      y     = rows$y[i] + c(-1, -1, 1, 1) * ts / 2,
-      group = grp_offset + i,
-      alpha = if (!is.null(alpha_col)) rows[[alpha_col]][i] else NA_real_
-    )
-  }))
+  do.call(
+    rbind,
+    lapply(seq_len(nrow(rows)), function(i) {
+      data.frame(
+        x = cx + c(-1, 1, 1, -1) * xsize / 2,
+        y = rows$y[i] + c(-1, -1, 1, 1) * ts / 2,
+        group = grp_offset + i,
+        alpha = if (!is.null(alpha_col)) rows[[alpha_col]][i] else NA_real_
+      )
+    })
+  )
 }
 
 grp_label <- 0
-grp_obs1  <- n
+grp_obs1 <- n
 grp_miss1 <- n + nrow(obs)
-grp_obs2  <- n + nrow(obs) + nrow(miss)
+grp_obs2 <- n + nrow(obs) + nrow(miss)
 grp_miss2 <- n + nrow(obs) + nrow(miss) + nrow(obs)
 
 label_poly <- tiles(time_df, x_labels, grp_label, "alpha", xsize = ts_label)
-obs1_poly  <- tiles(obs,     x_std,    grp_obs1,  "alpha")
-miss1_poly <- tiles(miss,    x_std,    grp_miss1)
-obs2_poly  <- tiles(obs,     x_ff,     grp_obs2,  "alpha")
-miss2_poly <- tiles(miss,    x_ff,     grp_miss2)
+obs1_poly <- tiles(obs, x_std, grp_obs1, "alpha")
+miss1_poly <- tiles(miss, x_std, grp_miss1)
+obs2_poly <- tiles(obs, x_ff, grp_obs2, "alpha")
+miss2_poly <- tiles(miss, x_ff, grp_miss2)
 
 ggplot() +
   # Month label strip
   geom_shape(
-    data = label_poly, aes(x = x, y = y, group = group, alpha = alpha),
-    fill = tf_dark_blue, color = "white", linewidth = 0.8, radius = corner
+    data = label_poly,
+    aes(x = x, y = y, group = group, alpha = alpha),
+    fill = tf_dark_blue,
+    color = "white",
+    linewidth = 0.8,
+    radius = corner
   ) +
   geom_text(
-    data = time_df, aes(x = x_labels, y = y, label = label),
-    size = 2.6, color = "white", fontface = "bold", angle = 90
+    data = time_df,
+    aes(x = x_labels, y = y, label = label),
+    size = 2.6,
+    color = "white",
+    fontface = "bold",
+    angle = 90
   ) +
   # Standard column: observed
   geom_shape(
-    data = obs1_poly, aes(x = x, y = y, group = group, alpha = alpha),
-    fill = tf_orange, color = "white", linewidth = 0.8, radius = corner
+    data = obs1_poly,
+    aes(x = x, y = y, group = group, alpha = alpha),
+    fill = tf_orange,
+    color = "white",
+    linewidth = 0.8,
+    radius = corner
   ) +
   # Standard column: missing
   geom_shape(
-    data = miss1_poly, aes(x = x, y = y, group = group),
-    fill = "grey97", color = "grey80", linewidth = 0.8, radius = corner
+    data = miss1_poly,
+    aes(x = x, y = y, group = group),
+    fill = "grey97",
+    color = "grey80",
+    linewidth = 0.8,
+    radius = corner
   ) +
   geom_text(
-    data = miss, aes(x = x_std, y = y),
-    label = "NA", size = 2.2, color = "grey65", fontface = "italic"
+    data = miss,
+    aes(x = x_std, y = y),
+    label = "NA",
+    size = 2.2,
+    color = "grey65",
+    fontface = "italic"
   ) +
   # FF column: observed
   geom_shape(
-    data = obs2_poly, aes(x = x, y = y, group = group, alpha = alpha),
-    fill = tf_orange, color = "white", linewidth = 0.8, radius = corner
+    data = obs2_poly,
+    aes(x = x, y = y, group = group, alpha = alpha),
+    fill = tf_orange,
+    color = "white",
+    linewidth = 0.8,
+    radius = corner
   ) +
   # FF column: missing
   geom_shape(
-    data = miss2_poly, aes(x = x, y = y, group = group),
-    fill = "grey97", color = "grey80", linewidth = 0.8, radius = corner
+    data = miss2_poly,
+    aes(x = x, y = y, group = group),
+    fill = "grey97",
+    color = "grey80",
+    linewidth = 0.8,
+    radius = corner
   ) +
   geom_text(
-    data = miss, aes(x = x_ff, y = y),
-    label = "NA", size = 2.2, color = "grey65", fontface = "italic"
+    data = miss,
+    aes(x = x_ff, y = y),
+    label = "NA",
+    size = 2.2,
+    color = "grey65",
+    fontface = "italic"
   ) +
   # Grey arrows: lagging pattern for targets 19-11 (lag=7, max_lag=18)
   # t=19→11, t=18→11, t=17→9, t=16→9, t=15→6,
   # t=14→6, t=13→6, t=12→1, t=11→1
   geom_curve(
     data = data.frame(
-      x    = x_std + ts / 2,
+      x = x_std + ts / 2,
       xend = x_std + ts / 2,
-      y    = c(19, 18, 17, 16, 15, 14, 13, 12, 11),
-      yend = c(11, 11,  9,  9,  6,  6,  6,  1,  1) + 0.15
+      y = c(19, 18, 17, 16, 15, 14, 13, 12, 11),
+      yend = c(11, 11, 9, 9, 6, 6, 6, 1, 1) + 0.15
     ),
     aes(x = x, y = y, xend = xend, yend = yend),
-    curvature = -0.2, color = "grey70", alpha = 0.4,
-    arrow = arrow(length = unit(0.08, "cm"), type = "closed"), linewidth = 0.35
+    curvature = -0.2,
+    color = "grey70",
+    alpha = 0.4,
+    arrow = arrow(length = unit(0.08, "cm"), type = "closed"),
+    linewidth = 0.35
   ) +
   # Standard window
   annotate(
     "rect",
-    xmin = x_std - ts / 2, xmax = x_std + ts / 2,
-    ymin = std_win_left - ts / 2, ymax = std_win_right + ts / 2,
-    fill = NA, color = tf_dark_blue, linewidth = 0.7, linetype = "dashed"
+    xmin = x_std - ts / 2,
+    xmax = x_std + ts / 2,
+    ymin = std_win_left - ts / 2,
+    ymax = std_win_right + ts / 2,
+    fill = NA,
+    color = tf_dark_blue,
+    linewidth = 0.7,
+    linetype = "dashed"
   ) +
   annotate(
     "text",
     x = x_std - ts / 2 - 0.08,
     y = c(std_win_left, std_win_right),
     label = c("max_lag", "lag"),
-    color = tf_dark_blue, size = 2.4, fontface = "italic", hjust = 1,
+    color = tf_dark_blue,
+    size = 2.4,
+    fontface = "italic",
+    hjust = 1,
     vjust = 0.5
   ) +
   annotate(
     "curve",
-    x = x_std + ts / 2, xend = x_std + ts / 2,
-    y = target, yend = std_matched + 0.2,
-    curvature = -0.2, color = tf_dark_blue, linewidth = 0.7,
+    x = x_std + ts / 2,
+    xend = x_std + ts / 2,
+    y = target,
+    yend = std_matched + 0.2,
+    curvature = -0.2,
+    color = tf_dark_blue,
+    linewidth = 0.7,
     arrow = arrow(length = unit(0.12, "cm"), type = "closed")
   ) +
   # FF grey arrows: Jul Y (pos 8) through Jun Y+1 (pos 19) ALL point
   # to Dec Y-1 (pos 1) — locked in at the previous July rebalancing
   geom_curve(
     data = data.frame(
-      x    = x_ff + ts / 2,
+      x = x_ff + ts / 2,
       xend = x_ff + ts / 2,
-      y    = 8:19,
+      y = 8:19,
       yend = rep(1 + 0.15, 12)
     ),
     aes(x = x, y = y, xend = xend, yend = yend),
-    curvature = -0.2, color = "grey70", alpha = 0.4,
-    arrow = arrow(length = unit(0.08, "cm"), type = "closed"), linewidth = 0.35
+    curvature = -0.2,
+    color = "grey70",
+    alpha = 0.4,
+    arrow = arrow(length = unit(0.08, "cm"), type = "closed"),
+    linewidth = 0.35
   ) +
   # FF window
   annotate(
     "rect",
-    xmin = x_ff - ts / 2, xmax = x_ff + ts / 2,
-    ymin = ff_win_left - ts / 2, ymax = ff_win_right + ts / 2,
-    fill = NA, color = tf_dark_blue, linewidth = 0.7, linetype = "dashed"
+    xmin = x_ff - ts / 2,
+    xmax = x_ff + ts / 2,
+    ymin = ff_win_left - ts / 2,
+    ymax = ff_win_right + ts / 2,
+    fill = NA,
+    color = tf_dark_blue,
+    linewidth = 0.7,
+    linetype = "dashed"
   ) +
   annotate(
     "text",
     x = x_ff - ts / 2 - 0.08,
     y = c(ff_win_left, ff_win_right),
     label = c("max_lag", "lag"),
-    color = tf_dark_blue, size = 2.4, fontface = "italic", hjust = 1,
+    color = tf_dark_blue,
+    size = 2.4,
+    fontface = "italic",
+    hjust = 1,
     vjust = 0.5
   ) +
   annotate(
     "curve",
-    x = x_ff + ts / 2, xend = x_ff + ts / 2,
-    y = target, yend = ff_matched + 0.2,
-    curvature = -0.2, color = tf_dark_blue, linewidth = 0.7,
+    x = x_ff + ts / 2,
+    xend = x_ff + ts / 2,
+    y = target,
+    yend = ff_matched + 0.2,
+    curvature = -0.2,
+    color = tf_dark_blue,
+    linewidth = 0.7,
     arrow = arrow(length = unit(0.12, "cm"), type = "closed")
   ) +
   # Column headers (above tiles: x + ts/2 + offset; after coord_flip x = vertical)
   annotate(
-    "text", x = x_std + ts / 2 + 0.15, y = 1 - ts / 2,
+    "text",
+    x = x_std + ts / 2 + 0.15,
+    y = 1 - ts / 2,
     label = "data |> add_lagged_columns(lag = months(7), max_lag = months(18))",
-    color = "black", alpha = 1,
-    size = 3.5, family = "mono", hjust = 0
+    color = "black",
+    alpha = 1,
+    size = 3.5,
+    family = "mono",
+    hjust = 0
   ) +
   annotate(
-    "text", x = x_ff + ts / 2 + 0.15, y = 1 - ts / 2,
+    "text",
+    x = x_ff + ts / 2 + 0.15,
+    y = 1 - ts / 2,
     label = "data |> add_lagged_columns(lag = months(7), max_lag = months(18), ff_adjustment = TRUE)",
-    color = "black", alpha = 1,
-    size = 3.5, family = "mono", hjust = 0
+    color = "black",
+    alpha = 1,
+    size = 3.5,
+    family = "mono",
+    hjust = 0
   ) +
   # Year-change lines (between Dec/Jan boundaries)
   annotate(
     "segment",
-    x = x_labels - ts_label / 2, xend = x_ff + ts / 2,
-    y = 1.5, yend = 1.5,
-    color = "grey50", linewidth = 0.5, linetype = "dashed"
+    x = x_labels - ts_label / 2,
+    xend = x_ff + ts / 2,
+    y = 1.5,
+    yend = 1.5,
+    color = "grey50",
+    linewidth = 0.5,
+    linetype = "dashed"
   ) +
   annotate(
     "segment",
-    x = x_labels - ts_label / 2, xend = x_ff + ts / 2,
-    y = 13.5, yend = 13.5,
-    color = "grey50", linewidth = 0.5, linetype = "dashed"
+    x = x_labels - ts_label / 2,
+    xend = x_ff + ts / 2,
+    y = 13.5,
+    yend = 13.5,
+    color = "grey50",
+    linewidth = 0.5,
+    linetype = "dashed"
   ) +
   # Year span brackets below the month tiles
   # Y-1: pos 1 only; Y: pos 2-13; Y+1: pos 14-20
   annotate(
     "segment",
-    x = x_labels - ts_label / 2 - 0.15, xend = x_labels - ts_label / 2 - 0.15,
-    y = c(1, 2, 14), yend = c(1, 13, 20),
-    color = "grey40", linewidth = 0.4
+    x = x_labels - ts_label / 2 - 0.15,
+    xend = x_labels - ts_label / 2 - 0.15,
+    y = c(1, 2, 14),
+    yend = c(1, 13, 20),
+    color = "grey40",
+    linewidth = 0.4
   ) +
   # End caps
   annotate(
     "segment",
-    x = x_labels - ts_label / 2 - 0.1, xend = x_labels - ts_label / 2 - 0.2,
-    y = c(1, 1, 2, 13, 14, 20), yend = c(1, 1, 2, 13, 14, 20),
-    color = "grey40", linewidth = 0.4
+    x = x_labels - ts_label / 2 - 0.1,
+    xend = x_labels - ts_label / 2 - 0.2,
+    y = c(1, 1, 2, 13, 14, 20),
+    yend = c(1, 1, 2, 13, 14, 20),
+    color = "grey40",
+    linewidth = 0.4
   ) +
   # Year labels
   annotate(
@@ -466,7 +612,9 @@ ggplot() +
     x = x_labels - ts_label / 2 - 0.35,
     y = c(1, 7.5, 17),
     label = c("Year Y\u20131", "Year Y", "Year Y+1"),
-    color = "grey30", size = 3, fontface = "bold"
+    color = "grey30",
+    size = 3,
+    fontface = "bold"
   ) +
   scale_alpha_identity() +
   scale_x_continuous(
@@ -494,7 +642,8 @@ sorting_data <- crsp_monthly |>
     ff_adjustment = TRUE
   )
 
-sorting_data <- sorting_data |> select(date, permno, exchange, ret_excess, mktcap_lag, asset_growth)
+sorting_data <- sorting_data |>
+  select(date, permno, exchange, ret_excess, mktcap_lag, asset_growth)
 ```
 
 The resulting dataset merges monthly stock returns with the lagged sorting variable. Each row represents a stock-month observation, containing the information needed for portfolio construction: excess returns, exchange membership, industry classification, lagged market capitalization (for value-weighting), and the sorting variable itself.
@@ -512,7 +661,11 @@ sorting_data |>
     p66 = quantile(asset_growth, 0.66, na.rm = TRUE),
     .groups = "drop"
   ) |>
-  pivot_longer(cols = c(p33, p50, p66), names_to = "quantile", values_to = "asset_growth") |>
+  pivot_longer(
+    cols = c(p33, p50, p66),
+    names_to = "quantile",
+    values_to = "asset_growth"
+  ) |>
   ggplot(aes(x = date, y = asset_growth, color = quantile)) +
   geom_line() +
   labs(x = NULL, y = "Asset growth", color = "Quantile") +
@@ -657,7 +810,9 @@ ag_returns <- get_available_hf_files("tidy-finance", "factor-library-grid") |>
 ```{r}
 #| label: load-sorting-variables
 #| echo: false
-sorting_variable_information <- arrow::read_parquet("data/sorting_variable_information.parquet")
+sorting_variable_information <- arrow::read_parquet(
+  "data/sorting_variable_information.parquet"
+)
 ```
 
 The factor library covers `{r} nrow(sorting_variable_information)` sorting variables spanning seven major categories: investment, profitability, valuation, momentum, intangibles, trading frictions, and financing. The selection follows the cross-section of characteristics studied by @jensen.2023, focusing on variables with established empirical support in the asset pricing literature. @tbl-sorting-variables lists all sorting variables, their long-short direction, and the primary reference for each. For each variable, the full factor library provides precomputed factor returns across all specification paths defined in @tbl-sorting-decisions. We host the complete dataset on Hugging Face at [https://huggingface.co/datasets/tidy-finance/factor-library](https://huggingface.co/datasets/tidy-finance/factor-library). Researchers can also browse and retrieve factor returns through an interactive Shiny app at [https://app-download-center.cloud.sdu.dk/](https://app-download-center.cloud.sdu.dk/).
@@ -670,7 +825,11 @@ The factor library covers `{r} nrow(sorting_variable_information)` sorting varia
 tab <- sorting_variable_information |>
   dplyr::mutate(
     sorting_variable = stringr::str_remove(sorting_variable, "^sv_"),
-    direction = dplyr::if_else(direction == "top_minus_bottom", "$\\uparrow$", "$\\downarrow$")
+    direction = dplyr::if_else(
+      direction == "top_minus_bottom",
+      "$\\uparrow$",
+      "$\\downarrow$"
+    )
   ) |>
   dplyr::arrange(full_name) |>
   dplyr::select(sorting_variable, full_name, direction, citation) |>
@@ -703,25 +862,25 @@ portfolio_performance <- arrow::open_dataset("data/portfolio_returns") |>
   filter(date >= date_start & date < date_end) |>
   group_by(sorting_variable, id) |>
   summarise(
-    sharpe_ratio = sqrt(12) * mean(ret, na.rm = TRUE) / sd(ret, na.rm = TRUE), 
+    sharpe_ratio = sqrt(12) * mean(ret, na.rm = TRUE) / sd(ret, na.rm = TRUE),
     .groups = "drop"
   ) |>
   collect()
 
-portfolio_performance |> 
+portfolio_performance |>
   mutate(
     sorting_variable = forcats::fct_reorder(
       .f = sorting_variable,
       .x = sharpe_ratio,
       .fun = median
     )
-  ) |> 
+  ) |>
   ggplot(aes(x = sorting_variable, y = sharpe_ratio)) +
-  ggdist::stat_halfeye(alpha = 0.3, fatten_point=0, color = tf_dark_blue) +
+  ggdist::stat_halfeye(alpha = 0.3, fatten_point = 0, color = tf_dark_blue) +
   coord_flip(clip = "off") +
   guides(col = "none") +
   labs(y = "Sharpe ratio (annualized)", x = NULL) +
-  geom_hline(aes(yintercept=0), linetype="dotted") +
+  geom_hline(aes(yintercept = 0), linetype = "dotted") +
   theme(axis.text.y = element_text(size = 7))
 ```
 
@@ -729,8 +888,20 @@ To download factor returns from the factor library, simply call
 ```{r}
 #| label: download-factor-library
 #| eval: false
-download_data("hf", "factor-library", sorting_variable = "52w", sorting_variable_lag = "6m", sorting_method = "univariate")
-download_data("hf", "factor-library", sorting_variable = "52w", sorting_variable_lag = "6m", fill_all = TRUE)
+download_data(
+  "hf",
+  "factor-library",
+  sorting_variable = "52w",
+  sorting_variable_lag = "6m",
+  sorting_method = "univariate"
+)
+download_data(
+  "hf",
+  "factor-library",
+  sorting_variable = "52w",
+  sorting_variable_lag = "6m",
+  fill_all = TRUE
+)
 
 ```
 
