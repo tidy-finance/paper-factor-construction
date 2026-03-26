@@ -6,12 +6,12 @@ format:
 author:
   - name: Christoph Frey
     affiliation: Lancaster University
+    orcid: 0000-0002-9937-0903
     email: christoph.frey@gmail.com
   - name: Christoph Scheuch
     affiliation: Tidy Intelligence
   - name: Stefan Voigt
-    affiliation:
-      - name: University of Copenhagen
+    affiliation: University of Copenhagen
     orcid: 0000-0001-5619-3161
     email: stefan.voigt@econ.ku.dk
   - name: Patrick Weiss
