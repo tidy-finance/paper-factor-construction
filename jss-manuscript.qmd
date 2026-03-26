@@ -63,7 +63,7 @@ Our core focus is to present the [R]{.proglang} package `tidyfinance`. We walk t
 %%| fig-cap: "Research workflow for factor construction with `tidyfinance`. Each box lists the main function calls for that stage."
 %%| fig-width: 6
 flowchart LR
-    A("<b>Data acquisition</b><br><code>download_data()</code>") --> B("<b>Variable construction</b><br><code>add_lag_columns()</code>")
+    A("<b>Data acquisition</b><br><code>download_data()</code>") --> B("<b>Variable construction</b><br><code>add_lagged_columns()</code>")
     B --> C("<b>Portfolio returns</b><br><code>compute_portfolio_returns()</code>")
 ```
 
@@ -200,12 +200,13 @@ $$
 AG_t = (AT_t - AT_{t-1}) / AT_{t-1}.
 $$
 
-The `add_lag_columns()` function from `tidyfinance` handles temporal alignment by creating a lagged version of total assets grouped by firm identifier (`gvkey`) with a one-year lag. Non-finite values (arising when lagged total assets are zero or missing) become `NA`.^[For the sake of simplicity we do not show every step of the data cleaning process in the paper. For instance, we apply an earnings filter to exclude firms with negative or zero income before extraordinary items (`ib`), which is a common practice in the literature to mitigate the influence of financial distress on asset growth portfolios. This filter is implemented in the code but not shown in the paper for brevity. We also apply an age filter to exclude firms younger than two years, which is common in the literature to ensure that the sorting variable is based on stable financial information. This filter is also implemented in the code but not shown in the paper for brevity. The factor library API provides preprocessed panels with all these filters applied, so users can access the final sorting variables without having to implement these steps themselves.] 
+The `add_lagged_columns()` function from `tidyfinance` handles temporal alignment by creating a lagged version of total assets grouped by firm identifier (`gvkey`) with a one-year lag. Non-finite values (arising when lagged total assets are zero or missing) become `NA`.^[For the sake of simplicity we do not show every step of the data cleaning process in the paper. For instance, we apply an earnings filter to exclude firms with negative or zero income before extraordinary items (`ib`), which is a common practice in the literature to mitigate the influence of financial distress on asset growth portfolios. This filter is implemented in the code but not shown in the paper for brevity. We also apply an age filter to exclude firms younger than two years, which is common in the literature to ensure that the sorting variable is based on stable financial information. This filter is also implemented in the code but not shown in the paper for brevity. The factor library API provides preprocessed panels with all these filters applied, so users can access the final sorting variables without having to implement these steps themselves.] 
 
 ```{r}
 #| label: compute-sorting-variables
+#| cache: true
 sorting_variable_data <- compustat_annual |>
-  add_lag_columns(
+  add_lagged_columns(
     "at",
     lag = years(1),
     by = "gvkey"
@@ -220,157 +221,265 @@ sorting_variable_data <- compustat_annual |>
 
 The next step merges annual sorting variables onto the monthly CRSP stock panel using `join_lagged_values()`. The function aligns fiscal-year-end data with monthly observations through a configurable lag window. Setting `ff_adjustment = TRUE` implements the Fama-French convention [@fama.1993], aligning fiscal-year data from year $t$ with portfolio formation in July of year $t+1$ through a 12-to-18-month look-back window. The same lagging process generalizes to all sorting variables in the full factor library. The factor library API provides precomputed lagged panels for all variables.
 
-@fig-lagging-illustration shows how `join_lagged_values()` resolves missing observations. Given a target month $t$, the function searches backward from `min_lag` to `max_lag` and returns the most recent available value within that window.
+@fig-lagging-illustration contrasts the two lagging mechanisms. The left column uses a standard look-back window controlled by `lag` and `max_lag`. The right column implements the Fama-French convention [@fama.1993]: fiscal-year data from year $t$ becomes available only from July of year $t+1$, so all months from July through June share the same lagged value locked in at the previous rebalancing. In both cases, `add_lagged_columns()` selects the most recent observed value within the window.
 
 ```{r}
 #| label: fig-lagging-illustration
-#| fig-cap: "Illustration of the lagging mechanism in `join_lagged_values()`. Filled dots represent observed values; hollow dots represent missing observations. The function searches the window between `min_lag` and `max_lag` and selects the most recent available value (arrow)."
-#| fig-width: 10
-#| fig-height: 2.5
+#| fig-cap: "Two lagging mechanisms in `add_lagged_columns()`. Each column represents a data series with observed (filled) and missing (hollow) cells. Dashed rectangles mark the search window; arrows show which value gets matched to each target month."
+#| fig-width: 16
+#| fig-height: 6
 #| echo: false
 library(ggforce)
-library(patchwork)
 
-n  <- 10
+n <- 20
 ts <- 0.94
+ts_label <- 0.55
 corner <- unit(4, "pt")
-x_label <- 0
-x_data  <- 1
 
-rescale_alpha <- function(x, lo = 0.2, hi = 0.9) {
+rescale_alpha <- function(x, lo = 0.35, hi = 0.9) {
   r <- range(x, na.rm = TRUE)
   lo + (x - r[1]) / (r[2] - r[1]) * (hi - lo)
 }
 
-tiles <- function(rows, cx, grp_offset = 0, alpha_col = NULL) {
+month_labels <- c(
+  "Dec Y\u20131",
+  paste(c("Jan","Feb","Mar","Apr","May","Jun",
+          "Jul","Aug","Sep","Oct","Nov","Dec"), "Y"),
+  paste(c("Jan","Feb","Mar","Apr","May","Jun","Jul"), "Y+1")
+)
+
+x_labels <- 0
+x_std    <- 1.1
+x_ff     <- 2.6
+
+time_df <- data.frame(
+  y     = 1:n,
+  label = month_labels,
+  alpha = rescale_alpha(1:n)
+)
+
+obs_pattern <- c(
+  TRUE, FALSE, FALSE, FALSE, FALSE, TRUE, FALSE, FALSE, TRUE, FALSE,
+  TRUE, FALSE, FALSE, TRUE, FALSE, TRUE, FALSE, TRUE, TRUE, TRUE
+)
+
+df_data <- data.frame(
+  y        = 1:n,
+  observed = obs_pattern,
+  alpha    = rescale_alpha(sample(seq(0.3, 1, length.out = n)))
+)
+obs  <- df_data[df_data$observed, ]
+miss <- df_data[!df_data$observed, ]
+
+# Standard window: lag=7, max_lag=18 from Jul Y+1 (pos 20)
+# Window: [20-18, 20-7] = [2, 13]
+std_win_left  <- 2
+std_win_right <- 13
+std_matched   <- 11  # Oct Y (most recent observed in [2,13])
+
+# FF window: lag=7, max_lag=18 from Jul Y+1 (pos 20), with ff_adjustment
+# Window [2, 13] same as standard, but ff_adjustment anchors ALL months
+# (Jul Y through Jun Y+1) to the SAME rebalancing-date match
+ff_win_left  <- 2
+ff_win_right <- 13
+ff_matched   <- 11  # Oct Y (most recent observed in [2,13])
+
+target <- 20
+
+# Build rounded-rectangle polygons for geom_shape
+tiles <- function(rows, cx, grp_offset = 0, alpha_col = NULL, xsize = ts) {
   do.call(rbind, lapply(seq_len(nrow(rows)), function(i) {
     data.frame(
-      x     = cx + c(-1,  1, 1, -1) * ts / 2,
-      y     = rows$y[i] + c(-1, -1, 1,  1) * ts / 2,
+      x     = cx + c(-1, 1, 1, -1) * xsize / 2,
+      y     = rows$y[i] + c(-1, -1, 1, 1) * ts / 2,
       group = grp_offset + i,
       alpha = if (!is.null(alpha_col)) rows[[alpha_col]][i] else NA_real_
     )
   }))
 }
 
-# ── Plot 1 ────────────────────────────────────────────────────────────────────
-df_lag1 <- data.frame(
-  y        = n:1,
-  observed = c(TRUE, TRUE, TRUE, FALSE, TRUE, FALSE, FALSE, TRUE, TRUE, TRUE),
-  label    = c(paste0("t\u2013", 9:1), "t"),
-  ts_alpha = rescale_alpha((n + 1 - n:1) / n, lo = 0.35, hi = 0.9),
-  data_val = c(0.55, 0.30, 0.80, NA, 0.50, NA, NA, 0.90, 0.40, 0.70)
-)
-df_lag1$data_alpha <- rescale_alpha(df_lag1$data_val)
+grp_label <- 0
+grp_obs1  <- n
+grp_miss1 <- n + nrow(obs)
+grp_obs2  <- n + nrow(obs) + nrow(miss)
+grp_miss2 <- n + nrow(obs) + nrow(miss) + nrow(obs)
 
-window_y_top    <- n + 1 - 4
-window_y_bottom <- n + 1 - 7
-matched_y       <- n + 1 - 5
-target_y        <- 1
+label_poly <- tiles(time_df, x_labels, grp_label, "alpha", xsize = ts_label)
+obs1_poly  <- tiles(obs,     x_std,    grp_obs1,  "alpha")
+miss1_poly <- tiles(miss,    x_std,    grp_miss1)
+obs2_poly  <- tiles(obs,     x_ff,     grp_obs2,  "alpha")
+miss2_poly <- tiles(miss,    x_ff,     grp_miss2)
 
-obs1  <- df_lag1[df_lag1$observed, ]
-miss1 <- df_lag1[!df_lag1$observed, ]
-
-label_poly1 <- tiles(df_lag1, x_label, 0,        "ts_alpha")
-obs_poly1   <- tiles(obs1,    x_data,  n,         "data_alpha")
-miss_poly1  <- tiles(miss1,   x_data,  n + nrow(obs1))
-
-p1 <- ggplot() +
+ggplot() +
+  # Month label strip
   geom_shape(
-    data = label_poly1, aes(x = x, y = y, group = group, alpha = alpha),
+    data = label_poly, aes(x = x, y = y, group = group, alpha = alpha),
     fill = tf_dark_blue, color = "white", linewidth = 0.8, radius = corner
   ) +
+  geom_text(
+    data = time_df, aes(x = x_labels, y = y, label = label),
+    size = 2.6, color = "white", fontface = "bold", angle = 90
+  ) +
+  # Standard column: observed
   geom_shape(
-    data = obs_poly1, aes(x = x, y = y, group = group, alpha = alpha),
+    data = obs1_poly, aes(x = x, y = y, group = group, alpha = alpha),
     fill = tf_orange, color = "white", linewidth = 0.8, radius = corner
   ) +
+  # Standard column: missing
   geom_shape(
-    data = miss_poly1, aes(x = x, y = y, group = group),
+    data = miss1_poly, aes(x = x, y = y, group = group),
     fill = "grey97", color = "grey80", linewidth = 0.8, radius = corner
   ) +
-  scale_alpha_identity() +
   geom_text(
-    data = df_lag1, aes(x = x_label, y = y, label = label),
-    size = 2.8, color = "white", fontface = "bold"
+    data = miss, aes(x = x_std, y = y),
+    label = "NA", size = 2.2, color = "grey65", fontface = "italic"
+  ) +
+  # FF column: observed
+  geom_shape(
+    data = obs2_poly, aes(x = x, y = y, group = group, alpha = alpha),
+    fill = tf_orange, color = "white", linewidth = 0.8, radius = corner
+  ) +
+  # FF column: missing
+  geom_shape(
+    data = miss2_poly, aes(x = x, y = y, group = group),
+    fill = "grey97", color = "grey80", linewidth = 0.8, radius = corner
   ) +
   geom_text(
-    data = miss1, aes(x = x_data, y = y),
-    label = "NA", size = 2.5, color = "grey65", fontface = "italic"
+    data = miss, aes(x = x_ff, y = y),
+    label = "NA", size = 2.2, color = "grey65", fontface = "italic"
   ) +
-  annotate(
-    "rect",
-    xmin = x_data - ts / 2, xmax = x_data + ts / 2,
-    ymin = window_y_bottom - ts / 2, ymax = window_y_top + ts / 2,
-    fill = NA, color = tf_dark_blue, linewidth = 0.7, linetype = "dashed"
-  ) +
-  geom_text(
-    data = data.frame(
-      x     = x_data + ts / 2 + 0.06,
-      y     = c(window_y_top + ts / 2, window_y_bottom - ts / 2),
-      label = c("max_lag", "min_lag"),
-      vjust = c(-0.4, 1.4)
-    ),
-    aes(x = x, y = y, label = label, vjust = vjust),
-    color = tf_dark_blue, size = 2.6, fontface = "italic", hjust = 0
-  ) +
+  # Grey arrows: lagging pattern for targets 19-11 (lag=7, max_lag=18)
+  # t=19→11, t=18→11, t=17→9, t=16→9, t=15→6,
+  # t=14→6, t=13→6, t=12→1, t=11→1
   geom_curve(
     data = data.frame(
-      y    = c(2, 3, 4, 5, 6),
-      yend = c(6, 6, 8, 8, 9) - 0.15,
-      x    = x_data + ts / 2,
-      xend = x_data + ts / 2
+      x    = x_std + ts / 2,
+      xend = x_std + ts / 2,
+      y    = c(19, 18, 17, 16, 15, 14, 13, 12, 11),
+      yend = c(11, 11,  9,  9,  6,  6,  6,  1,  1) + 0.15
     ),
     aes(x = x, y = y, xend = xend, yend = yend),
-    curvature = 0.4, color = "grey60", alpha = 0.5,
-    arrow = arrow(length = unit(0.10, "cm"), type = "closed"), linewidth = 0.45
+    curvature = -0.2, color = "grey70", alpha = 0.4,
+    arrow = arrow(length = unit(0.08, "cm"), type = "closed"), linewidth = 0.35
+  ) +
+  # Standard window
+  annotate(
+    "rect",
+    xmin = x_std - ts / 2, xmax = x_std + ts / 2,
+    ymin = std_win_left - ts / 2, ymax = std_win_right + ts / 2,
+    fill = NA, color = tf_dark_blue, linewidth = 0.7, linetype = "dashed"
+  ) +
+  annotate(
+    "text",
+    x = x_std - ts / 2 - 0.08,
+    y = c(std_win_left, std_win_right),
+    label = c("max_lag", "lag"),
+    color = tf_dark_blue, size = 2.4, fontface = "italic", hjust = 1,
+    vjust = 0.5
   ) +
   annotate(
     "curve",
-    x = x_data + ts / 2, xend = x_data + ts / 2,
-    y = target_y, yend = matched_y - 0.15,
-    curvature = 0.4, color = tf_dark_blue, linewidth = 0.7,
+    x = x_std + ts / 2, xend = x_std + ts / 2,
+    y = target, yend = std_matched + 0.2,
+    curvature = -0.2, color = tf_dark_blue, linewidth = 0.7,
     arrow = arrow(length = unit(0.12, "cm"), type = "closed")
   ) +
-  scale_x_continuous(limits = c(-0.52, 2.4), expand = c(0, 0)) +
-  scale_y_continuous(limits = c(0.45, 10.55), expand = c(0, 0)) +
-  theme_void() +
-  theme(plot.margin = margin(5, 10, 5, 10))
-
-# ── Plot 2 (barebone placeholder) ─────────────────────────────────────────────
-df_lag2 <- data.frame(
-  y        = n:1,
-  observed = rep(TRUE, n),
-  label    = c(paste0("t\u2013", 9:1), "t"),
-  ts_alpha = rescale_alpha((n + 1 - n:1) / n, lo = 0.35, hi = 0.9),
-  data_val = c(0.60, 0.45, 0.75, 0.55, 0.80, 0.35, 0.65, 0.50, 0.70, 0.40)
-)
-df_lag2$data_alpha <- rescale_alpha(df_lag2$data_val)
-
-obs2 <- df_lag2[df_lag2$observed, ]
-
-label_poly2 <- tiles(df_lag2, x_label, 0,   "ts_alpha")
-obs_poly2   <- tiles(obs2,    x_data,  n,    "data_alpha")
-
-p2 <- ggplot() +
-  geom_shape(
-    data = label_poly2, aes(x = x, y = y, group = group, alpha = alpha),
-    fill = tf_dark_blue, color = "white", linewidth = 0.8, radius = corner
+  # FF grey arrows: Jul Y (pos 8) through Jun Y+1 (pos 19) ALL point
+  # to Dec Y-1 (pos 1) — locked in at the previous July rebalancing
+  geom_curve(
+    data = data.frame(
+      x    = x_ff + ts / 2,
+      xend = x_ff + ts / 2,
+      y    = 8:19,
+      yend = rep(1 + 0.15, 12)
+    ),
+    aes(x = x, y = y, xend = xend, yend = yend),
+    curvature = -0.2, color = "grey70", alpha = 0.4,
+    arrow = arrow(length = unit(0.08, "cm"), type = "closed"), linewidth = 0.35
   ) +
-  geom_shape(
-    data = obs_poly2, aes(x = x, y = y, group = group, alpha = alpha),
-    fill = tf_orange, color = "white", linewidth = 0.8, radius = corner
+  # FF window
+  annotate(
+    "rect",
+    xmin = x_ff - ts / 2, xmax = x_ff + ts / 2,
+    ymin = ff_win_left - ts / 2, ymax = ff_win_right + ts / 2,
+    fill = NA, color = tf_dark_blue, linewidth = 0.7, linetype = "dashed"
+  ) +
+  annotate(
+    "text",
+    x = x_ff - ts / 2 - 0.08,
+    y = c(ff_win_left, ff_win_right),
+    label = c("max_lag", "lag"),
+    color = tf_dark_blue, size = 2.4, fontface = "italic", hjust = 1,
+    vjust = 0.5
+  ) +
+  annotate(
+    "curve",
+    x = x_ff + ts / 2, xend = x_ff + ts / 2,
+    y = target, yend = ff_matched + 0.2,
+    curvature = -0.2, color = tf_dark_blue, linewidth = 0.7,
+    arrow = arrow(length = unit(0.12, "cm"), type = "closed")
+  ) +
+  # Column headers (above tiles: x + ts/2 + offset; after coord_flip x = vertical)
+  annotate(
+    "text", x = x_std + ts / 2 + 0.15, y = 1 - ts / 2,
+    label = "data |> add_lagged_columns(lag = months(7), max_lag = months(18))",
+    color = "black", alpha = 1,
+    size = 3.5, family = "mono", hjust = 0
+  ) +
+  annotate(
+    "text", x = x_ff + ts / 2 + 0.15, y = 1 - ts / 2,
+    label = "data |> add_lagged_columns(lag = months(7), max_lag = months(18), ff_adjustment = TRUE)",
+    color = "black", alpha = 1,
+    size = 3.5, family = "mono", hjust = 0
+  ) +
+  # Year-change lines (between Dec/Jan boundaries)
+  annotate(
+    "segment",
+    x = x_labels - ts_label / 2, xend = x_ff + ts / 2,
+    y = 1.5, yend = 1.5,
+    color = "grey50", linewidth = 0.5, linetype = "dashed"
+  ) +
+  annotate(
+    "segment",
+    x = x_labels - ts_label / 2, xend = x_ff + ts / 2,
+    y = 13.5, yend = 13.5,
+    color = "grey50", linewidth = 0.5, linetype = "dashed"
+  ) +
+  # Year span brackets below the month tiles
+  # Y-1: pos 1 only; Y: pos 2-13; Y+1: pos 14-20
+  annotate(
+    "segment",
+    x = x_labels - ts_label / 2 - 0.15, xend = x_labels - ts_label / 2 - 0.15,
+    y = c(1, 2, 14), yend = c(1, 13, 20),
+    color = "grey40", linewidth = 0.4
+  ) +
+  # End caps
+  annotate(
+    "segment",
+    x = x_labels - ts_label / 2 - 0.1, xend = x_labels - ts_label / 2 - 0.2,
+    y = c(1, 1, 2, 13, 14, 20), yend = c(1, 1, 2, 13, 14, 20),
+    color = "grey40", linewidth = 0.4
+  ) +
+  # Year labels
+  annotate(
+    "text",
+    x = x_labels - ts_label / 2 - 0.35,
+    y = c(1, 7.5, 17),
+    label = c("Year Y\u20131", "Year Y", "Year Y+1"),
+    color = "grey30", size = 3, fontface = "bold"
   ) +
   scale_alpha_identity() +
-  geom_text(
-    data = df_lag2, aes(x = x_label, y = y, label = label),
-    size = 2.8, color = "white", fontface = "bold"
+  scale_x_continuous(
+    limits = c(x_labels - ts_label / 2 - 0.55, x_ff + ts / 2 + 0.8),
+    expand = c(0, 0)
   ) +
-  scale_x_continuous(limits = c(-0.52, 2.4), expand = c(0, 0)) +
-  scale_y_continuous(limits = c(0.45, 10.55), expand = c(0, 0)) +
+  scale_y_continuous(
+    limits = c(-0.3, n + 0.55),
+    expand = c(0, 0)
+  ) +
+  coord_flip() +
   theme_void() +
   theme(plot.margin = margin(5, 10, 5, 10))
-
-p1 | p2
 ```
 
 ```{r}
