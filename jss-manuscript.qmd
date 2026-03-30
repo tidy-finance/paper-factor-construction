@@ -106,6 +106,7 @@ library(dplyr)
 library(tidyr)
 library(lubridate)
 library(ggplot2)
+library(gt)
 ```
 
 ### Data sources {#sec-data-acquisition}
@@ -713,11 +714,76 @@ sorting_data <- sorting_data |>
 
 The resulting dataset merges monthly stock returns with the lagged sorting variable. Each row represents a stock-month observation, containing the information needed for portfolio construction: excess returns, exchange membership, industry classification, lagged market capitalization (for value-weighting), and the sorting variable itself.
 
-@fig-ag-by-industry shows the 33rd, 50th, and 66th percentiles of asset growth over time. Pronounced spikes during economic expansions and contractions highlight the cyclical nature of corporate investment that portfolio sorts aim to exploit.
+Before turning to portfolio construction, we characterize the distribution of asset growth using `sorting_variable_data`, which contains one observation per firm-year and is the natural unit for cross-sectional analysis of annual accounting variables. Because asset growth is an annual characteristic that each firm contributes once per fiscal year, computing summary statistics at this level avoids the artificial replication that arises when the same value is carried forward across multiple months in `sorting_data`.
+
+Asset growth is heavily right-skewed: a small number of firms with dramatic balance sheet expansions (through mergers, acquisitions, or large equity issuances) generate extreme positive values that dominate the mean. We therefore winsorize at the 1st and 99th percentiles before computing location and dispersion statistics. @tbl-ag-summary reports the resulting pooled cross-sectional summary.
 
 ```{r}
-#| label: fig-ag-by-industry
-#| fig-cap: "Distribution of asset growth over time. Lines show the 33rd, 50th, and 66th percentiles of the cross-sectional distribution of asset growth."
+#| label: tbl-ag-summary
+#| tbl-cap: "Cross-sectional summary statistics for asset growth (winsorized at the 1st and 99th percentiles). The table reports the number of firm-year observations (N), the mean, standard deviation (SD), and selected percentiles of the annual asset growth distribution computed from `sorting_variable_data`."
+sorting_variable_data |>
+  filter(!is.na(asset_growth)) |>
+  mutate(
+    asset_growth = pmax(
+      pmin(asset_growth, quantile(asset_growth, 0.99)),
+      quantile(asset_growth, 0.01)
+    )
+  ) |>
+  summarise(
+    N = n(),
+    Mean = mean(asset_growth),
+    SD = sd(asset_growth),
+    P10 = quantile(asset_growth, 0.10),
+    P25 = quantile(asset_growth, 0.25),
+    Median = median(asset_growth),
+    P75 = quantile(asset_growth, 0.75),
+    P90 = quantile(asset_growth, 0.90)
+  ) |>
+  gt() |>
+  fmt_number(decimals = 3)
+```
+
+@tbl-ag-summary-yearly complements the pooled view by reporting how cross-sectional moments evolve over time. For each calendar year we compute the cross-sectional mean, standard deviation, and median of (winsorized) asset growth, and then summarise those annual statistics across the full sample period.
+
+```{r}
+#| label: tbl-ag-summary-yearly
+#| tbl-cap: "Time-series averages of annual cross-sectional summary statistics for asset growth (winsorized at the 1st and 99th percentiles). For each calendar year, cross-sectional mean, standard deviation, and median are computed from `sorting_variable_data`; the table reports the time-series mean, minimum, and maximum of those annual statistics."
+sorting_variable_data |>
+  filter(!is.na(asset_growth)) |>
+  mutate(year = lubridate::year(date)) |>
+  group_by(year) |>
+  mutate(
+    p01 = quantile(asset_growth, 0.01),
+    p99 = quantile(asset_growth, 0.99),
+    asset_growth = pmax(pmin(asset_growth, p99), p01)
+  ) |>
+  summarise(
+    N = n(),
+    Mean = mean(asset_growth),
+    SD = sd(asset_growth),
+    Median = median(asset_growth),
+    .groups = "drop"
+  ) |>
+  summarise(
+    Years = n(),
+    `Avg N` = round(mean(N)),
+    `Mean (avg)` = mean(Mean),
+    `Mean (min)` = min(Mean),
+    `Mean (max)` = max(Mean),
+    `SD (avg)` = mean(SD),
+    `Median (avg)` = mean(Median),
+    `Median (min)` = min(Median),
+    `Median (max)` = max(Median)
+  ) |>
+  gt() |>
+  fmt_number(decimals = 3)
+```
+
+Having characterised the distribution of the sorting variable, we now turn to `sorting_data`, the firm-month panel that serves as direct input to portfolio construction. @fig-breakpoints shows the 33rd, 50th, and 66th percentiles of asset growth over time. Pronounced spikes during economic expansions and contractions highlight the cyclical nature of corporate investment that portfolio sorts aim to exploit.
+
+```{r}
+#| label: fig-breakpoints
+#| fig-cap: "Distribution of asset growth over time. Lines show the 33rd, 50th, and 66th percentiles of the cross-sectional distribution of asset growth in `sorting_data`, the firm-month panel used as input for portfolio construction."
 sorting_data |>
   group_by(date) |>
   summarise(
@@ -735,24 +801,6 @@ sorting_data |>
   geom_line() +
   labs(x = NULL, y = "Asset growth", color = "Quantile") +
   theme(legend.position = "bottom")
-```
-
-@tbl-ag-summary reports cross-sectional summary statistics for asset growth across all firm-month observations, illustrating the distribution that portfolio sorts partition into quantile portfolios.
-
-```{r}
-#| label: tbl-ag-summary
-#| tbl-cap: "Cross-sectional summary statistics for asset growth. The table reports the number of firm-month observations (N), the mean, standard deviation (SD), 10th percentile (P10), median, and 90th percentile (P90) of asset growth across all non-missing observations in the sample."
-sorting_data |>
-  filter(!is.na(asset_growth)) |>
-  summarise(
-    N = n(),
-    Mean = mean(asset_growth),
-    SD = sd(asset_growth),
-    P10 = quantile(asset_growth, 0.10),
-    Median = median(asset_growth),
-    P90 = quantile(asset_growth, 0.90)
-  ) |>
-  knitr::kable(digits = 3)
 ```
 
 With the sorting variable constructed and merged onto the monthly stock panel, we now turn to portfolio sorts, the mechanism that translates firm-level characteristics into tradable factor returns.
@@ -789,18 +837,63 @@ portfolio_returns <- compute_portfolio_returns(
   rebalancing_month = 7,
   options_main
 )
-
-portfolio_returns |> head()
 ```
 
-The output contains monthly excess returns for each decile portfolio. To obtain the asset growth factor return, we compute the long-short portfolio using `compute_long_short_returns()`. The `direction = "bottom_minus_top"` argument means the factor is long low-AG stocks and short high-AG stocks, consistent with the finding that firms with high asset growth earn lower subsequent returns.
+`compute_portfolio_returns()` returns a long tibble with one row per portfolio-month, containing value-weighted (`ret_excess_vw`), equal-weighted (`ret_excess_ew`), and capped value-weighted (`ret_excess_vw_capped`) excess returns. The long-short factor return is obtained via `compute_long_short_returns()`. The `direction = "bottom_minus_top"` argument means the factor is long low-AG stocks and short high-AG stocks, consistent with the negative premium documented by @cooper.2008.
 
 ```{r}
 #| label: long-short-ag
 factor_returns_ag <- portfolio_returns |>
   compute_long_short_returns(direction = "bottom_minus_top")
+```
 
-factor_returns_ag |> tail()
+@tbl-univariate-sort-ag summarises the time series of each decile across all three weighting schemes, with the long-short portfolio appended as the final row. A monotone decline from low- to high-AG portfolios is consistent with the negative asset growth premium.
+
+```{r}
+#| label: tbl-univariate-sort-ag
+#| tbl-cap: "Time-series averages of annualised monthly excess returns for asset growth decile portfolios. Portfolios are formed annually in July using NYSE breakpoints, rebalanced annually. Means are annualised (multiplied by 12). The $t$-statistic tests whether the mean monthly excess return differs from zero. The L/S row is the long-short portfolio (bottom minus top decile)."
+decile_stats <- portfolio_returns |>
+  drop_na() |>
+  group_by(portfolio) |>
+  summarise(
+    vw_mean   = mean(ret_excess_vw) * 12,
+    vw_tstat  = mean(ret_excess_vw) / (sd(ret_excess_vw) / sqrt(n())),
+    ew_mean   = mean(ret_excess_ew) * 12,
+    ew_tstat  = mean(ret_excess_ew) / (sd(ret_excess_ew) / sqrt(n())),
+    vwc_mean  = mean(ret_excess_vw_capped) * 12,
+    vwc_tstat = mean(ret_excess_vw_capped) / (sd(ret_excess_vw_capped) / sqrt(n())),
+    .groups = "drop"
+  ) |>
+  mutate(portfolio = as.character(portfolio))
+
+ls_row <- factor_returns_ag |>
+    drop_na() |>
+  summarise(
+    portfolio = "L/S",
+    vw_mean   = mean(ret_excess_vw) * 12,
+    vw_tstat  = mean(ret_excess_vw) / (sd(ret_excess_vw) / sqrt(n())),
+    ew_mean   = mean(ret_excess_ew) * 12,
+    ew_tstat  = mean(ret_excess_ew) / (sd(ret_excess_ew) / sqrt(n())),
+    vwc_mean  = mean(ret_excess_vw_capped) * 12,
+    vwc_tstat = mean(ret_excess_vw_capped) / (sd(ret_excess_vw_capped) / sqrt(n()))
+  )
+
+bind_rows(decile_stats, ls_row) |>
+  gt() |>
+  fmt_number(decimals = 3) |>
+  tab_spanner(label = "Value-weighted", columns = c(vw_mean, vw_tstat)) |>
+  tab_spanner(label = "Equal-weighted", columns = c(ew_mean, ew_tstat)) |>
+  tab_spanner(label = "VW capped", columns = c(vwc_mean, vwc_tstat)) |>
+  cols_label(
+    portfolio = "Portfolio",
+    vw_mean   = "Mean", vw_tstat  = "t-stat",
+    ew_mean   = "Mean", ew_tstat  = "t-stat",
+    vwc_mean  = "Mean", vwc_tstat = "t-stat"
+  ) |>
+  tab_style(
+    style = cell_borders(sides = "top", weight = px(2)),
+    locations = cells_body(rows = portfolio == "L/S")
+  )
 ```
 
 #### Bivariate sorts {#sec-bivariate-sorts}
@@ -864,10 +957,7 @@ We host precomputed factor returns for all specifications on Hugging Face and ma
 ```{r}
 #| label: retrieve-from-library
 #| eval: false
-ag_returns <- get_available_hf_files("tidy-finance", "factor-library-grid") |>
-  pull(url) |>
-  arrow::read_parquet() |>
-  filter(sorting_variable == "sv_ag")
+asset_growth_returns <- download_data("tidyfinance", "factor_library", sorting_variable = "ag", fill_all = TRUE)
 ```
 
 @sec-library provides a comprehensive overview of all available sorting variables and their empirical properties.
@@ -889,7 +979,6 @@ The factor library covers `{r} nrow(sorting_variable_information)` sorting varia
 
 tab <- sorting_variable_information |>
   dplyr::mutate(
-    sorting_variable = stringr::str_remove(sorting_variable, "^sv_"),
     direction = dplyr::if_else(
       direction == "top_minus_bottom",
       "$\\uparrow$",
