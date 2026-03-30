@@ -23,7 +23,7 @@ min_sales <- 10
 
 compustat_annual <- compustat_annual |>
   mutate(
-    year = year(datadate),
+    year = floor_date(datadate, "year"),
     int_td = replace_na(dlc, 0) + replace_na(dltt, 0),
     int_td = if_else(int_td <= 0, NA_real_, int_td),
     int_col = lct - replace_na(dlc, 0),
@@ -81,8 +81,8 @@ compustat_annual <- compustat_annual |>
 
 # Lag certain variables
 compustat_annual <- compustat_annual |>
-  add_lag_columns(
-    c(
+  add_lagged_columns(
+    cols = c(
       "ceq",
       "at",
       "emp",
@@ -111,35 +111,38 @@ compustat_annual <- compustat_annual |>
       "int_o_ni_negative"
     ),
     lag = years(1),
-    by = "gvkey"
-  ) |>
+    by = "gvkey",
+    data_options = data_options(date ="year")) |>
   # Append "1" to lag suffix to indicate 1-year lag (e.g., ceq_lag -> ceq_lag1)
   rename_with(ends_with("_lag"), .fn = ~ paste0(.x, "1"))
 
 ## Two year lag
 compustat_annual <- compustat_annual |>
-  add_lag_columns(
-    "int_ce",
+  add_lagged_columns(
+    cols = "int_ce",
     lag = years(2),
-    by = "gvkey"
+    by = "gvkey",
+    data_options = data_options(date ="year")
   ) |>
   rename(int_ce_lag2 = int_ce_lag)
 
 ## Three year lag
 compustat_annual <- compustat_annual |>
-  add_lag_columns(
-    "int_ce",
+  add_lagged_columns(
+    cols = "int_ce",
     lag = years(3),
-    by = "gvkey"
+    by = "gvkey",
+    data_options = data_options(date ="year")
   ) |>
   rename(int_ce_lag3 = int_ce_lag)
 
 ## Five year lag
 compustat_annual <- compustat_annual |>
-  add_lag_columns(
-    "int_td",
+  add_lagged_columns(
+    cols = "int_td",
     lag = years(5),
-    by = "gvkey"
+    by = "gvkey",
+    data_options = data_options(date ="year")
   ) |>
   rename(int_td_lag5 = int_td_lag)
 

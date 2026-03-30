@@ -62,32 +62,16 @@ Our core focus is to present the [R]{.proglang} package `tidyfinance`. We walk t
 
 ```{mermaid}
 %%| label: fig-workflow-diagram
-%%| fig-cap: "Research workflow for factor construction with `tidyfinance`. Path A builds custom factors from raw data. Path B retrieves pre-built factor time series directly from Hugging Face."
+%%| fig-cap: "Research workflow for factor construction with `tidyfinance`."
 %%| fig-width: 8
 flowchart LR
-    PA("<i>Path A:<br>Custom factors</i>") --- A
     A("<b>Data acquisition</b><br><code>download_data()</code>") --> B("<b>Variable construction</b><br><code>add_lagged_columns()</code>")
-    B --> C("<b>Portfolio sorts</b><br><code>assign_portfolio()</code>")
-    C --> D("<b>Portfolio returns</b><br><code>compute_portfolio_returns()</code>")
-    PB("<i>Path B:<br>Pre-built factors</i>") --- F
-    F("<b>Factor library</b><br><code>download_data('factor_...')</code>") --> D
+    B --> C("<b>Portfolio returns</b><br><code>compute_portfolio_returns()</code>")
 
-    classDef green fill:#F0FFF4,stroke:#276749,color:#1a202c
-    classDef blue fill:#EBF4FF,stroke:#2B6CB0,color:#1a202c
-    classDef grey fill:#F7FAFC,stroke:#A0AEC0,color:#1a202c
-    classDef labelA fill:none,stroke:none,color:#276749,font-size:16px
-    classDef labelB fill:none,stroke:none,color:#2B6CB0,font-size:16px
+    classDef blue fill:#EBF4FF,stroke:#3B9AB2FF,color:#3B9AB2FF
 
-    class A,B,C green
-    class F blue
-    class D grey
-    class PA labelA
-    class PB labelB
+    class A,B,C blue
 
-    linkStyle 0 stroke:none
-    linkStyle 1,2,3 stroke:#276749,stroke-width:1px
-    linkStyle 4 stroke:none
-    linkStyle 5 stroke:#2B6CB0,stroke-width:1px
 ```
 
 

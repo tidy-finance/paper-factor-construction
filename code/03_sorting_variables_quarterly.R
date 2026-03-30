@@ -17,7 +17,7 @@ crsp_monthly <- open_dataset("data/crsp_monthly.parquet")
 compustat_quarterly <- compustat_quarterly |>
   left_join(
     crsp_monthly |>
-      select(gvkey, date, mktcap, siccd),
+      select(gvkey, date, mktcap),
     join_by(gvkey, date),
     relationship = "one-to-one"
   ) |>
@@ -34,13 +34,11 @@ compustat_quarterly <- compustat_quarterly |>
   rename(int_me = mktcap)
 
 ## One quarter lag
-# NOTE: atq /int_beq has 25% / 23% missing
 compustat_quarterly <- compustat_quarterly |>
   add_lag_columns(cols = c("atq", "int_beq"), by = "gvkey", lag = months(3)) |>
   rename(atq_lag1 = atq_lag, int_beq_lag1 = int_beq_lag)
 
 ## Four quarter lag
-# NOTE: int_rps / int_sue has 20% missing
 compustat_quarterly <- compustat_quarterly |>
   add_lag_columns(
     cols = c("int_rps", "int_sue"),
