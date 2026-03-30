@@ -94,6 +94,7 @@ pak::pak("tidy-finance/r-tidyfinance")
 Once installed, load the `tidyfinance` package.
 
 ```{r}
+#| label: load-tidyfinance
 library(tidyfinance)
 ```
 
@@ -106,7 +107,6 @@ library(dplyr)
 library(tidyr)
 library(lubridate)
 library(ggplot2)
-library(gt)
 ```
 
 ### Data sources {#sec-data-acquisition}
@@ -739,8 +739,7 @@ sorting_variable_data |>
     P75 = quantile(asset_growth, 0.75),
     P90 = quantile(asset_growth, 0.90)
   ) |>
-  gt() |>
-  fmt_number(decimals = 3)
+  knitr::kable(digits = 3)
 ```
 
 @tbl-ag-summary-yearly complements the pooled view by reporting how cross-sectional moments evolve over time. For each calendar year we compute the cross-sectional mean, standard deviation, and median of (winsorized) asset growth, and then summarise those annual statistics across the full sample period.
@@ -775,8 +774,7 @@ sorting_variable_data |>
     `Median (min)` = min(Median),
     `Median (max)` = max(Median)
   ) |>
-  gt() |>
-  fmt_number(decimals = 3)
+  knitr::kable(digits = 3)
 ```
 
 Having characterised the distribution of the sorting variable, we now turn to `sorting_data`, the firm-month panel that serves as direct input to portfolio construction. @fig-breakpoints shows the 33rd, 50th, and 66th percentiles of asset growth over time. Pronounced spikes during economic expansions and contractions highlight the cyclical nature of corporate investment that portfolio sorts aim to exploit.
@@ -879,20 +877,9 @@ ls_row <- factor_returns_ag |>
   )
 
 bind_rows(decile_stats, ls_row) |>
-  gt() |>
-  fmt_number(decimals = 3) |>
-  tab_spanner(label = "Value-weighted", columns = c(vw_mean, vw_tstat)) |>
-  tab_spanner(label = "Equal-weighted", columns = c(ew_mean, ew_tstat)) |>
-  tab_spanner(label = "VW capped", columns = c(vwc_mean, vwc_tstat)) |>
-  cols_label(
-    portfolio = "Portfolio",
-    vw_mean   = "Mean", vw_tstat  = "t-stat",
-    ew_mean   = "Mean", ew_tstat  = "t-stat",
-    vwc_mean  = "Mean", vwc_tstat = "t-stat"
-  ) |>
-  tab_style(
-    style = cell_borders(sides = "top", weight = px(2)),
-    locations = cells_body(rows = portfolio == "L/S")
+  knitr::kable(
+    digits = 3,
+    col.names = c("Portfolio", "VW Mean", "VW t-stat", "EW Mean", "EW t-stat", "VWC Mean", "VWC t-stat")
   )
 ```
 
