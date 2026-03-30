@@ -74,7 +74,6 @@ flowchart LR
 
 ```
 
-
 You can install the released version of `tidyfinance` [from CRAN](https://cran.r-project.org/package=tidyfinance) via:
 
 ```{r}
@@ -234,12 +233,13 @@ The next step merges annual sorting variables onto the monthly CRSP stock panel 
 ```{r}
 #| label: fig-lagging-illustration
 #| fig-cap: "Two lagging mechanisms in `add_lagged_columns()`. Each column represents a data series with observed (filled) and missing (hollow) cells. Dashed rectangles mark the search window; arrows show which value gets matched to each target month."
-#| fig-width: 16
+#| fig-width: 12
 #| fig-height: 6
 #| echo: false
 library(ggforce)
 
-n <- 20
+# --- Layout parameters -------------------------------------------------------
+n <- 16
 ts <- 0.94
 ts_label <- 0.55
 corner <- unit(4, "pt")
@@ -249,31 +249,34 @@ rescale_alpha <- function(x, lo = 0.35, hi = 0.9) {
   lo + (x - r[1]) / (r[2] - r[1]) * (hi - lo)
 }
 
+# --- Month labels (16 months: Dec Y-2 through Mar Y) -------------------------
 month_labels <- c(
-  "Dec Y\u20131",
-  paste(
-    c(
-      "Jan",
-      "Feb",
-      "Mar",
-      "Apr",
-      "May",
-      "Jun",
-      "Jul",
-      "Aug",
-      "Sep",
-      "Oct",
-      "Nov",
-      "Dec"
-    ),
-    "Y"
-  ),
-  paste(c("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul"), "Y+1")
+  "Dec",
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
+  "Jan",
+  "Feb",
+  "Mar"
 )
 
+# Positions:
+#  1 = Dec Y-2
+#  2 = Jan Y-1, ..., 13 = Dec Y-1
+# 14 = Jan Y, 15 = Feb Y, 16 = Mar Y (TARGET)
+
 x_labels <- 0
-x_std <- 1.1
-x_ff <- 2.6
+x_std <- 2.6
+x_ff <- 0.8
 
 time_df <- data.frame(
   y = 1:n,
@@ -281,53 +284,84 @@ time_df <- data.frame(
   alpha = rescale_alpha(1:n)
 )
 
+# --- Observed/missing pattern -------------------------------------------------
 obs_pattern <- c(
-  TRUE,
-  FALSE,
-  FALSE,
-  FALSE,
-  FALSE,
-  TRUE,
-  FALSE,
-  FALSE,
-  TRUE,
-  FALSE,
-  TRUE,
-  FALSE,
-  FALSE,
-  TRUE,
-  FALSE,
-  TRUE,
-  FALSE,
-  TRUE,
-  TRUE,
-  TRUE
+  TRUE, #  1  Dec Y-2
+  FALSE, #  2  Jan Y-1
+  FALSE, #  3  Feb Y-1
+  FALSE, #  4  Mar Y-1
+  FALSE, #  5  Apr Y-1
+  TRUE, #  6  May Y-1
+  FALSE, #  7  Jun Y-1
+  FALSE, #  8  Jul Y-1
+  TRUE, #  9  Aug Y-1
+  FALSE, # 10  Sep Y-1
+  TRUE, # 11  Oct Y-1
+  FALSE, # 12  Nov Y-1
+  FALSE, # 13  Dec Y-1
+  TRUE, # 14  Jan Y
+  FALSE, # 15  Feb Y
+  TRUE # 16  Mar Y
 )
 
 df_data <- data.frame(
   y = 1:n,
-  observed = obs_pattern,
-  alpha = rescale_alpha(sample(seq(0.3, 1, length.out = n)))
+  observed = obs_pattern
 )
 obs <- df_data[df_data$observed, ]
 miss <- df_data[!df_data$observed, ]
 
-# Standard window: lag=7, max_lag=18 from Jul Y+1 (pos 20)
-# Window: [20-18, 20-7] = [2, 13]
-std_win_left <- 2
-std_win_right <- 13
-std_matched <- 11 # Oct Y (most recent observed in [2,13])
+# --- Window for highlighted target (Mar Y, pos 16) ---------------------------
+# lag = months(3), max_lag = months(13)
+# Window: [target - max_lag, target - lag] = [16-13, 16-3] = [3, 13]
+# i.e., Feb Y-1 through Dec Y-1
+target <- 16
+win_left <- 3 # Feb Y-1
+win_right <- 13 # Dec Y-1
 
-# FF window: lag=7, max_lag=18 from Jul Y+1 (pos 20), with ff_adjustment
-# Window [2, 13] same as standard, but ff_adjustment anchors ALL months
-# (Jul Y through Jun Y+1) to the SAME rebalancing-date match
-ff_win_left <- 2
-ff_win_right <- 13
-ff_matched <- 11 # Oct Y (most recent observed in [2,13])
+# Standard: most recent observed in [3, 13]
+# Observed in window: 6, 9, 11 → most recent = 11 (Oct Y-1)
+std_matched <- 11
 
-target <- 20
+# FF: last obs per year first, then search window [3, 13]
+# Last obs per year: Y-2 → pos 1 (Dec Y-2), Y-1 → pos 11 (Oct Y-1)
+# In window [3, 13]: pos 11 qualifies → match 11
+ff_matched <- 11
 
-# Build rounded-rectangle polygons for geom_shape
+# --- Grey arrows: standard panel ----------------------------------------------
+# For each target, find window [t-13, t-3], then most recent observed in window.
+# Observed positions: 1, 6, 9, 11, 14, 16
+# target=15 (Feb Y): window [2,12], obs: 6,9,11 → 11
+# target=14 (Jan Y): window [1,11], obs: 1,6,9,11 → 11
+# target=13 (Dec Y-1): window [1,10], obs: 1,6,9 → 9
+# target=12 (Nov Y-1): window [1,9], obs: 1,6,9 → 9
+# target=11 (Oct Y-1): window [1,8], obs: 1,6 → 6
+# target=10 (Sep Y-1): window [1,7], obs: 1,6 → 6
+# target=9 (Aug Y-1): window [1,6], obs: 1,6 → 6
+# target=8 (Jul Y-1): window [1,5], obs: 1 → 1
+# target=7 (Jun Y-1): window [1,4], obs: 1 → 1
+# target=6 (May Y-1): window [1,3], obs: 1 → 1
+# target=5 (Apr Y-1): window [1,2], obs: 1 → 1
+# target=4 (Mar Y-1): window [1,1], obs: 1 → 1
+std_grey_arrows <- data.frame(
+  y = c(15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4),
+  yend = c(11, 11, 9, 9, 6, 6, 6, 1, 1, 1, 1, 1)
+)
+
+# --- Grey arrows: FF panel ----------------------------------------------------
+# FF candidates (last obs per year): pos 1 (Dec Y-2), pos 11 (Oct Y-1)
+# target=15 (Feb Y): window [2,12], candidates: 11 in [2,12] → 11
+# target=14 (Jan Y): window [1,11], candidates: 1,11 → closest = 11
+# target=13 (Dec Y-1): window [1,10], candidates: 1 (11 outside) → 1
+# target=12 (Nov Y-1): window [1,9], candidates: 1 → 1
+# target=11 (Oct Y-1): window [1,8], candidates: 1 → 1
+# target=10..4: all include pos 1, not pos 11 → 1
+ff_grey_arrows <- data.frame(
+  y = c(15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4),
+  yend = c(11, 11, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1)
+)
+
+# --- Tile polygon helper ------------------------------------------------------
 tiles <- function(rows, cx, grp_offset = 0, alpha_col = NULL, xsize = ts) {
   do.call(
     rbind,
@@ -349,39 +383,79 @@ grp_obs2 <- n + nrow(obs) + nrow(miss)
 grp_miss2 <- n + nrow(obs) + nrow(miss) + nrow(obs)
 
 label_poly <- tiles(time_df, x_labels, grp_label, "alpha", xsize = ts_label)
-obs1_poly <- tiles(obs, x_std, grp_obs1, "alpha")
+obs1_poly <- tiles(obs, x_std, grp_obs1)
 miss1_poly <- tiles(miss, x_std, grp_miss1)
-obs2_poly <- tiles(obs, x_ff, grp_obs2, "alpha")
+obs2_poly <- tiles(obs, x_ff, grp_obs2)
 miss2_poly <- tiles(miss, x_ff, grp_miss2)
 
+# --- Plot ---------------------------------------------------------------------
 ggplot() +
-  # Month label strip
-  geom_shape(
-    data = label_poly,
-    aes(x = x, y = y, group = group, alpha = alpha),
-    fill = tf_dark_blue,
-    color = "white",
-    linewidth = 0.8,
-    radius = corner
+  # Year background bands (drawn first so everything else is on top)
+  annotate(
+    "rect",
+    xmin = x_labels - 0.95,
+    xmax = max(x_std, x_ff) + ts / 2 + 0.75,
+    ymin = 0.5,
+    ymax = 1.5,
+    fill = "#dce8f5",
+    alpha = 0.5
   ) +
+  annotate(
+    "rect",
+    xmin = x_labels - 0.95,
+    xmax = max(x_std, x_ff) + ts / 2 + 0.75,
+    ymin = 1.5,
+    ymax = 13.5,
+    fill = "#e8daf0",
+    alpha = 0.5
+  ) +
+  annotate(
+    "rect",
+    xmin = x_labels - 0.95,
+    xmax = max(x_std, x_ff) + ts / 2 + 0.75,
+    ymin = 13.5,
+    ymax = n + 0.5,
+    fill = "#f5e0d0",
+    alpha = 0.5
+  ) +
+  # Month timeline: horizontal line with tick marks
+  annotate(
+    "segment",
+    x = x_labels,
+    xend = x_labels,
+    y = 0.5,
+    yend = n + 0.5,
+    color = "grey40",
+    linewidth = 0.5
+  ) +
+  # Tick marks
+  annotate(
+    "segment",
+    x = x_labels - 0.08,
+    xend = x_labels + 0.08,
+    y = 1:n,
+    yend = 1:n,
+    color = "grey40",
+    linewidth = 0.4
+  ) +
+  # Month labels as plain text (centered on ticks)
   geom_text(
     data = time_df,
-    aes(x = x_labels, y = y, label = label),
-    size = 2.6,
-    color = "white",
-    fontface = "bold",
-    angle = 90
+    aes(x = x_labels - 0.15, y = y, label = label),
+    size = 4.5,
+    color = "grey30",
+    fontface = "plain",
+    hjust = 0.5
   ) +
-  # Standard column: observed
+  # --- Standard column --------------------------------------------------------
   geom_shape(
     data = obs1_poly,
-    aes(x = x, y = y, group = group, alpha = alpha),
-    fill = tf_orange,
-    color = "white",
+    aes(x = x, y = y, group = group),
+    fill = "#2a9d8f",
+    color = "#1f7a6d",
     linewidth = 0.8,
     radius = corner
   ) +
-  # Standard column: missing
   geom_shape(
     data = miss1_poly,
     aes(x = x, y = y, group = group),
@@ -394,20 +468,19 @@ ggplot() +
     data = miss,
     aes(x = x_std, y = y),
     label = "NA",
-    size = 2.2,
+    size = 4.0,
     color = "grey65",
-    fontface = "italic"
+    fontface = "bold"
   ) +
-  # FF column: observed
+  # --- FF column --------------------------------------------------------------
   geom_shape(
     data = obs2_poly,
-    aes(x = x, y = y, group = group, alpha = alpha),
-    fill = tf_orange,
-    color = "white",
+    aes(x = x, y = y, group = group),
+    fill = "#2a9d8f",
+    color = "#1f7a6d",
     linewidth = 0.8,
     radius = corner
   ) +
-  # FF column: missing
   geom_shape(
     data = miss2_poly,
     aes(x = x, y = y, group = group),
@@ -420,34 +493,32 @@ ggplot() +
     data = miss,
     aes(x = x_ff, y = y),
     label = "NA",
-    size = 2.2,
+    size = 4.0,
     color = "grey65",
-    fontface = "italic"
+    fontface = "bold"
   ) +
-  # Grey arrows: lagging pattern for targets 19-11 (lag=7, max_lag=18)
-  # t=19→11, t=18→11, t=17→9, t=16→9, t=15→6,
-  # t=14→6, t=13→6, t=12→1, t=11→1
+  # --- Standard: grey arrows --------------------------------------------------
   geom_curve(
     data = data.frame(
       x = x_std + ts / 2,
       xend = x_std + ts / 2,
-      y = c(19, 18, 17, 16, 15, 14, 13, 12, 11),
-      yend = c(11, 11, 9, 9, 6, 6, 6, 1, 1) + 0.15
+      y = std_grey_arrows$y,
+      yend = std_grey_arrows$yend + 0.15
     ),
     aes(x = x, y = y, xend = xend, yend = yend),
     curvature = -0.2,
-    color = "grey70",
-    alpha = 0.4,
-    arrow = arrow(length = unit(0.08, "cm"), type = "closed"),
-    linewidth = 0.35
+    color = "grey40",
+    alpha = 0.7,
+    arrow = arrow(length = unit(0.12, "cm"), type = "closed"),
+    linewidth = 0.6
   ) +
-  # Standard window
+  # Standard: dashed search window for Mar Y
   annotate(
     "rect",
     xmin = x_std - ts / 2,
     xmax = x_std + ts / 2,
-    ymin = std_win_left - ts / 2,
-    ymax = std_win_right + ts / 2,
+    ymin = win_left - ts / 2,
+    ymax = win_right + ts / 2,
     fill = NA,
     color = tf_dark_blue,
     linewidth = 0.7,
@@ -456,14 +527,15 @@ ggplot() +
   annotate(
     "text",
     x = x_std - ts / 2 - 0.08,
-    y = c(std_win_left, std_win_right),
+    y = c(win_left, win_right),
     label = c("max_lag", "lag"),
     color = tf_dark_blue,
-    size = 2.4,
-    fontface = "italic",
+    size = 4.2,
+    fontface = "bold",
     hjust = 1,
     vjust = 0.5
   ) +
+  # Standard: highlighted arrow Mar Y → Dec Y-1
   annotate(
     "curve",
     x = x_std + ts / 2,
@@ -472,32 +544,31 @@ ggplot() +
     yend = std_matched + 0.2,
     curvature = -0.2,
     color = tf_dark_blue,
-    linewidth = 0.7,
-    arrow = arrow(length = unit(0.12, "cm"), type = "closed")
+    linewidth = 1.2,
+    arrow = arrow(length = unit(0.18, "cm"), type = "closed")
   ) +
-  # FF grey arrows: Jul Y (pos 8) through Jun Y+1 (pos 19) ALL point
-  # to Dec Y-1 (pos 1) — locked in at the previous July rebalancing
+  # --- FF: grey arrows --------------------------------------------------------
   geom_curve(
     data = data.frame(
       x = x_ff + ts / 2,
       xend = x_ff + ts / 2,
-      y = 8:19,
-      yend = rep(1 + 0.15, 12)
+      y = ff_grey_arrows$y,
+      yend = ff_grey_arrows$yend + 0.15
     ),
     aes(x = x, y = y, xend = xend, yend = yend),
     curvature = -0.2,
-    color = "grey70",
-    alpha = 0.4,
-    arrow = arrow(length = unit(0.08, "cm"), type = "closed"),
-    linewidth = 0.35
+    color = "grey40",
+    alpha = 0.7,
+    arrow = arrow(length = unit(0.12, "cm"), type = "closed"),
+    linewidth = 0.6
   ) +
-  # FF window
+  # FF: dashed search window for Mar Y
   annotate(
     "rect",
     xmin = x_ff - ts / 2,
     xmax = x_ff + ts / 2,
-    ymin = ff_win_left - ts / 2,
-    ymax = ff_win_right + ts / 2,
+    ymin = win_left - ts / 2,
+    ymax = win_right + ts / 2,
     fill = NA,
     color = tf_dark_blue,
     linewidth = 0.7,
@@ -506,14 +577,15 @@ ggplot() +
   annotate(
     "text",
     x = x_ff - ts / 2 - 0.08,
-    y = c(ff_win_left, ff_win_right),
+    y = c(win_left, win_right),
     label = c("max_lag", "lag"),
     color = tf_dark_blue,
-    size = 2.4,
-    fontface = "italic",
+    size = 4.2,
+    fontface = "bold",
     hjust = 1,
     vjust = 0.5
   ) +
+  # FF: highlighted arrow Mar Y → Dec Y-1
   annotate(
     "curve",
     x = x_ff + ts / 2,
@@ -522,37 +594,49 @@ ggplot() +
     yend = ff_matched + 0.2,
     curvature = -0.2,
     color = tf_dark_blue,
-    linewidth = 0.7,
-    arrow = arrow(length = unit(0.12, "cm"), type = "closed")
+    linewidth = 1.2,
+    arrow = arrow(length = unit(0.18, "cm"), type = "closed")
   ) +
-  # Column headers (above tiles: x + ts/2 + offset; after coord_flip x = vertical)
+  # --- Main title at the top of the plot --------------------------------------
   annotate(
     "text",
-    x = x_std + ts / 2 + 0.15,
-    y = 1 - ts / 2,
-    label = "data |> add_lagged_columns(lag = months(7), max_lag = months(18))",
+    x = max(x_std, x_ff) + ts / 2 + 0.55,
+    y = n / 2 + 0.5,
+    label = "data |> add_lagged_columns(lag = months(3), max_lag = months(13))",
     color = "black",
-    alpha = 1,
-    size = 3.5,
+    size = 7.0,
     family = "mono",
-    hjust = 0
+    fontface = "bold",
+    hjust = 0.5
+  ) +
+  # --- Panel subtitles --------------------------------------------------------
+  annotate(
+    "text",
+    x = x_std + ts / 2 + 0.35,
+    y = n / 2 + 0.5,
+    label = "ff_adjustment = FALSE",
+    color = "grey30",
+    size = 5.0,
+    family = "mono",
+    hjust = 0.5,
+    fontface = "bold"
   ) +
   annotate(
     "text",
-    x = x_ff + ts / 2 + 0.15,
-    y = 1 - ts / 2,
-    label = "data |> add_lagged_columns(lag = months(7), max_lag = months(18), ff_adjustment = TRUE)",
-    color = "black",
-    alpha = 1,
-    size = 3.5,
+    x = x_ff + ts / 2 + 0.65,
+    y = n / 2 + 0.5,
+    label = "ff_adjustment = TRUE",
+    color = "grey30",
+    size = 5.0,
     family = "mono",
-    hjust = 0
+    hjust = 0.5,
+    fontface = "bold"
   ) +
-  # Year-change lines (between Dec/Jan boundaries)
+  # --- Year-change dashed lines -----------------------------------------------
   annotate(
     "segment",
-    x = x_labels - ts_label / 2,
-    xend = x_ff + ts / 2,
+    x = x_labels - 0.95,
+    xend = max(x_std, x_ff) + ts / 2 + 0.75,
     y = 1.5,
     yend = 1.5,
     color = "grey50",
@@ -561,48 +645,45 @@ ggplot() +
   ) +
   annotate(
     "segment",
-    x = x_labels - ts_label / 2,
-    xend = x_ff + ts / 2,
+    x = x_labels - 0.95,
+    xend = max(x_std, x_ff) + ts / 2 + 0.75,
     y = 13.5,
     yend = 13.5,
     color = "grey50",
     linewidth = 0.5,
     linetype = "dashed"
   ) +
-  # Year span brackets below the month tiles
-  # Y-1: pos 1 only; Y: pos 2-13; Y+1: pos 14-20
+  # --- Year span brackets -----------------------------------------------------
   annotate(
     "segment",
-    x = x_labels - ts_label / 2 - 0.15,
-    xend = x_labels - ts_label / 2 - 0.15,
+    x = x_labels - 0.55,
+    xend = x_labels - 0.55,
     y = c(1, 2, 14),
-    yend = c(1, 13, 20),
+    yend = c(1, 13, 16),
     color = "grey40",
     linewidth = 0.4
   ) +
-  # End caps
   annotate(
     "segment",
-    x = x_labels - ts_label / 2 - 0.1,
-    xend = x_labels - ts_label / 2 - 0.2,
-    y = c(1, 1, 2, 13, 14, 20),
-    yend = c(1, 1, 2, 13, 14, 20),
+    x = x_labels - 0.5,
+    xend = x_labels - 0.6,
+    y = c(1, 1, 2, 13, 14, 16),
+    yend = c(1, 1, 2, 13, 14, 16),
     color = "grey40",
     linewidth = 0.4
   ) +
-  # Year labels
   annotate(
     "text",
-    x = x_labels - ts_label / 2 - 0.35,
-    y = c(1, 7.5, 17),
-    label = c("Year Y\u20131", "Year Y", "Year Y+1"),
+    x = x_labels - 0.75,
+    y = c(1, 7.5, 15),
+    label = c("Year T-2", "Year T-1", "Year T"),
     color = "grey30",
-    size = 3,
+    size = 4.8,
     fontface = "bold"
   ) +
   scale_alpha_identity() +
   scale_x_continuous(
-    limits = c(x_labels - ts_label / 2 - 0.55, x_ff + ts / 2 + 0.8),
+    limits = c(x_labels - 0.95, max(x_std, x_ff) + ts / 2 + 0.75),
     expand = c(0, 0)
   ) +
   scale_y_continuous(
