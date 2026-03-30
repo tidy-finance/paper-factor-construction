@@ -1,301 +1,166 @@
 library(shiny)
-library(arrow)
+library(duckdb)
 library(dplyr)
 library(ggplot2)
-library(gt)
 
-# Read necessary data
-grid <- read_parquet("factor-library-data/portfolio_sort_grid.parquet")
+# ---------------------------------------------------------------------------
+# Setup: download grid from HuggingFace (small, ~2 MB)
+# ---------------------------------------------------------------------------
+CACHE_DIR <- file.path(tempdir(), "factor_library_cache")
+dir.create(CACHE_DIR, showWarnings = FALSE, recursive = TRUE)
 
-sorting_variables <- grid |>
-  select(sorting_variable) |>
-  distinct() |>
-  pull(sorting_variable)
+download_cached <- function(url, filename) {
+  path <- file.path(CACHE_DIR, filename)
+  if (!file.exists(path)) download.file(url, path, mode = "wb", quiet = TRUE)
+  path
+}
 
-dataset <- open_dataset(
-  "factor-library-data/factor-returns",
-  partition = 'sorting_variable'
+con <- dbConnect(duckdb())
+
+grid_url <- paste0(
+  "https://huggingface.co/datasets/tidy-finance/factor-library-grid/",
+  "resolve/refs%2Fconvert%2Fparquet/default/train/0000.parquet"
 )
+grid <- dbGetQuery(con, sprintf(
+  "SELECT * FROM read_parquet('%s')", download_cached(grid_url, "grid.parquet")
+))
 
+dbDisconnect(con, shutdown = TRUE)
+
+# ---------------------------------------------------------------------------
+# UI
+# ---------------------------------------------------------------------------
 ui <- fluidPage(
-  # Title and description
-  fluidRow(
-    column(
-      12,
-      div(
-        style = "padding: 10px; border: 1px solid #ddd; background-color: #f9f9f9;",
-        titlePanel("Portfolio returns"),
-        p(
-          "This website is based on the article “Uncertainty everwhere” (Gruber, Kastner, Voigt, and Weiss, 2024). This paper constructs 50 characteristics and resulting high-minus-low portfolio returns with a total of 374.016 different portfolio formation methods. We provide access to the data, the underlying source code and a number of other resources. Please cite our paper if you are using this data."
-        ),
-        HTML(markdown::markdownToHTML(
-          text = "Gruber, L., Kastner, G., Voigt, S., & Weiss, P. (2024). *Uncertainty Everywhere*. Working Paper.",
-          fragment.only = TRUE
-        ))
-      )
-    )
-  ),
+  titlePanel("Tidy Finance Factor Library"),
 
-  # Selectable sorting variable
-  fluidRow(
-    column(
-      12,
-      div(
-        style = "padding: 10px; border: 1px solid #ddd; background-color: #f9f9f9;",
-        selectInput(
-          inputId = "sorting_variable",
-          label = "Select Sorting variable",
-          choices = sorting_variables,
-          selected = sorting_variables[1],
-          multiple = FALSE
-        ),
-      )
-    )
-  ),
-
-  # Sample formation section
-  div(
-    style = "padding: 20px; border: 1px solid #ddd; background-color: #f9f9f9;",
-    fluidRow(
-      h3("Sample formation"),
-      column(
-        3, # Radio button for exclude_size filter
-        radioButtons(
-          inputId = "exclude_size",
-          label = "Exclude small firms?",
-          choices = list(
-            "Include all firms" = 0,
-            "Exclude smallest 20% of all firms" = 0.2
-          ),
-          selected = 0.2
-        )
+  sidebarLayout(
+    sidebarPanel(
+      selectInput("sorting_variable", "Sorting variable",
+                  sort(unique(grid$sorting_variable))),
+      radioButtons("sorting_variable_lag", "Lag",
+                   c("3m", "6m", "ff"), selected = "3m"),
+      radioButtons("rebalancing", "Rebalancing",
+                   c("monthly", "annual"), selected = "annual"),
+      radioButtons("breakpoints_main", "Breakpoints",
+                   c(5, 10), selected = 10),
+      radioButtons("sorting_method", "Sorting method",
+                   c("univariate", "bivariate-dependent", "bivariate-independent"),
+                   selected = "bivariate-dependent"),
+      conditionalPanel(
+        "input.sorting_method != 'univariate'",
+        radioButtons("breakpoints_secondary", "Secondary breakpoints",
+                     c(2, 5), selected = 2)
       ),
-      column(
-        3, # Radio button for exclude_financials filter
-        radioButtons(
-          inputId = "exclude_financials",
-          label = "Exclude Financials?",
-          choices = list(
-            "Include Financials" = FALSE,
-            "Exclude Financials" = TRUE
-          ),
-          selected = FALSE
-        )
-      ),
-      column(
-        3, # Radio button for exclude_utilities filter
-        radioButtons(
-          inputId = "exclude_utilities",
-          label = "Exclude Utilities?",
-          choices = list(
-            "Include Utilities" = FALSE,
-            "Exclude Financials" = TRUE
-          ),
-          selected = FALSE
-        )
-      ),
-      column(
-        3, # Radio button for exclude_utilities filter
-        # Radio button for exclude_negative_earnings filter
-        radioButtons(
-          inputId = "exclude_negative_earnings",
-          label = "Exclude negative earnings?",
-          choices = list(
-            "Include negative earnings" = FALSE,
-            "Exclude negative earnings" = TRUE
-          ),
-          selected = FALSE
-        )
-      )
-    )
-  ),
-
-  # Portfolio formation section
-  div(
-    style = "padding: 20px; border: 1px solid #ddd; background-color: #f9f9f9;",
-    fluidRow(
-      h3("Portfolio formation"),
-
-      column(
-        3, # Radio button for sorting_variable_lag
-        radioButtons(
-          inputId = "sorting_variable_lag",
-          label = "Sorting variable lag",
-          choices = list(
-            "3 Months" = "3m",
-            "6 Months" = "6m",
-            "Fama-French style" = "FF"
-          ),
-          selected = "3m"
-        )
-      ),
-      column(
-        3, # Radio button for rebalancing
-        radioButtons(
-          inputId = "rebalancing",
-          label = "Rebalancing frequency",
-          choices = list("Monthly" = "monthly", "Annual" = "annual"),
-          selected = "annual"
-        )
-      ),
-      column(
-        3, # Radio button for breakpoints_main
-        radioButtons(
-          inputId = "breakpoints_main",
-          label = "Breakpoints (main portfolio)",
-          choices = list("Five" = 5, "Ten" = 10),
-          selected = 10
-        )
-      )
+      radioButtons("breakpoints_exchanges", "Exchanges",
+                   c("NYSE", "AMEX|NASDAQ|NYSE"), selected = "NYSE"),
+      radioButtons("weighting_scheme", "Weighting",
+                   c("EW", "VW"), selected = "VW"),
+      radioButtons("exclude_size", "Exclude small firms?",
+                   c("No" = 0, "Smallest 20%" = 0.2), selected = 0.2),
+      checkboxInput("exclude_financials", "Exclude financials", FALSE),
+      checkboxInput("exclude_utilities", "Exclude utilities", FALSE),
+      checkboxInput("exclude_negative_earnings", "Exclude negative earnings", FALSE),
+      hr(),
+      downloadButton("download_csv", "Download CSV")
     ),
-    fluidRow(
-      column(
-        3, # Radio button for sorting_method
-        radioButtons(
-          inputId = "sorting_method",
-          label = "Sorting method",
-          choices = list(
-            "univariate" = "univariate",
-            "bivariate (dependend)" = "bivariate-dependent",
-            "bivariate (independent" = "bivariate-independent"
-          ),
-          selected = "bivariate-dependent"
-        )
-      ),
-      column(
-        3, # Radio button for breakpoints_secondary
-        conditionalPanel(
-          condition = "input.sorting_method != 'univariate'",
-          radioButtons(
-            inputId = "breakpoints_secondary",
-            label = "Breakpoints (secondary portfolio)",
-            choices = list("Two" = 2, "Five" = 5),
-            selected = 2
-          ),
-        )
-      ),
-      column(
-        3, # Radio button for breakpoints_exchanges
-        radioButtons(
-          inputId = "breakpoints_exchanges",
-          label = "Exchanges used to compute breakpoints",
-          choices = list(
-            "All listing exchanges" = "AMEX|NASDAQ|NYSE",
-            "NYSE only" = "NYSE"
-          ),
-          selected = "NYSE"
-        )
-      ),
-      column(
-        3, # Radio button for weighting_scheme
-        radioButtons(
-          inputId = "weighting_scheme",
-          label = "Portfolio weighting",
-          choices = list("Equal weighting" = "EW", "Value weighting" = "VW"),
-          selected = "VW"
-        )
-      )
-    )
-  ),
 
-  # Output section
-  div(
-    style = "padding: 20px; border: 1px solid #ddd; background-color: #f0f8ff;",
-    fluidRow(
-      h3("Data"),
-      column(6, plotOutput("dataset_plot")),
-      column(6, gt_output("dataset_preview"))
-    )
-  ),
-
-  # Download button
-  fluidRow(
-    div(
-      style = "text-align: center; margin-top: 10px;",
-      column(
-        12,
-        downloadButton("download_feather", "Download .feather"),
-        h4("Provide a reference to alternative download with tidyfinance API")
-      )
+    mainPanel(
+      textOutput("status"),
+      plotOutput("plot"),
+      tableOutput("summary")
     )
   )
 )
 
-# Define the server
+# ---------------------------------------------------------------------------
+# Server
+# ---------------------------------------------------------------------------
 server <- function(input, output, session) {
-  observeEvent(input$sorting_method, {
-    if (input$sorting_method == "univariate") {
-      updateRadioButtons(session, "breakpoints_secondary", selected = 5)
+  con <- dbConnect(duckdb())
+  onSessionEnded(function() dbDisconnect(con, shutdown = TRUE))
+
+  matched_id <- reactive({
+    grid |>
+      filter(
+        sorting_variable == input$sorting_variable,
+        sorting_variable_lag == input$sorting_variable_lag,
+        rebalancing == input$rebalancing,
+        breakpoints_main == as.numeric(input$breakpoints_main),
+        sorting_method == input$sorting_method,
+        breakpoints_exchanges == input$breakpoints_exchanges,
+        weighting_scheme == input$weighting_scheme,
+        exclude_size == as.numeric(input$exclude_size),
+        exclude_financials == input$exclude_financials,
+        exclude_utilities == input$exclude_utilities,
+        exclude_negative_earnings == input$exclude_negative_earnings
+      ) |>
+      filter(if (input$sorting_method != "univariate") {
+        breakpoints_secondary == as.numeric(input$breakpoints_secondary)
+      } else {
+        TRUE
+      }) |>
+      head(1) |>
+      pull(id)
+  })
+
+  factor_data <- reactive({
+    req(length(matched_id()) > 0)
+
+    sv <- sub("^sv_", "", input$sorting_variable)
+    lag <- input$sorting_variable_lag
+    cache_file <- paste0(sv, "_", lag, ".parquet")
+
+    url <- sprintf(
+      "https://huggingface.co/datasets/tidy-finance/factor-library/resolve/main/factor-library/sorting_variable=%s/sorting_variable_lag=%s/part-0.parquet",
+      sv, lag
+    )
+
+    withProgress(message = "Fetching data...", {
+      path <- download_cached(url, cache_file)
+      dbGetQuery(con, sprintf(
+        "SELECT * FROM read_parquet('%s') WHERE id = %s ORDER BY date, ret_type",
+        path, matched_id()
+      ))
+    })
+  })
+
+  output$status <- renderText({
+    if (length(matched_id()) == 0) {
+      "No matching portfolio found."
+    } else {
+      sprintf("Portfolio ID: %s (%s rows)", matched_id(), nrow(factor_data()))
     }
   })
 
-  # Reactively filter the dataset based on the selected sorting variable
-  filtered_dataset <- reactive({
-    grid_ID <- grid |>
-      filter(
-        sorting_variable == input$sorting_variable,
-        exclude_financials == input$exclude_financials,
-        exclude_utilities == input$exclude_utilities,
-        exclude_negative_earnings == input$exclude_negative_earnings,
-        exclude_size == input$exclude_size,
-        rebalancing == input$rebalancing,
-        weighting_scheme == input$weighting_scheme,
-        breakpoints_exchanges == input$breakpoints_exchanges,
-        sorting_variable_lag == input$sorting_variable_lag,
-        breakpoints_main == input$breakpoints_main,
-        sorting_method == input$sorting_method
-      ) |>
-      filter(
-        if (input$sorting_method != "univariate") {
-          breakpoints_secondary == input$breakpoints_secondary
-        } else {
-          TRUE
-        }
-      ) |>
-      head(1) |>
-      pull(ID)
-
-    dataset |> filter(ID == grid_ID) |> collect()
-  })
-
-  output$dataset_plot <- renderPlot({
-    filtered_dataset() |>
-      ggplot(aes(x = date, y = ret)) +
+  output$plot <- renderPlot({
+    req(nrow(factor_data()) > 0)
+    factor_data() |>
+      mutate(date = as.Date(date)) |>
+      group_by(ret_type) |>
+      arrange(date) |>
+      mutate(cumret = cumprod(1 + ret) - 1) |>
+      ggplot(aes(x = date, y = cumret, color = ret_type)) +
       geom_line() +
-      labs(x = NULL, y = "Return") +
+      labs(x = NULL, y = "Cumulative return", color = "Weighting") +
       theme_minimal()
   })
 
-  output$dataset_preview <- filtered_dataset() |>
-    summarise(
-      start_date = min(date),
-      max_date = max(date),
-      periods = n(),
-      mean = mean(ret),
-      vola = sd(ret)
-    ) |>
-    mutate(sharpe = mean / vola) |>
-    gt() |>
-    fmt_number(columns = c(mean, vola, sharpe), decimals = 2) |>
-    render_gt()
-
-  # Offer filtered dataset as a Feather file for download
-  output$download_feather <- downloadHandler(
-    filename = function() {
-      paste(
-        "portfolio_reaturns_",
-        filtered_dataset() |> head(1) |> pull(ID),
-        ".feather",
-        sep = ""
+  output$summary <- renderTable({
+    req(nrow(factor_data()) > 0)
+    factor_data() |>
+      group_by(ret_type) |>
+      summarise(
+        Mean = mean(ret), SD = sd(ret),
+        Sharpe = mean(ret) / sd(ret) * sqrt(12),
+        Min = min(ret), Max = max(ret), N = n(),
+        .groups = "drop"
       )
-    },
-    content = function(file) {
-      # Write the filtered dataset as a Feather file
-      write_feather(filtered_dataset(), file)
-    }
+  })
+
+  output$download_csv <- downloadHandler(
+    filename = function() sprintf("factor_id_%s.csv", matched_id()),
+    content = function(file) write.csv(factor_data(), file, row.names = FALSE)
   )
 }
 
-
-# Run the app
-shinyApp(ui = ui, server = server)
+shinyApp(ui, server)
