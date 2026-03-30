@@ -33,7 +33,36 @@ bibliography: bibliography.bib
 #| echo: false
 #| message: false
 tf_dark_blue <- "#3B9AB2FF"
-tf_orange <- "#E1AF00FF"
+
+pal <- grDevices::colorRampPalette(list(
+  tf_dark_blue,
+  "#78B7C5",
+  "#E1AF00FF",
+  "#E1AF00",
+  "#F21A00"
+))
+
+scale_colour_continuous <- function(...) {
+  ggplot2::scale_color_gradientn(
+    colours = pal(256),
+    ...
+  )
+}
+
+scale_colour_discrete <- function(...) {
+  ggplot2::discrete_scale("colour", palette = pal, ...)
+}
+
+scale_fill_continuous <- function(...) {
+  ggplot2::scale_fill_gradientn(
+    colours = pal(256),
+    ...
+  )
+}
+
+scale_fill_discrete <- function(...) {
+  ggplot2::discrete_scale("fill", palette = pal, ...)
+}
 
 ggplot2::theme_set(
   ggplot2::theme_bw() + ggplot2::theme(legend.position = "none")
@@ -63,7 +92,7 @@ Our core focus is to present the [R]{.proglang} package `tidyfinance`. We walk t
 ```{mermaid}
 %%| label: fig-workflow-diagram
 %%| fig-cap: "Research workflow for factor construction with `tidyfinance`."
-%%| fig-width: 8
+%%| fig-width: 6
 flowchart LR
     A("<b>Data acquisition</b><br><code>download_data()</code>") --> B("<b>Variable construction</b><br><code>add_lagged_columns()</code>")
     B --> C("<b>Portfolio returns</b><br><code>compute_portfolio_returns()</code>")
@@ -391,34 +420,6 @@ miss2_poly <- tiles(miss, x_ff, grp_miss2)
 
 # --- Plot ---------------------------------------------------------------------
 ggplot() +
-  # Year background bands (drawn first so everything else is on top)
-  annotate(
-    "rect",
-    xmin = x_labels - 0.95,
-    xmax = max(x_std, x_ff) + ts / 2 + 0.75,
-    ymin = 0.5,
-    ymax = 1.5,
-    fill = "#dce8f5",
-    alpha = 0.5
-  ) +
-  annotate(
-    "rect",
-    xmin = x_labels - 0.95,
-    xmax = max(x_std, x_ff) + ts / 2 + 0.75,
-    ymin = 1.5,
-    ymax = 13.5,
-    fill = "#e8daf0",
-    alpha = 0.5
-  ) +
-  annotate(
-    "rect",
-    xmin = x_labels - 0.95,
-    xmax = max(x_std, x_ff) + ts / 2 + 0.75,
-    ymin = 13.5,
-    ymax = n + 0.5,
-    fill = "#f5e0d0",
-    alpha = 0.5
-  ) +
   # Month timeline: horizontal line with tick marks
   annotate(
     "segment",
@@ -444,16 +445,14 @@ ggplot() +
     data = time_df,
     aes(x = x_labels - 0.15, y = y, label = label),
     size = 4.5,
-    color = "grey30",
-    fontface = "plain",
+    color = "grey40",
     hjust = 0.5
   ) +
   # --- Standard column --------------------------------------------------------
   geom_shape(
     data = obs1_poly,
     aes(x = x, y = y, group = group),
-    fill = "#2a9d8f",
-    color = "#1f7a6d",
+    fill = tf_dark_blue,
     linewidth = 0.8,
     radius = corner
   ) +
@@ -471,14 +470,12 @@ ggplot() +
     label = "NA",
     size = 4.0,
     color = "grey65",
-    fontface = "bold"
   ) +
   # --- FF column --------------------------------------------------------------
   geom_shape(
     data = obs2_poly,
     aes(x = x, y = y, group = group),
-    fill = "#2a9d8f",
-    color = "#1f7a6d",
+    fill = tf_dark_blue,
     linewidth = 0.8,
     radius = corner
   ) +
@@ -496,7 +493,6 @@ ggplot() +
     label = "NA",
     size = 4.0,
     color = "grey65",
-    fontface = "bold"
   ) +
   # --- Standard: grey arrows --------------------------------------------------
   geom_curve(
@@ -532,7 +528,6 @@ ggplot() +
     label = c("max_lag", "lag"),
     color = tf_dark_blue,
     size = 4.2,
-    fontface = "bold",
     hjust = 1,
     vjust = 0.5
   ) +
@@ -558,7 +553,7 @@ ggplot() +
     ),
     aes(x = x, y = y, xend = xend, yend = yend),
     curvature = -0.2,
-    color = "grey40",
+    color = "grey30",
     alpha = 0.7,
     arrow = arrow(length = unit(0.12, "cm"), type = "closed"),
     linewidth = 0.6
@@ -582,7 +577,6 @@ ggplot() +
     label = c("max_lag", "lag"),
     color = tf_dark_blue,
     size = 4.2,
-    fontface = "bold",
     hjust = 1,
     vjust = 0.5
   ) +
@@ -602,12 +596,11 @@ ggplot() +
   annotate(
     "text",
     x = max(x_std, x_ff) + ts / 2 + 0.55,
-    y = n / 2 + 0.5,
+    y = n / 2,
     label = "data |> add_lagged_columns(lag = months(3), max_lag = months(13))",
     color = "black",
-    size = 7.0,
+    size = 4.0,
     family = "mono",
-    fontface = "bold",
     hjust = 0.5
   ) +
   # --- Panel subtitles --------------------------------------------------------
@@ -617,10 +610,9 @@ ggplot() +
     y = n / 2 + 0.5,
     label = "ff_adjustment = FALSE",
     color = "grey30",
-    size = 5.0,
+    size = 3.0,
     family = "mono",
     hjust = 0.5,
-    fontface = "bold"
   ) +
   annotate(
     "text",
@@ -628,10 +620,9 @@ ggplot() +
     y = n / 2 + 0.5,
     label = "ff_adjustment = TRUE",
     color = "grey30",
-    size = 5.0,
+    size = 3.0,
     family = "mono",
     hjust = 0.5,
-    fontface = "bold"
   ) +
   # --- Year-change dashed lines -----------------------------------------------
   annotate(
@@ -640,7 +631,7 @@ ggplot() +
     xend = max(x_std, x_ff) + ts / 2 + 0.75,
     y = 1.5,
     yend = 1.5,
-    color = "grey50",
+    color = "grey30",
     linewidth = 0.5,
     linetype = "dashed"
   ) +
@@ -650,7 +641,7 @@ ggplot() +
     xend = max(x_std, x_ff) + ts / 2 + 0.75,
     y = 13.5,
     yend = 13.5,
-    color = "grey50",
+    color = "grey30",
     linewidth = 0.5,
     linetype = "dashed"
   ) +
@@ -661,7 +652,7 @@ ggplot() +
     xend = x_labels - 0.55,
     y = c(1, 2, 14),
     yend = c(1, 13, 16),
-    color = "grey40",
+    color = "grey30",
     linewidth = 0.4
   ) +
   annotate(
@@ -670,7 +661,7 @@ ggplot() +
     xend = x_labels - 0.6,
     y = c(1, 1, 2, 13, 14, 16),
     yend = c(1, 1, 2, 13, 14, 16),
-    color = "grey40",
+    color = "grey30",
     linewidth = 0.4
   ) +
   annotate(
@@ -679,7 +670,7 @@ ggplot() +
     y = c(1, 7.5, 15),
     label = c("Year T-2", "Year T-1", "Year T"),
     color = "grey30",
-    size = 4.8,
+    size = 3.5,
     fontface = "bold"
   ) +
   scale_alpha_identity() +
@@ -923,29 +914,33 @@ Dependent sorts are appropriate when the secondary variable (here, size) strongl
 
 The examples above represent single points in a high-dimensional space of methodological choices. @tbl-sorting-decisions summarises the preprocessing decisions that can be varied when constructing factor returns. The full factor library exhaustively evaluates all valid combinations of these choices for each of the sorting variables listed in @tbl-sorting-variables.
 
-| Preprocessing choice        | Options                                      |
-|-----------------------------|----------------------------------------------|
-| Size exclusion              | None; bottom 20th NYSE percentile            |
-| Exclusion of financials     | No; Yes                                      |
-| Exclusion of utilities      | No; Yes                                      |
-| Exclusion of neg. earnings  | No; Yes                                      |
-| Sorting variable lag        | 3 months; 6 months; FF                       |
-| Rebalancing                 | Monthly; Annual                              |
-| BP: Quantiles (main)        | 3; 5; 10                                        |
-| Double sort                 | Single; Double dependent; Double independent |
-| BP: Quantiles (secondary)   | 2; 5                                         |
-| BP: Exchanges               | NYSE; All                                    |
-| Weighting scheme            | EW; VW; truncated VW                         |
-
-: Preprocessing choices in the portfolio sort grid. For double sorts, the secondary quantiles and exchange choices apply to the size dimension only; for univariate sorts, those rows are not applicable. FF refers to the lag procedure of @fama.1993. {#tbl-sorting-decisions}
+```{r}
+#| label: tbl-sorting-decisions
+#| echo: false
+#| tbl-cap: "Preprocessing choices in the portfolio sort grid and corresponding `download_data()` arguments. Italic values indicate the default. For double sorts, the secondary quantiles and exchange choices apply to the size dimension only; for univariate sorts, those rows are not applicable. FF refers to the lag procedure of @fama.1993."
+tibble::tribble(
+  ~`Preprocessing choice`, ~Argument, ~Options, ~Description,
+  "Size exclusion",              "`exclude_size`",               "None; *bottom 20%*",                          "Fraction of the smallest stocks (by NYSE market cap) excluded from the universe.",
+  "Exclusion of financials",     "`exclude_financials`",         "*No*; Yes",                                   "Drops financial-sector stocks (SIC 6000--6999) from the universe.",
+  "Exclusion of utilities",      "`exclude_utilities`",          "*No*; Yes",                                   "Drops utility-sector stocks (SIC 4900--4999) from the universe.",
+  "Exclusion of neg. earnings",  "`exclude_negative_earnings`",  "*No*; Yes",                                   "Drops firms with negative earnings before sorting.",
+  "Sorting variable lag",        "`sorting_variable_lag`",       "3m; *6m*; FF",                                "Lag applied to the sorting variable before portfolio assignment.",
+  "Rebalancing",                 "`rebalancing`",                "*Monthly*; Annual",                           "How frequently portfolios are reformed.",
+  "BP: Quantiles (main)",        "`breakpoints_main`",           "3; 5; *10*",                                  "Number of quantile groups for the portfolio sort.",
+  "Sort method",                 "`sorting_method`",             "*Single*; Double dependent; Double independent", "Single sort or sequential double sort (by size).",
+  "BP: Quantiles (secondary)",   "`breakpoints_secondary`",      "*NA*; 2; 5",                                  "Groups for the secondary sort variable; only relevant for double sorts.",
+  "BP: Exchanges",               "`breakpoints_exchanges`",      "*NYSE*; All",                                 "Exchange(s) used to compute quantile breakpoints.",
+  "Weighting scheme",            "`weighting_scheme`",           "EW; *VW*; truncated VW",                      "Return weighting within portfolios."
+) |>
+  knitr::kable(
+    format = "latex",
+    booktabs = TRUE,
+    col.names = c("Preprocessing choice", "Argument", "Options", "Description")
+  )
+```
 
 We host precomputed factor returns for all specifications on Hugging Face and make them accessible via the `tidyfinance` API. Researchers can retrieve results without re-running the computationally intensive portfolio sort pipeline. An interactive download interface is also available via the Shiny app at [https://app-download-center.cloud.sdu.dk/](https://app-download-center.cloud.sdu.dk/).
 
-```{r}
-#| label: retrieve-from-library
-#| eval: false
-asset_growth_returns <- download_data("tidyfinance", "factor_library", sorting_variable = "ag", fill_all = TRUE)
-```
 
 @sec-library provides a comprehensive overview of all available sorting variables and their empirical properties.
 
@@ -1029,21 +1024,18 @@ To download factor returns from the factor library, simply call
 ```{r}
 #| label: download-factor-library
 #| eval: false
-download_data(
-  "hf",
-  "factor-library",
-  sorting_variable = "52w",
-  sorting_variable_lag = "6m",
-  sorting_method = "univariate"
-)
-download_data(
-  "hf",
-  "factor-library",
+asset_growth_returns <- download_data("tidyfinance", "factor_library", 
+sorting_variable = "ag", sorting_variable_lag = "6m")
+```
+
+**Note on `dataset = "factor_library"` defaults:** The defaults reflect one common portfolio construction choice, but may not suit every research question. Always verify that the selected combination matches your intended design.
+
+```{r}
+download_data("tidyfinance", "factor_library",
   sorting_variable = "52w",
   sorting_variable_lag = "6m",
   fill_all = TRUE
 )
-
 ```
 
 To provide specific requests for handselected ids, users can call
@@ -1051,6 +1043,14 @@ To provide specific requests for handselected ids, users can call
 ```{r}
 #| eval: false
 #| label: download-factor-library-ids
+
+full_grid <- get_available_huggingface_files(
+    "tidy-finance",
+    "factor-library-grid"
+  ) |>
+    dplyr::pull(.data$url) |>
+    arrow::read_parquet()
+
 download_factor_library_returns_ids(c(123, 456))
 ```
 
