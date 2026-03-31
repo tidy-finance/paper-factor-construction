@@ -258,12 +258,12 @@ sorting_variable_data <- compustat_annual |>
 
 The next step merges annual sorting variables onto the monthly CRSP stock panel using `join_lagged_values()`. The function aligns fiscal-year-end data with monthly observations through a configurable lag window. Setting `ff_adjustment = TRUE` implements the Fama-French convention [@fama.1993], aligning fiscal-year data from year $t$ with portfolio formation in July of year $t+1$ through a 12-to-18-month look-back window. The same lagging process generalizes to all sorting variables in the full factor library. The factor library API provides precomputed lagged panels for all variables.
 
-@fig-lagging-illustration contrasts the two lagging mechanisms. The left column uses a standard look-back window controlled by `lag` and `max_lag`. The right column implements the Fama-French convention [@fama.1993]: fiscal-year data from year $t$ becomes available only from July of year $t+1$, so all months from July through June share the same lagged value locked in at the previous rebalancing. In both cases, `add_lagged_columns()` selects the most recent observed value within the window.
+@fig-lagging-illustration contrasts the two lagging mechanisms. The upper panel shows a standard look-back window controlled by `lag` and `max_lag`. The lower panel implements the Fama-French convention [@fama.1993]: fiscal-year data from year $t$ becomes available only from July of year $t+1$, so all months from July through June share the same lagged value locked in at the previous rebalancing. In both cases, `add_lagged_columns()` selects the most recent observed value within the window.
 
 ```{r}
 #| label: fig-lagging-illustration
 #| fig-cap: "Two lagging mechanisms in `add_lagged_columns()`. Each column represents a data series with observed (filled) and missing (hollow) cells. Dashed rectangles mark the search window; arrows show which value gets matched to each target month."
-#| fig-width: 12
+#| #| fig-width: 12
 #| fig-height: 6
 #| echo: false
 library(ggforce)
@@ -845,32 +845,42 @@ decile_stats <- portfolio_returns |>
   drop_na() |>
   group_by(portfolio) |>
   summarise(
-    vw_mean   = mean(ret_excess_vw) * 12,
-    vw_tstat  = mean(ret_excess_vw) / (sd(ret_excess_vw) / sqrt(n())),
-    ew_mean   = mean(ret_excess_ew) * 12,
-    ew_tstat  = mean(ret_excess_ew) / (sd(ret_excess_ew) / sqrt(n())),
-    vwc_mean  = mean(ret_excess_vw_capped) * 12,
-    vwc_tstat = mean(ret_excess_vw_capped) / (sd(ret_excess_vw_capped) / sqrt(n())),
+    vw_mean = mean(ret_excess_vw) * 12,
+    vw_tstat = mean(ret_excess_vw) / (sd(ret_excess_vw) / sqrt(n())),
+    ew_mean = mean(ret_excess_ew) * 12,
+    ew_tstat = mean(ret_excess_ew) / (sd(ret_excess_ew) / sqrt(n())),
+    vwc_mean = mean(ret_excess_vw_capped) * 12,
+    vwc_tstat = mean(ret_excess_vw_capped) /
+      (sd(ret_excess_vw_capped) / sqrt(n())),
     .groups = "drop"
   ) |>
   mutate(portfolio = as.character(portfolio))
 
 ls_row <- factor_returns_ag |>
-    drop_na() |>
+  drop_na() |>
   summarise(
     portfolio = "L/S",
-    vw_mean   = mean(ret_excess_vw) * 12,
-    vw_tstat  = mean(ret_excess_vw) / (sd(ret_excess_vw) / sqrt(n())),
-    ew_mean   = mean(ret_excess_ew) * 12,
-    ew_tstat  = mean(ret_excess_ew) / (sd(ret_excess_ew) / sqrt(n())),
-    vwc_mean  = mean(ret_excess_vw_capped) * 12,
-    vwc_tstat = mean(ret_excess_vw_capped) / (sd(ret_excess_vw_capped) / sqrt(n()))
+    vw_mean = mean(ret_excess_vw) * 12,
+    vw_tstat = mean(ret_excess_vw) / (sd(ret_excess_vw) / sqrt(n())),
+    ew_mean = mean(ret_excess_ew) * 12,
+    ew_tstat = mean(ret_excess_ew) / (sd(ret_excess_ew) / sqrt(n())),
+    vwc_mean = mean(ret_excess_vw_capped) * 12,
+    vwc_tstat = mean(ret_excess_vw_capped) /
+      (sd(ret_excess_vw_capped) / sqrt(n()))
   )
 
 bind_rows(decile_stats, ls_row) |>
   knitr::kable(
     digits = 3,
-    col.names = c("Portfolio", "VW Mean", "VW t-stat", "EW Mean", "EW t-stat", "VWC Mean", "VWC t-stat")
+    col.names = c(
+      "Portfolio",
+      "VW Mean",
+      "VW t-stat",
+      "EW Mean",
+      "EW t-stat",
+      "VWC Mean",
+      "VWC t-stat"
+    )
   )
 ```
 
@@ -919,18 +929,18 @@ The examples above represent single points in a high-dimensional space of method
 #| echo: false
 #| tbl-cap: "Preprocessing choices in the portfolio sort grid and corresponding `download_data()` arguments. Italic values indicate the default. For double sorts, the secondary quantiles and exchange choices apply to the size dimension only; for univariate sorts, those rows are not applicable. FF refers to the lag procedure of @fama.1993."
 tibble::tribble(
-  ~`Preprocessing choice`, ~Argument, ~Options, ~Description,
-  "Size exclusion",              "`exclude_size`",               "None; *bottom 20%*",                          "Fraction of the smallest stocks (by NYSE market cap) excluded from the universe.",
-  "Exclusion of financials",     "`exclude_financials`",         "*No*; Yes",                                   "Drops financial-sector stocks (SIC 6000--6999) from the universe.",
-  "Exclusion of utilities",      "`exclude_utilities`",          "*No*; Yes",                                   "Drops utility-sector stocks (SIC 4900--4999) from the universe.",
-  "Exclusion of neg. earnings",  "`exclude_negative_earnings`",  "*No*; Yes",                                   "Drops firms with negative earnings before sorting.",
-  "Sorting variable lag",        "`sorting_variable_lag`",       "3m; *6m*; FF",                                "Lag applied to the sorting variable before portfolio assignment.",
-  "Rebalancing",                 "`rebalancing`",                "*Monthly*; Annual",                           "How frequently portfolios are reformed.",
-  "BP: Quantiles (main)",        "`breakpoints_main`",           "3; 5; *10*",                                  "Number of quantile groups for the portfolio sort.",
-  "Sort method",                 "`sorting_method`",             "*Single*; Double dependent; Double independent", "Single sort or sequential double sort (by size).",
-  "BP: Quantiles (secondary)",   "`breakpoints_secondary`",      "*NA*; 2; 5",                                  "Groups for the secondary sort variable; only relevant for double sorts.",
-  "BP: Exchanges",               "`breakpoints_exchanges`",      "*NYSE*; All",                                 "Exchange(s) used to compute quantile breakpoints.",
-  "Weighting scheme",            "`weighting_scheme`",           "EW; *VW*; truncated VW",                      "Return weighting within portfolios."
+  ~`Preprocessing choice`      , ~Argument                     , ~Options                                         , ~Description                                                                       ,
+  "Size exclusion"             , "`exclude_size`"              , "None; *bottom 20%*"                             , "Fraction of the smallest stocks (by NYSE market cap) excluded from the universe." ,
+  "Exclusion of financials"    , "`exclude_financials`"        , "*No*; Yes"                                      , "Drops financial-sector stocks (SIC 6000--6999) from the universe."                ,
+  "Exclusion of utilities"     , "`exclude_utilities`"         , "*No*; Yes"                                      , "Drops utility-sector stocks (SIC 4900--4999) from the universe."                  ,
+  "Exclusion of neg. earnings" , "`exclude_negative_earnings`" , "*No*; Yes"                                      , "Drops firms with negative earnings before sorting."                               ,
+  "Sorting variable lag"       , "`sorting_variable_lag`"      , "3m; *6m*; FF"                                   , "Lag applied to the sorting variable before portfolio assignment."                 ,
+  "Rebalancing"                , "`rebalancing`"               , "*Monthly*; Annual"                              , "How frequently portfolios are reformed."                                          ,
+  "BP: Quantiles (main)"       , "`breakpoints_main`"          , "3; 5; *10*"                                     , "Number of quantile groups for the portfolio sort."                                ,
+  "Sort method"                , "`sorting_method`"            , "*Single*; Double dependent; Double independent" , "Single sort or sequential double sort (by size)."                                 ,
+  "BP: Quantiles (secondary)"  , "`breakpoints_secondary`"     , "*NA*; 2; 5"                                     , "Groups for the secondary sort variable; only relevant for double sorts."          ,
+  "BP: Exchanges"              , "`breakpoints_exchanges`"     , "*NYSE*; All"                                    , "Exchange(s) used to compute quantile breakpoints."                                ,
+  "Weighting scheme"           , "`weighting_scheme`"          , "EW; *VW*; truncated VW"                         , "Return weighting within portfolios."
 ) |>
   knitr::kable(
     format = "latex",
@@ -1024,14 +1034,20 @@ To download factor returns from the factor library, simply call
 ```{r}
 #| label: download-factor-library
 #| eval: false
-asset_growth_returns <- download_data("tidyfinance", "factor_library", 
-sorting_variable = "ag", sorting_variable_lag = "6m")
+asset_growth_returns <- download_data(
+  "tidyfinance",
+  "factor_library",
+  sorting_variable = "ag",
+  sorting_variable_lag = "6m"
+)
 ```
 
 **Note on `dataset = "factor_library"` defaults:** The defaults reflect one common portfolio construction choice, but may not suit every research question. Always verify that the selected combination matches your intended design.
 
 ```{r}
-download_data("tidyfinance", "factor_library",
+download_data(
+  "tidyfinance",
+  "factor_library",
   sorting_variable = "52w",
   sorting_variable_lag = "6m",
   fill_all = TRUE
@@ -1045,11 +1061,11 @@ To provide specific requests for handselected ids, users can call
 #| label: download-factor-library-ids
 
 full_grid <- get_available_huggingface_files(
-    "tidy-finance",
-    "factor-library-grid"
-  ) |>
-    dplyr::pull(.data$url) |>
-    arrow::read_parquet()
+  "tidy-finance",
+  "factor-library-grid"
+) |>
+  dplyr::pull(.data$url) |>
+  arrow::read_parquet()
 
 download_factor_library_returns_ids(c(123, 456))
 ```
