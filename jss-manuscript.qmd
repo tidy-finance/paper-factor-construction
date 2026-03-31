@@ -1349,7 +1349,7 @@ $$
 
 Then, the revenue surprise corresponds to the change in revenues per share over the last four quarters scaled by the standard deviation of the change in revenues per share over the last eight quarters.
 We require at least six quarterly observations for this rolling standard deviation and remove infinite values.
-Finally, the earnings announcement date has to be after the fiscal quarter end date.
+Finally, the earnings announcement date has to be after the fiscal quarter end date.^[We follow the convention of @hou.2020 and do not estimate a random walk model with drift to compute the surprise.]
 
 **SUE - Standardized Unexpected Earnings**
 
@@ -1361,7 +1361,7 @@ $$
 
 Then, standardized unexpected earnings are defined as unexpected earnings per share divided by the standard deviation of unexpected earnings per share over the previous eight quarters.
 We require at least six quarterly observations for this rolling standard deviation.
-Finally, the earnings announcement date has to be after the fiscal quarter end date.
+Finally, the earnings announcement date has to be after the fiscal quarter end date.^[We follow the convention of @hou.2020 and do not estimate a random walk model with drift to compute the surprise.]
 
 **52W - 52-Week High**
 
