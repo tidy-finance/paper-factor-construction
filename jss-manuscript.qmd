@@ -1343,7 +1343,7 @@ where NI is net income and OANCF corresponds to net cash flow from operations.
 
 **MOM - Return Momentum**
 
-Following @fama.1996, we measure return momentum from monthly CRSP returns (where $r$ is a simple return) as the cumulative return from month $t-11$ to month $t-1$ skipping the most recent month, i.e.,
+Following @jegadeesh.1993, we measure return momentum from monthly CRSP returns (where $r$ is a simple return) as the cumulative return from month $t-11$ to month $t-1$ skipping the most recent month, i.e.,
 
 $$
 \text{MOM}_t = \text{exp}\left(\sum^{t-1}_{\tau = t-11}\log(1 + r_{\tau})\right) - 1
