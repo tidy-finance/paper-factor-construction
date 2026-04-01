@@ -1191,7 +1191,7 @@ Following @bradshaw.2006, we measure net external financing as the sum of net de
 
 **HR - Hiring Rate**
 
-Following @belo.2012, we measure the hiring rate as the change in the number of employees (EMP) over one year scaled by the average number of employees, i.e.,
+Following @belo.2014, we measure the hiring rate as the change in the number of employees (EMP) over one year scaled by the average number of employees, i.e.,
 
 $$
 HR_{t} = \frac{EMP_{t} - EMP_{t-12}}{\frac{1}{2} \big(EMP_{t} + EMP_{t-12} \big)}
