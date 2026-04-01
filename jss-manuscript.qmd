@@ -1167,7 +1167,7 @@ We replace the missing values of DLC, DLTT and PSTK with 0, if at least one of t
 
 **NDF - Net Debt Financing**
 
-Following @baker.2006, we measure net debt financing as cash proceeds from the issuance of long-term debt (DLTIS) minus cash payments for long-term debt reductions (DLTR) plus net changes in current debt (DLCCH) scaled by the average total assets (AT) over the current and the last year, i.e.,
+Following @bradshaw.2006, we measure net debt financing as cash proceeds from the issuance of long-term debt (DLTIS) minus cash payments for long-term debt reductions (DLTR) plus net changes in current debt (DLCCH) scaled by the average total assets (AT) over the current and the last year, i.e.,
 
 $$
 NDF_{t} = \frac{DLTIS_{t} - DLTR_{t} + DLCCH_{t}}{\frac{1}{2} \big(AT_{t} + AT_{t-12} \big)}
@@ -1177,7 +1177,7 @@ We replace the missing values of DLCCH with zero.
 
 **NEF - Net Equity Financing**
 
-Following @baker.2006, we measure net equity financing as proceeds from the sale of common and preferred stocks (SSTK) minus payments for the repurchase of common and preferred stocks (PRSTKC) minus cash payments for dividends (DV) scaled by the average total assets (AT) over the current and the last year, i.e.,
+Following @bradshaw.2006, we measure net equity financing as proceeds from the sale of common and preferred stocks (SSTK) minus payments for the repurchase of common and preferred stocks (PRSTKC) minus cash payments for dividends (DV) scaled by the average total assets (AT) over the current and the last year, i.e.,
 
 $$
 NEF_{t} = \frac{SSTK_{t} - PRSTKC_{t} - DV_{t}}{\frac{1}{2} \big(AT_{t} + AT_{t-12} \big)}
@@ -1185,7 +1185,7 @@ $$
 
 **NXF - Net External Financing**
 
-Following @baker.2006, we measure net external financing as the sum of net debt financing (NDF) and net equity financing (NEF) as defined above.
+Following @bradshaw.2006, we measure net external financing as the sum of net debt financing (NDF) and net equity financing (NEF) as defined above.
 
 ## Intangibles
 
