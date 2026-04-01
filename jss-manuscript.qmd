@@ -83,7 +83,7 @@ A core focus of our project is portfolio sort construction, which involves many 
 
 We illustrate the full workflow in [R]{.proglang}, from raw data to factor returns, including diagnostics. [Python]{.proglang} examples in the appendix ensure parity in configuration, defaults, and outputs.
 
-We publish a curated factor library with preprocessed time series across sorting variables, weighting schemes, and adjustments. We demonstrate how methodological choices affect factor returns to highlight their empirical relevance. A programmatic API provides access to standardized series and preprocessed panels, with support for versioning and batch retrievals. We publish all software, workflows, and documentation to enable replication, sensitivity analysis, and extension.
+We publish a curated factor library with preprocessed time series across sorting variables, weighting schemes, and adjustments. We demonstrate how methodological choices affect factor returns to highlight their empirical relevance. A programmatic API provides access to standardized series and preprocessed panels, with support for versioning and batch retrievals. An interactive dashboard to browse and download factor data is available at [factors.tidy-finance.org](https://factors.tidy-finance.org). We publish all software, workflows, and documentation to enable replication, sensitivity analysis, and extension.
 
 ## Vignette: A case study in factor construction {#sec-ag}
 
@@ -949,7 +949,7 @@ tibble::tribble(
   )
 ```
 
-We host precomputed factor returns for all specifications on Hugging Face and make them accessible via the `tidyfinance` API. Researchers can retrieve results without re-running the computationally intensive portfolio sort pipeline. An interactive download interface is also available via the Shiny app at [https://app-download-center.cloud.sdu.dk/](https://app-download-center.cloud.sdu.dk/).
+We host precomputed factor returns for all specifications on Hugging Face and make them accessible via the `tidyfinance` API. Researchers can retrieve results without re-running the computationally intensive portfolio sort pipeline. An interactive download interface is also available at [factors.tidy-finance.org](https://factors.tidy-finance.org).
 
 
 @sec-library provides a comprehensive overview of all available sorting variables and their empirical properties.
@@ -962,7 +962,7 @@ sorting_variable_information <- arrow::read_parquet(
 )
 ```
 
-The factor library covers `{r} nrow(sorting_variable_information)` sorting variables spanning seven major categories: investment, profitability, valuation, momentum, intangibles, trading frictions, and financing. The selection follows the cross-section of characteristics studied by @jensen.2023, focusing on variables with established empirical support in the asset pricing literature. @tbl-sorting-variables lists all sorting variables, their long-short direction, and the primary reference for each. For each variable, the full factor library provides precomputed factor returns across all specification paths defined in @tbl-sorting-decisions. We host the complete dataset on Hugging Face at [https://huggingface.co/datasets/tidy-finance/factor-library](https://huggingface.co/datasets/tidy-finance/factor-library). Researchers can also browse and retrieve factor returns through an interactive Shiny app at [https://app-download-center.cloud.sdu.dk/](https://app-download-center.cloud.sdu.dk/).
+The factor library covers `{r} nrow(sorting_variable_information)` sorting variables spanning seven major categories: investment, profitability, valuation, momentum, intangibles, trading frictions, and financing. The selection follows the cross-section of characteristics studied by @jensen.2023, focusing on variables with established empirical support in the asset pricing literature. @tbl-sorting-variables lists all sorting variables, their long-short direction, and the primary reference for each. For each variable, the full factor library provides precomputed factor returns across all specification paths defined in @tbl-sorting-decisions. We host the complete dataset on Hugging Face at [https://huggingface.co/datasets/tidy-finance/factor-library](https://huggingface.co/datasets/tidy-finance/factor-library). Researchers can also browse and retrieve factor returns through an interactive dashboard at [factors.tidy-finance.org](https://factors.tidy-finance.org).
 
 ```{r}
 #| label: tbl-sorting-variables
