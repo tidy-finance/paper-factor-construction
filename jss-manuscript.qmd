@@ -1472,7 +1472,7 @@ Finally, the earnings announcement date has to be after the fiscal quarter end d
 
 **TBI - Taxable Income to Book Income**
 
-Following @green.2013, we measure taxable income to book income as pretax income (PI) scaled by net income (NI)
+Following @lev.2004, we measure taxable income to book income as pretax income (PI) scaled by net income (NI)
 
 $$
 TBI_{t} = \frac{PI_{t}}{NI_{t}}
