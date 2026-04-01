@@ -1209,7 +1209,7 @@ $$
 
 **RER - Real-Estate Ratio**
 
-Following @titman.2004, we measure the real-estate ratio in two subperiods differently.
+Following @tuzel.2010, we measure the real-estate ratio in two subperiods differently.
 
 (a) Prior to 1983, the real-estate ratio is the sum of buildings (PPENB) and capital leases (PPENLS) scaled by net property, plant, and equipment (PPENT), i.e.,
 
