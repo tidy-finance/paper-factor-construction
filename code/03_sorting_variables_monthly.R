@@ -61,9 +61,9 @@ crsp_monthly <- crsp_monthly |>
 
 ## Five year lag
 crsp_monthly <- crsp_monthly |>
-  add_lag_columns("int_me", by = "permno", lag = years(5)) |>
+  add_lagged_columns(cols = "int_me", by = "permno", lag = years(5)) |>
   rename(int_me_lag5y = int_me_lag)
-
+    
 # Compute CAPM regression coefficients and FF3 residuals
 # NOTE: multisession needs to be initialized before using furrr for beta estimation
 future::plan(future::multisession, workers = future::availableCores() - 1)

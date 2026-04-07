@@ -119,7 +119,8 @@ compustat_annual <- compustat_annual |>
       .cols = c("sale", "at", "capx", "invt"),
       .fns = ~ if_else(.x < 0, NA_real_, .x)
     )
-  )
+  ) |>
+  select(-at_lag)
 
 write_parquet(compustat_annual, "data/compustat_annual.parquet")
 

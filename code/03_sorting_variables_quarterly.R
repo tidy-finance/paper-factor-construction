@@ -35,15 +35,20 @@ compustat_quarterly <- compustat_quarterly |>
 
 ## One quarter lag
 compustat_quarterly <- compustat_quarterly |>
-  add_lag_columns(cols = c("atq", "int_beq"), by = "gvkey", lag = months(3)) |>
+  add_lagged_columns(cols = c("atq", "int_beq"), 
+  by = "gvkey", 
+  lag = months(3),
+  data_options = data_options(date ="datadate")
+) |>
   rename(atq_lag1 = atq_lag, int_beq_lag1 = int_beq_lag)
 
 ## Four quarter lag
 compustat_quarterly <- compustat_quarterly |>
-  add_lag_columns(
+  add_lagged_columns(
     cols = c("int_rps", "int_sue"),
     by = "gvkey",
-    lag = months(12)
+    lag = months(12),
+    data_options = data_options(date ="datadate")
   ) |>
   rename(int_rps_lag4 = int_rps_lag, int_sue_lag4 = int_sue_lag)
 
@@ -77,7 +82,6 @@ compute_standardized_surprise <- function(
 }
 
 # Revenue surprise
-# NOTE: sv_rs contains 89% missing values
 compustat_quarterly_rs <- compute_standardized_surprise(
   compustat_quarterly,
   int_rps - int_rps_lag4,
