@@ -76,6 +76,7 @@ full_grid <- expand_grid(
     "bivariate-dependent",
     "bivariate-independent"
   ),
+  breakpoints_min_size = c(NA, 0.2),
   breakpoints_secondary = c(2, 5),
   breakpoints_exchanges = c("NYSE", "AMEX|NASDAQ|NYSE"),
   weighting_scheme = c("EW", "VW", "capped VW")
