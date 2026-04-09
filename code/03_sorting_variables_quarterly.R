@@ -1,37 +1,23 @@
 library(dplyr)
 library(lubridate)
-library(multidplyr)
 library(arrow)
 library(tidyfinance)
 
-# Quarterly Compustat data quality is insufficient before 1972
+# Quarterly Compustat data quality is insufficient before 1972 to compute revenue surprise and standardized unexpected earnings
 min_analysis_date <- as.Date("1972-01-01")
-
-cluster <- new_cluster(future::availableCores() - 1)
-cluster_library(cluster, c("tidyfinance", "dplyr"))
 
 compustat_quarterly <- open_dataset("data/compustat_quarterly.parquet")
 
-crsp_monthly <- open_dataset("data/crsp_monthly.parquet")
-
 compustat_quarterly <- compustat_quarterly |>
-  left_join(
-    crsp_monthly |>
-      select(gvkey, date, mktcap),
-    join_by(gvkey, date),
-    relationship = "one-to-one"
-  ) |>
-  collect()
-
-compustat_quarterly <- compustat_quarterly |>
+  arrange(gvkey, datadate) |> 
   mutate(
     int_rps = saleq / (cshprq * ajexq),
     int_sue = epspxq / ajexq,
     int_beq = coalesce(seqq, ceqq + pstkq, atq - ltq) +
       coalesce(txditcq, txdbq, 0) -
       coalesce(pstkrq, pstkq, 0)
-  ) |>
-  rename(int_me = mktcap)
+  ) |> 
+  collect()
 
 ## One quarter lag
 compustat_quarterly <- compustat_quarterly |>
@@ -58,15 +44,14 @@ compustat_quarterly <- compustat_quarterly |>
 compute_standardized_surprise <- function(
   data,
   delta_col,
-  output_col,
-  cluster
+  output_col
 ) {
   data |>
     arrange(gvkey, date) |>
-    group_by(gvkey) |>
-    partition(cluster) |>
-    mutate(int_delta = {{ delta_col }}) |>
+    mutate(int_delta = {{ delta_col }},
+           int_delta = if_else(is.finite(int_delta), int_delta, NA_real_)) |>
     filter(!is.na(int_delta)) |>
+    group_by(gvkey) |>
     mutate(
       {{ output_col }} := compute_rolling_value(
         pick(everything()),
@@ -77,7 +62,6 @@ compute_standardized_surprise <- function(
       )
     ) |>
     ungroup() |>
-    collect() |>
     select(gvkey, date, {{ output_col }})
 }
 
@@ -85,8 +69,7 @@ compute_standardized_surprise <- function(
 compustat_quarterly_rs <- compute_standardized_surprise(
   compustat_quarterly,
   int_rps - int_rps_lag4,
-  sv_rs,
-  cluster
+  sv_rs
 ) |>
   filter(date >= min_analysis_date)
 
@@ -98,12 +81,10 @@ compustat_quarterly <- compustat_quarterly |>
   )
 
 # Standardized unexpected earnings
-# NOTE: sv_sue contains 91% missing values
 compustat_quarterly_sue <- compute_standardized_surprise(
   compustat_quarterly,
   int_sue - int_sue_lag4,
-  sv_sue,
-  cluster
+  sv_sue
 ) |>
   filter(date >= min_analysis_date)
 
