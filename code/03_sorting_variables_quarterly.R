@@ -9,23 +9,24 @@ min_analysis_date <- as.Date("1972-01-01")
 compustat_quarterly <- open_dataset("data/compustat_quarterly.parquet")
 
 compustat_quarterly <- compustat_quarterly |>
-  arrange(gvkey, datadate) |> 
+  arrange(gvkey, date) |>
   mutate(
     int_rps = saleq / (cshprq * ajexq),
     int_sue = epspxq / ajexq,
     int_beq = coalesce(seqq, ceqq + pstkq, atq - ltq) +
       coalesce(txditcq, txdbq, 0) -
       coalesce(pstkrq, pstkq, 0)
-  ) |> 
+  ) |>
   collect()
 
 ## One quarter lag
 compustat_quarterly <- compustat_quarterly |>
-  add_lagged_columns(cols = c("atq", "int_beq"), 
-  by = "gvkey", 
-  lag = months(3),
-  data_options = data_options(date ="datadate")
-) |>
+  add_lagged_columns(
+    cols = c("atq", "int_beq"),
+    by = "gvkey",
+    lag = months(3),
+    data_options = data_options(date = "datadate")
+  ) |>
   rename(atq_lag1 = atq_lag, int_beq_lag1 = int_beq_lag)
 
 ## Four quarter lag
@@ -34,7 +35,7 @@ compustat_quarterly <- compustat_quarterly |>
     cols = c("int_rps", "int_sue"),
     by = "gvkey",
     lag = months(12),
-    data_options = data_options(date ="datadate")
+    data_options = data_options(date = "datadate")
   ) |>
   rename(int_rps_lag4 = int_rps_lag, int_sue_lag4 = int_sue_lag)
 
@@ -48,8 +49,10 @@ compute_standardized_surprise <- function(
 ) {
   data |>
     arrange(gvkey, date) |>
-    mutate(int_delta = {{ delta_col }},
-           int_delta = if_else(is.finite(int_delta), int_delta, NA_real_)) |>
+    mutate(
+      int_delta = {{ delta_col }},
+      int_delta = if_else(is.finite(int_delta), int_delta, NA_real_)
+    ) |>
     filter(!is.na(int_delta)) |>
     group_by(gvkey) |>
     mutate(
@@ -67,7 +70,7 @@ compute_standardized_surprise <- function(
 
 # Revenue surprise
 compustat_quarterly_rs <- compute_standardized_surprise(
-  compustat_quarterly,
+  compustat_quarterly |> select(gvkey, date, int_rps, int_rps_lag4),
   int_rps - int_rps_lag4,
   sv_rs
 ) |>
@@ -82,7 +85,7 @@ compustat_quarterly <- compustat_quarterly |>
 
 # Standardized unexpected earnings
 compustat_quarterly_sue <- compute_standardized_surprise(
-  compustat_quarterly,
+  compustat_quarterly |> select(gvkey, date, int_sue, int_sue_lag4),
   int_sue - int_sue_lag4,
   sv_sue
 ) |>
