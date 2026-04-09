@@ -22,6 +22,7 @@ compustat_annual <- compustat_annual |>
 min_sales <- 10
 
 compustat_annual <- compustat_annual |>
+  arrange(gvkey, datadate) |> 
   mutate(
     year = floor_date(datadate, "year"),
     int_td = replace_na(dlc, 0) + replace_na(dltt, 0),
