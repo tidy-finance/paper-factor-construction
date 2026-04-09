@@ -22,14 +22,16 @@ download_data(
 ) |>
   write_parquet("data/factors_ff_5_daily.parquet")
 
-download_data(
+crsp_monthly <- download_data(
   domain = "wrds",
   dataset = "crsp_monthly",
   version = "v2",
   start_date = date_start,
   end_date = date_end,
   add_ccm_links = TRUE
-) |>
+)
+
+crsp_monthly |>
   write_parquet("data/crsp_monthly.parquet")
 
 download_data(
@@ -119,7 +121,7 @@ compustat_annual <- compustat_annual |>
       .cols = c("sale", "at", "capx", "invt"),
       .fns = ~ if_else(.x < 0, NA_real_, .x)
     )
-  ) |> 
+  ) |>
   # Filter to firms that are present in the CRSP monthly dataset
   filter(gvkey %in% unique(crsp_monthly$gvkey)) |>
   select(-at_lag)
@@ -158,7 +160,7 @@ compustat_quarterly <- compustat_quarterly |>
       .cols = c("atq", "saleq"),
       .fns = ~ if_else(.x < 0, NA_real_, .x)
     )
-  ) |> 
+  ) |>
   # Filter to firms that are present in the CRSP monthly dataset
   filter(gvkey %in% unique(crsp_monthly$gvkey))
 
