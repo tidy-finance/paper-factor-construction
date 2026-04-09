@@ -1,6 +1,7 @@
 library(dplyr)
 library(arrow)
 library(tidyr)
+library(stringr)
 library(tidyfinance)
 library(future.apply)
 
@@ -13,15 +14,16 @@ sv_directions <- read_parquet("data/sorting_variable_information.parquet") |>
   select(sorting_variable, direction)
 
 grid <- read_parquet("data/portfolio_sort_grid.parquet") |>
-  inner_join(sv_directions, join_by(sorting_variable)) |>
+  inner_join(
+    sv_directions |> mutate(sorting_variable = str_c("sv_", sorting_variable)),
+    join_by(sorting_variable)
+  ) |>
   mutate(
     parquet_path = file.path(
       "data",
       paste0("sorting_variables_lag_", sorting_variable_lag, ".parquet")
     )
-  ) |>
-  group_by(parquet_path) |>
-  ungroup()
+  )
 
 process_task <- function(row, sorting_data, output_dir) {
   start <- Sys.time()
@@ -66,10 +68,16 @@ process_task <- function(row, sorting_data, output_dir) {
 
         rebalancing_month <- if (row$rebalancing == "monthly") NULL else 7
         bp_exchanges <- strsplit(row$breakpoints_exchanges, split = "\\|")[[1]]
+        min_size_threshold = if (!is.na(row$breakpoints_min_size)) {
+          row$breakpoints_min_size
+        } else {
+          NULL
+        }
 
         options_main <- breakpoint_options(
           n_portfolios = row$breakpoints_main,
-          breakpoint_exchanges = bp_exchanges
+          breakpoint_exchanges = bp_exchanges,
+          min_size_threshold =
         )
 
         options_secondary <- NULL
@@ -110,8 +118,8 @@ process_task <- function(row, sorting_data, output_dir) {
           compute_long_short_returns(direction = row$direction) |>
           pivot_longer(-date, names_to = "ret_type", values_to = "ret") |>
           mutate(
-            id = row$id,
-            ret_type = gsub("ret_excess_", "", ret_type),
+            ret_type = str_remove(ret_type, "ret_excess_"),
+            id = row$id + match(ret_type, c("ew", "vw", "vw_capped")) - 1L,
             sorting_variable = row$sorting_variable,
             ret = replace_na(ret, 0)
           ) |>
@@ -162,6 +170,7 @@ all_diagnostics <- vector("list", length(unique_paths))
 for (p in seq_along(unique_paths)) {
   path <- unique_paths[p]
   group_grid <- grid[grid$parquet_path == path, ]
+  group_grid <- group_grid |> filter(weighting_scheme == "EW") # Avoid redundant computations for VW and VW_CAPPED since they use the same breakpoints
 
   sv_cols_needed <- unique(group_grid$sorting_variable)
 
@@ -251,5 +260,4 @@ open_dataset("data/portfolio_returns/") |>
   )
 
 fs::dir_delete("data/portfolio_returns/")
-fs::dir_copy(temporary_folder, "data/portfolio_returns/")
-fs::dir_delete(temporary_folder)
+fs::file_move(temporary_folder, "data/portfolio_returns/")
