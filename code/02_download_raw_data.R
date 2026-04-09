@@ -119,7 +119,9 @@ compustat_annual <- compustat_annual |>
       .cols = c("sale", "at", "capx", "invt"),
       .fns = ~ if_else(.x < 0, NA_real_, .x)
     )
-  ) |>
+  ) |> 
+  # Filter to firms that are present in the CRSP monthly dataset
+  filter(gvkey %in% unique(crsp_monthly$gvkey)) |>
   select(-at_lag)
 
 write_parquet(compustat_annual, "data/compustat_annual.parquet")
@@ -156,6 +158,8 @@ compustat_quarterly <- compustat_quarterly |>
       .cols = c("atq", "saleq"),
       .fns = ~ if_else(.x < 0, NA_real_, .x)
     )
-  )
+  ) |> 
+  # Filter to firms that are present in the CRSP monthly dataset
+  filter(gvkey %in% unique(crsp_monthly$gvkey))
 
 write_parquet(compustat_quarterly, "data/compustat_quarterly.parquet")
