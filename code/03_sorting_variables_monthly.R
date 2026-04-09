@@ -296,9 +296,9 @@ aggregation_data_all <- crsp_daily_aggregation |>
   collect() |>
   ungroup()
 
-# TODO: Verify if full_join is intended — left_join would preserve only the crsp_monthly universe
+# Use left_join to preserve only the crsp_monthly universe
 crsp_monthly <- crsp_monthly |>
-  full_join(
+  left_join(
     aggregation_data_all,
     join_by(permno, date),
     relationship = "one-to-one"
