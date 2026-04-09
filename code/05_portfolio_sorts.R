@@ -77,7 +77,7 @@ process_task <- function(row, sorting_data, output_dir) {
         options_main <- breakpoint_options(
           n_portfolios = row$breakpoints_main,
           breakpoint_exchanges = bp_exchanges,
-          min_size_threshold =
+          min_size_threshold = min_size_threshold
         )
 
         options_secondary <- NULL
