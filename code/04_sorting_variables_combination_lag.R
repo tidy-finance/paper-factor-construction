@@ -112,21 +112,21 @@ sv_lag_ff <- crsp_monthly |>
   join_lagged_values(
     sorting_variables_monthly,
     "permno",
-    min_lag = months(12),
+    min_lag = months(7),
     max_lag = months(18),
     ff_adjustment = TRUE
   ) |>
   join_lagged_values(
     sorting_variables_quarterly,
     "gvkey",
-    min_lag = months(12),
+    min_lag = months(7),
     max_lag = months(18),
     ff_adjustment = TRUE
   ) |>
   join_lagged_values(
     sorting_variables_yearly,
     "gvkey",
-    min_lag = months(12),
+    min_lag = months(7),
     max_lag = months(18),
     ff_adjustment = TRUE
   )
