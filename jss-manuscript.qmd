@@ -94,8 +94,11 @@ Our core focus is to present the [R]{.proglang} package `tidyfinance`. We walk t
 %%| fig-cap: "Research workflow for factor construction with `tidyfinance`."
 %%| fig-width: 6
 flowchart LR
-    A("<b>Data acquisition</b><br><code>download_data()</code>") --> B("<b>Variable construction</b><br><code>add_lagged_columns()</code>")
-    B --> C("<b>Portfolio returns</b><br><code>compute_portfolio_returns()</code>")
+    A("Data acquisition<br><code>download_data()</code>") --> B("Variable construction<br><code>add_lagged_columns()</code><br><code>join_lagged_values()</code>")
+    B -->  C("Portfolio returns
+       <code>assign_breakpoints()</code>
+       <code>assign_portfolio()</code>
+       <code>compute_portfolio_returns()</code>")
 
     classDef blue fill:#EBF4FF,stroke:#3B9AB2FF,color:#3B9AB2FF
 
@@ -135,7 +138,6 @@ To illustrate the functionalities of `tidyfinance`, we load a minimal set of add
 library(dplyr)
 library(tidyr)
 library(lubridate) # TODO: NEEDED?
-library(ggplot2)
 ```
 
 ### Data sources {#sec-data-acquisition}
@@ -169,7 +171,6 @@ crsp_monthly <- download_data(
   end_date = date_end,
   add_ccm_links = TRUE
 )
-
 ```
 
 The CRSP dataset includes monthly stock returns, market capitalization, exchange codes, industry classifications, and excess returns (returns adjusted for the risk-free rate). The `add_ccm_links = TRUE` argument merges CRSP-Compustat linking information, which is essential for merging stock returns with financial statement data in later steps. The entire dataset contains `{r} nrow(crsp_monthly)` stock-month observations for `{r} length(unique(crsp_monthly$permno))` unique stocks, covering the period from `{r} min(crsp_monthly$date)` to `{r} max(crsp_monthly$date)`.
@@ -245,11 +246,10 @@ sorting_variable_data <- compustat_annual |>
   add_lagged_columns(
     "at",
     lag = years(1),
-    by = "gvkey"
+    by = "gvkey",
   ) |>
-  rename(at_lag1 = at_lag) |>
   mutate(
-    asset_growth = (at - at_lag1) / at_lag1,
+    asset_growth = (at - at_lag) / at_lag,
     asset_growth = if_else(is.finite(asset_growth), asset_growth, NA_real_)
   ) |>
   select(gvkey, date, asset_growth)
@@ -266,131 +266,62 @@ The next step merges annual sorting variables onto the monthly CRSP stock panel 
 #| fig-height: 6
 #| echo: false
 library(ggforce)
-
-# --- Layout parameters -------------------------------------------------------
-n <- 16
 ts <- 0.94
-ts_label <- 0.55
 corner <- unit(4, "pt")
 
-rescale_alpha <- function(x, lo = 0.35, hi = 0.9) {
-  r <- range(x, na.rm = TRUE)
-  lo + (x - r[1]) / (r[2] - r[1]) * (hi - lo)
-}
-
-# --- Month labels (16 months: Dec Y-2 through Mar Y) -------------------------
-month_labels <- c(
-  "Dec",
-  "Jan",
-  "Feb",
-  "Mar",
-  "Apr",
-  "May",
-  "Jun",
-  "Jul",
-  "Aug",
-  "Sep",
-  "Oct",
-  "Nov",
-  "Dec",
-  "Jan",
-  "Feb",
-  "Mar"
-)
-
-# Positions:
-#  1 = Dec Y-2
-#  2 = Jan Y-1, ..., 13 = Dec Y-1
-# 14 = Jan Y, 15 = Feb Y, 16 = Mar Y (TARGET)
+month_labels <- month.abb[c(12, 1:12, 1:7)]
+n <- length(month_labels)
 
 x_labels <- 0
-x_std <- 2.6
 x_ff <- 0.8
+x_std <- 2.6
 
-time_df <- data.frame(
-  y = 1:n,
-  label = month_labels,
-  alpha = rescale_alpha(1:n)
-)
-
-# --- Observed/missing pattern -------------------------------------------------
 obs_pattern <- c(
-  TRUE, #  1  Dec Y-2
-  FALSE, #  2  Jan Y-1
-  FALSE, #  3  Feb Y-1
-  FALSE, #  4  Mar Y-1
-  FALSE, #  5  Apr Y-1
-  TRUE, #  6  May Y-1
-  FALSE, #  7  Jun Y-1
-  FALSE, #  8  Jul Y-1
-  TRUE, #  9  Aug Y-1
-  FALSE, # 10  Sep Y-1
-  TRUE, # 11  Oct Y-1
-  FALSE, # 12  Nov Y-1
-  FALSE, # 13  Dec Y-1
-  TRUE, # 14  Jan Y
-  FALSE, # 15  Feb Y
-  TRUE # 16  Mar Y
+  TRUE,
+  FALSE,
+  FALSE,
+  FALSE,
+  FALSE,
+  TRUE,
+  FALSE,
+  FALSE,
+  TRUE,
+  FALSE,
+  TRUE,
+  FALSE,
+  FALSE,
+  TRUE,
+  FALSE,
+  TRUE,
+  FALSE,
+  TRUE,
+  TRUE,
+  TRUE
 )
 
 df_data <- data.frame(
   y = 1:n,
-  observed = obs_pattern
+  label = month_labels,
+  observed = obs_pattern,
+  alpha = sample(seq(0.3, 1, length.out = n))
 )
+
 obs <- df_data[df_data$observed, ]
 miss <- df_data[!df_data$observed, ]
+std_win_left <- 2
+std_win_right <- 13
+std_matched <- 11 # Oct Y (most recent observed in [2,13])
 
-# --- Window for highlighted target (Mar Y, pos 16) ---------------------------
-# lag = months(7), max_lag = months(18)
-# Window: [target - max_lag, target - lag] = [16-18, 16-7] = [-2, 9]
-# i.e., Feb Y-1 through Dec Y-1
-target <- 16
-win_left <- 7 # Feb Y-1
-win_right <- 18 # Dec Y-1
+# FF window: lag=7, max_lag=18 from Jul Y+1 (pos 20), with ff_adjustment
+# Window [2, 13] same as standard, but ff_adjustment anchors ALL months
+# (Jul Y through Jun Y+1) to the SAME rebalancing-date match
+ff_win_left <- 2
+ff_win_right <- 13
+ff_matched <- 11 # Oct Y (most recent observed in [2,13])
 
-# Standard: most recent observed in [3, 13]
-# Observed in window: 6, 9, 11 → most recent = 11 (Oct Y-1)
-std_matched <- 11
+target <- 20
 
-# FF: last obs per year first, then search window [3, 13]
-# Last obs per year: Y-2 → pos 1 (Dec Y-2), Y-1 → pos 11 (Oct Y-1)
-# In window [3, 13]: pos 11 qualifies → match 11
-ff_matched <- 11
-
-# --- Grey arrows: standard panel ----------------------------------------------
-# For each target, find window [t-13, t-3], then most recent observed in window.
-# Observed positions: 1, 6, 9, 11, 14, 16
-# target=15 (Feb Y): window [2,12], obs: 6,9,11 → 11
-# target=14 (Jan Y): window [1,11], obs: 1,6,9,11 → 11
-# target=13 (Dec Y-1): window [1,10], obs: 1,6,9 → 9
-# target=12 (Nov Y-1): window [1,9], obs: 1,6,9 → 9
-# target=11 (Oct Y-1): window [1,8], obs: 1,6 → 6
-# target=10 (Sep Y-1): window [1,7], obs: 1,6 → 6
-# target=9 (Aug Y-1): window [1,6], obs: 1,6 → 6
-# target=8 (Jul Y-1): window [1,5], obs: 1 → 1
-# target=7 (Jun Y-1): window [1,4], obs: 1 → 1
-# target=6 (May Y-1): window [1,3], obs: 1 → 1
-# target=5 (Apr Y-1): window [1,2], obs: 1 → 1
-# target=4 (Mar Y-1): window [1,1], obs: 1 → 1
-std_grey_arrows <- data.frame(
-  y = c(15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4),
-  yend = c(11, 11, 9, 9, 6, 6, 6, 1, 1, 1, 1, 1)
-)
-
-# --- Grey arrows: FF panel ----------------------------------------------------
-# FF candidates (last obs per year): pos 1 (Dec Y-2), pos 11 (Oct Y-1)
-# target=15 (Feb Y): window [2,12], candidates: 11 in [2,12] → 11
-# target=14 (Jan Y): window [1,11], candidates: 1,11 → closest = 11
-# target=13 (Dec Y-1): window [1,10], candidates: 1 (11 outside) → 1
-# target=12 (Nov Y-1): window [1,9], candidates: 1 → 1
-# target=11 (Oct Y-1): window [1,8], candidates: 1 → 1
-# target=10..4: all include pos 1, not pos 11 → 1
-ff_grey_arrows <- data.frame(
-  y = c(15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4),
-  yend = c(11, 11, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1)
-)
-
-# --- Tile polygon helper ------------------------------------------------------
+# Build rounded-rectangle polygons for geom_shape
 tiles <- function(rows, cx, grp_offset = 0, alpha_col = NULL, xsize = ts) {
   do.call(
     rbind,
@@ -411,13 +342,11 @@ grp_miss1 <- n + nrow(obs)
 grp_obs2 <- n + nrow(obs) + nrow(miss)
 grp_miss2 <- n + nrow(obs) + nrow(miss) + nrow(obs)
 
-label_poly <- tiles(time_df, x_labels, grp_label, "alpha", xsize = ts_label)
-obs1_poly <- tiles(obs, x_std, grp_obs1)
+obs1_poly <- tiles(obs, x_std, grp_obs1, "alpha")
 miss1_poly <- tiles(miss, x_std, grp_miss1)
-obs2_poly <- tiles(obs, x_ff, grp_obs2)
+obs2_poly <- tiles(obs, x_ff, grp_obs2, "alpha")
 miss2_poly <- tiles(miss, x_ff, grp_miss2)
 
-# --- Plot ---------------------------------------------------------------------
 ggplot() +
   # Month timeline: horizontal line with tick marks
   annotate(
@@ -441,20 +370,23 @@ ggplot() +
   ) +
   # Month labels as plain text (centered on ticks)
   geom_text(
-    data = time_df,
+    data = df_data,
     aes(x = x_labels - 0.15, y = y, label = label),
     size = 4.5,
     color = "grey40",
     hjust = 0.5
   ) +
   # --- Standard column --------------------------------------------------------
+  # Standard column: observed
   geom_shape(
     data = obs1_poly,
-    aes(x = x, y = y, group = group),
+    aes(x = x, y = y, group = group, alpha = alpha),
     fill = tf_dark_blue,
+    color = "white",
     linewidth = 0.8,
     radius = corner
   ) +
+  # Standard column: missing
   geom_shape(
     data = miss1_poly,
     aes(x = x, y = y, group = group),
@@ -467,17 +399,20 @@ ggplot() +
     data = miss,
     aes(x = x_std, y = y),
     label = "NA",
-    size = 4.0,
+    size = 2.2,
     color = "grey65",
+    fontface = "italic"
   ) +
-  # --- FF column --------------------------------------------------------------
+  # FF column: observed
   geom_shape(
     data = obs2_poly,
-    aes(x = x, y = y, group = group),
+    aes(x = x, y = y, group = group, alpha = alpha),
     fill = tf_dark_blue,
+    color = "white",
     linewidth = 0.8,
     radius = corner
   ) +
+  # FF column: missing
   geom_shape(
     data = miss2_poly,
     aes(x = x, y = y, group = group),
@@ -490,31 +425,35 @@ ggplot() +
     data = miss,
     aes(x = x_ff, y = y),
     label = "NA",
-    size = 4.0,
+    size = 2.2,
     color = "grey65",
+    fontface = "italic"
   ) +
   # --- Standard: grey arrows --------------------------------------------------
+  # Grey arrows: lagging pattern for targets 19-11 (lag=7, max_lag=18)
+  # t=19→11, t=18→11, t=17→9, t=16→9, t=15→6,
+  # t=14→6, t=13→6, t=12→1, t=11→1
   geom_curve(
     data = data.frame(
       x = x_std + ts / 2,
       xend = x_std + ts / 2,
-      y = std_grey_arrows$y,
-      yend = std_grey_arrows$yend + 0.15
+      y = c(19, 18, 17, 16, 15, 14, 13, 12, 11),
+      yend = c(11, 11, 9, 9, 6, 6, 6, 1, 1) + 0.15
     ),
     aes(x = x, y = y, xend = xend, yend = yend),
     curvature = -0.2,
-    color = "grey40",
-    alpha = 0.7,
-    arrow = arrow(length = unit(0.12, "cm"), type = "closed"),
-    linewidth = 0.6
+    color = "grey70",
+    alpha = 0.4,
+    arrow = arrow(length = unit(0.08, "cm"), type = "closed"),
+    linewidth = 0.35
   ) +
-  # Standard: dashed search window for Mar Y
+  # Standard window
   annotate(
     "rect",
     xmin = x_std - ts / 2,
     xmax = x_std + ts / 2,
-    ymin = win_left - ts / 2,
-    ymax = win_right + ts / 2,
+    ymin = std_win_left - ts / 2,
+    ymax = std_win_right + ts / 2,
     fill = NA,
     color = tf_dark_blue,
     linewidth = 0.7,
@@ -523,14 +462,14 @@ ggplot() +
   annotate(
     "text",
     x = x_std - ts / 2 - 0.08,
-    y = c(win_left, win_right),
+    y = c(std_win_left, std_win_right),
     label = c("max_lag", "lag"),
     color = tf_dark_blue,
-    size = 4.2,
+    size = 2.4,
+    fontface = "italic",
     hjust = 1,
     vjust = 0.5
   ) +
-  # Standard: highlighted arrow Mar Y → Dec Y-1
   annotate(
     "curve",
     x = x_std + ts / 2,
@@ -539,31 +478,32 @@ ggplot() +
     yend = std_matched + 0.2,
     curvature = -0.2,
     color = tf_dark_blue,
-    linewidth = 1.2,
-    arrow = arrow(length = unit(0.18, "cm"), type = "closed")
+    linewidth = 0.7,
+    arrow = arrow(length = unit(0.12, "cm"), type = "closed")
   ) +
-  # --- FF: grey arrows --------------------------------------------------------
+  # FF grey arrows: Jul Y (pos 8) through Jun Y+1 (pos 19) ALL point
+  # to Dec Y-1 (pos 1) — locked in at the previous July rebalancing
   geom_curve(
     data = data.frame(
       x = x_ff + ts / 2,
       xend = x_ff + ts / 2,
-      y = ff_grey_arrows$y,
-      yend = ff_grey_arrows$yend + 0.15
+      y = 8:19,
+      yend = rep(1 + 0.15, 12)
     ),
     aes(x = x, y = y, xend = xend, yend = yend),
     curvature = -0.2,
-    color = "grey30",
-    alpha = 0.7,
-    arrow = arrow(length = unit(0.12, "cm"), type = "closed"),
-    linewidth = 0.6
+    color = "grey70",
+    alpha = 0.4,
+    arrow = arrow(length = unit(0.08, "cm"), type = "closed"),
+    linewidth = 0.35
   ) +
-  # FF: dashed search window for Mar Y
+  # FF window
   annotate(
     "rect",
     xmin = x_ff - ts / 2,
     xmax = x_ff + ts / 2,
-    ymin = win_left - ts / 2,
-    ymax = win_right + ts / 2,
+    ymin = ff_win_left - ts / 2,
+    ymax = ff_win_right + ts / 2,
     fill = NA,
     color = tf_dark_blue,
     linewidth = 0.7,
@@ -572,14 +512,14 @@ ggplot() +
   annotate(
     "text",
     x = x_ff - ts / 2 - 0.08,
-    y = c(win_left, win_right),
+    y = c(ff_win_left, ff_win_right),
     label = c("max_lag", "lag"),
     color = tf_dark_blue,
-    size = 4.2,
+    size = 2.4,
+    fontface = "italic",
     hjust = 1,
     vjust = 0.5
   ) +
-  # FF: highlighted arrow Mar Y → Dec Y-1
   annotate(
     "curve",
     x = x_ff + ts / 2,
@@ -588,8 +528,8 @@ ggplot() +
     yend = ff_matched + 0.2,
     curvature = -0.2,
     color = tf_dark_blue,
-    linewidth = 1.2,
-    arrow = arrow(length = unit(0.18, "cm"), type = "closed")
+    linewidth = 0.7,
+    arrow = arrow(length = unit(0.12, "cm"), type = "closed")
   ) +
   # --- Main title at the top of the plot --------------------------------------
   annotate(
@@ -650,7 +590,7 @@ ggplot() +
     x = x_labels - 0.55,
     xend = x_labels - 0.55,
     y = c(1, 2, 14),
-    yend = c(1, 13, 16),
+    yend = c(1, 13, 20),
     color = "grey30",
     linewidth = 0.4
   ) +
@@ -686,39 +626,14 @@ ggplot() +
   theme(plot.margin = margin(5, 10, 5, 10))
 ```
 
-```{r}
-#| label: lag-sorting-variables
-#| cache: true
-sorting_data <- crsp_monthly |>
-  join_lagged_values(
-    sorting_variable_data,
-    "gvkey",
-    min_lag = months(12),
-    max_lag = months(18),
-    ff_adjustment = TRUE
-  )
-
-sorting_data <- sorting_data |>
-  select(date, permno, exchange, ret_excess, mktcap_lag, asset_growth)
-```
-
-The resulting dataset merges monthly stock returns with the lagged sorting variable. Each row represents a stock-month observation, containing the information needed for portfolio construction: excess returns, exchange membership, industry classification, lagged market capitalization (for value-weighting), and the sorting variable itself.
-
-Before turning to portfolio construction, we characterize the distribution of asset growth using `sorting_variable_data`, which contains one observation per firm-year and is the natural unit for cross-sectional analysis of annual accounting variables. Because asset growth is an annual characteristic that each firm contributes once per fiscal year, computing summary statistics at this level avoids the artificial replication that arises when the same value is carried forward across multiple months in `sorting_data`.
-
-Asset growth is heavily right-skewed: a small number of firms with dramatic balance sheet expansions (through mergers, acquisitions, or large equity issuances) generate extreme positive values that dominate the mean. We therefore winsorize at the 1st and 99th percentiles before computing location and dispersion statistics. @tbl-ag-summary reports the resulting pooled cross-sectional summary.
 
 ```{r}
 #| label: tbl-ag-summary
 #| tbl-cap: "Cross-sectional summary statistics for asset growth (winsorized at the 1st and 99th percentiles). The table reports the number of firm-year observations (N), the mean, standard deviation (SD), and selected percentiles of the annual asset growth distribution computed from `sorting_variable_data`."
+#| echo: false
 sorting_variable_data |>
-  filter(!is.na(asset_growth)) |>
-  mutate(
-    asset_growth = pmax(
-      pmin(asset_growth, quantile(asset_growth, 0.99)),
-      quantile(asset_growth, 0.01)
-    )
-  ) |>
+  filter_out(is.na(asset_growth)) |>
+  mutate(asset_growth = winsorize(asset_growth, 0.01)) |>
   summarise(
     N = n(),
     Mean = mean(asset_growth),
@@ -732,15 +647,21 @@ sorting_variable_data |>
   knitr::kable(digits = 3)
 ```
 
+
+Before turning to portfolio construction, we characterize the distribution of asset growth using `sorting_variable_data`, which contains one observation per firm-year and is the natural unit for cross-sectional analysis of annual accounting variables. Because asset growth is an annual characteristic that each firm contributes once per fiscal year, computing summary statistics at this level avoids the artificial replication that arises when the same value is carried forward across multiple months in `sorting_data`.
+
+Asset growth is heavily right-skewed: a small number of firms with dramatic balance sheet expansions (through mergers, acquisitions, or large equity issuances) generate extreme positive values that dominate the mean. We therefore winsorize at the 1st and 99th percentiles before computing location and dispersion statistics. @tbl-ag-summary reports the resulting pooled cross-sectional summary.
+
+
 @tbl-ag-summary-yearly complements the pooled view by reporting how cross-sectional moments evolve over time. For each calendar year we compute the cross-sectional mean, standard deviation, and median of (winsorized) asset growth, and then summarise those annual statistics across the full sample period.
 
 ```{r}
 #| label: tbl-ag-summary-yearly
 #| tbl-cap: "Time-series averages of annual cross-sectional summary statistics for asset growth (winsorized at the 1st and 99th percentiles). For each calendar year, cross-sectional mean, standard deviation, and median are computed from `sorting_variable_data`; the table reports the time-series mean, minimum, and maximum of those annual statistics."
+#| echo: false
 sorting_variable_data |>
-  filter(!is.na(asset_growth)) |>
-  mutate(year = lubridate::year(date)) |>
-  group_by(year) |>
+  filter_out(is.na(asset_growth)) |>
+  group_by(year = year(date)) |>
   mutate(
     p01 = quantile(asset_growth, 0.01),
     p99 = quantile(asset_growth, 0.99),
@@ -770,25 +691,59 @@ sorting_variable_data |>
 Having characterised the distribution of the sorting variable, we now turn to `sorting_data`, the firm-month panel that serves as direct input to portfolio construction. @fig-breakpoints shows the 33rd, 50th, and 66th percentiles of asset growth over time. Pronounced spikes during economic expansions and contractions highlight the cyclical nature of corporate investment that portfolio sorts aim to exploit.
 
 ```{r}
+#| label: lag-sorting-variables
+#| cache: true
+sorting_data <- crsp_monthly |>
+  join_lagged_values(
+    sorting_variable_data,
+    "gvkey",
+    min_lag = months(7),
+    max_lag = months(18),
+    ff_adjustment = TRUE
+  )
+
+sorting_data <- sorting_data |>
+  select(date, permno, exchange, ret_excess, mktcap_lag, asset_growth)
+```
+
+The resulting dataset merges monthly stock returns with the lagged sorting variable. Each row represents a stock-month observation, containing the information needed for portfolio construction: excess returns, exchange membership, industry classification, lagged market capitalization (for value-weighting), and the sorting variable itself.
+
+
+```{r}
 #| label: fig-breakpoints
 #| fig-cap: "Distribution of asset growth over time. Lines show the 33rd, 50th, and 66th percentiles of the cross-sectional distribution of asset growth in `sorting_data`, the firm-month panel used as input for portfolio construction."
-sorting_data |>
+#| echo: false
+
+plot_data <- sorting_data |>
+  drop_na() |>
   group_by(date) |>
   summarise(
-    p33 = quantile(asset_growth, 0.33, na.rm = TRUE),
-    p50 = quantile(asset_growth, 0.50, na.rm = TRUE),
-    p66 = quantile(asset_growth, 0.66, na.rm = TRUE),
+    "33%" = quantile(asset_growth, 0.33),
+    "Median" = quantile(asset_growth, 0.50),
+    "66%" = quantile(asset_growth, 0.66),
     .groups = "drop"
   ) |>
   pivot_longer(
-    cols = c(p33, p50, p66),
+    cols = -date,
     names_to = "quantile",
     values_to = "asset_growth"
-  ) |>
-  ggplot(aes(x = date, y = asset_growth, color = quantile)) +
+  )
+
+label_data <- plot_data |>
+  group_by(quantile) |>
+  slice_min(abs(date - median(date)), n = 1) |>
+  mutate(date = date %m+% months(36)) |> # Shift label 3 years to the right for better visibility
+  ungroup()
+
+ggplot(plot_data, aes(x = date, y = asset_growth, color = quantile)) +
   geom_line() +
-  labs(x = NULL, y = "Asset growth", color = "Quantile") +
-  theme(legend.position = "bottom")
+  geom_text(
+    data = label_data,
+    aes(label = quantile),
+    show.legend = FALSE
+  ) +
+  labs(x = NULL, y = "Asset growth") +
+  theme(legend.position = "none")
 ```
 
 With the sorting variable constructed and merged onto the monthly stock panel, we now turn to portfolio sorts, the mechanism that translates firm-level characteristics into tradable factor returns.
@@ -918,8 +873,7 @@ Dependent sorts are appropriate when the secondary variable (here, size) strongl
 
 ## Factor library and API {#sec-library}
 
-
-#### Specification grid and the factor library {#sec-specification-grid}
+### Specification grid {#sec-specification-grid}
 
 The examples above represent single points in a high-dimensional space of methodological choices. @tbl-sorting-decisions summarises the preprocessing decisions that can be varied when constructing factor returns. The full factor library exhaustively evaluates all valid combinations of these choices for each of the sorting variables listed in @tbl-sorting-variables.
 
@@ -949,8 +903,6 @@ tibble::tribble(
 ```
 
 We host precomputed factor returns for all specifications on Hugging Face and make them accessible via the `tidyfinance` API. Researchers can retrieve results without re-running the computationally intensive portfolio sort pipeline. An interactive download interface is also available at [factors.tidy-finance.org](https://factors.tidy-finance.org).
-
-@sec-library provides a comprehensive overview of all available sorting variables and their empirical properties.
 
 ```{r}
 #| label: load-sorting-variables
@@ -990,6 +942,7 @@ tab[1] <- sub("llll", "lp{5cm}ll", tab[1], fixed = TRUE)
 tab
 ```
 
+### The factor library {#sec-library-practice}
 ```{r}
 #| fig-width: 6
 #| fig-height: 9
@@ -999,7 +952,6 @@ tab
 #| fig-cap: "\\textbf{Sharpe ratios.} The ridge plots indicate the distribution of annualized Sharpe ratios of long-short return differentials for a given sorting variable across all data preprocessing choices illustrated in @tbl-sorting-decisions. The estimates are based on the available sample period for each factor."
 #| label: fig-sharpe-ratio
 #| echo: false
-#| cache: true
 #| warning: false
 
 arrow::open_dataset(
@@ -1081,9 +1033,6 @@ Stefan Voigt is grateful to the Danish Finance Institute for financial support.
 
 {{< pagebreak >}}
 
-## Technical details {#sec-techdetails .unnumbered}
-
-
 \newpage 
 \setcounter{section}{0}
 \renewcommand{\thesection}{IA-\arabic{section}}
@@ -1096,11 +1045,11 @@ Stefan Voigt is grateful to the Danish Finance Institute for financial support.
 
 # Internet Appendix {.unnumbered}
 
-# Variable construction {#sec-variable-details}
+## Variable construction {#sec-variable-details}
 
 In this section, we show the construction details for the risk factors. We group them by their underlying mechanism as shown in @tbl-sorting-variables in the Appendix of the main paper.
 
-## Financing
+### Financing
 
 **CDI - Composite Debt Issuance**
 
@@ -1171,7 +1120,7 @@ $$
 
 Following @bradshaw.2006, we measure net external financing as the sum of net debt financing (NDF) and net equity financing (NEF) as defined above.
 
-## Intangibles
+### Intangibles
 
 **HR - Hiring Rate**
 
@@ -1212,7 +1161,7 @@ The industry-adjusted real-estate ratio is obtained by subtracting the industry 
 We use 2-digit SIC codes to assign stocks to industries.
 We always require at least five observations to calculate the industry average each year.
 
-## Investment
+### Investment
 
 **ACI - Abnormal Corporate Investment**
 
@@ -1323,7 +1272,7 @@ $$
 
 where NI is net income and OANCF corresponds to net cash flow from operations.
 
-## Momentum
+### Momentum
 
 **MOM - Return Momentum**
 
@@ -1376,7 +1325,7 @@ $$
 \text{REV}_t = \text{exp}\left(\sum^{t-13}_{\tau = t-60}\log(1 + r_{\tau})\right) - 1
 $$
 
-## Profitability
+### Profitability
 
 **CBOP - Cash-Based Operating Profitability**
 
@@ -1464,7 +1413,7 @@ $$
 
 We require positive pretax and net income.
 
-## Size
+### Size
 
 **ME - Size**
 
@@ -1475,7 +1424,7 @@ $$
 ME_{t} = \log\left(shrout_{t}*1000*|altprc_{t}|\right)
 $$
 
-## Trading frictions
+### Trading frictions
 
 **AMI - Amihud Illiquidity Measure**
 
@@ -1537,7 +1486,7 @@ $$
 Then, the share turnover for each firm in each month $t$ is the average daily share turnover over the previous six months (with at least 50 observations).
 Moreover, we adjust the trading volume of NASDAQ stocks according to @gao.2010.
 
-## Valuation
+### Valuation
 
 **BM - Book Equity to Market Equity**
 
