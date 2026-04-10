@@ -1,5 +1,5 @@
 ---
-title: "A transparent financial risk factor library"
+title: A transparent financial risk factor library
 format:
     jss-pdf:
         keep-tex: false
@@ -127,14 +127,14 @@ Once installed, load the `tidyfinance` package.
 library(tidyfinance)
 ```
 
-For the sake of illustrating the functionalities of `tidyfinance`, we load a minimal set of additional libraries for data manipulation and visualization.
+To illustrate the functionalities of `tidyfinance`, we load a minimal set of additional libraries for data manipulation and visualization.
 
 ```{r}
 #| label: load-libraries
 #| message: false
 library(dplyr)
 library(tidyr)
-library(lubridate)
+library(lubridate) # TODO: NEEDED?
 library(ggplot2)
 ```
 
@@ -241,7 +241,6 @@ The `add_lagged_columns()` function from `tidyfinance` handles temporal alignmen
 
 ```{r}
 #| label: compute-sorting-variables
-#| cache: true
 sorting_variable_data <- compustat_annual |>
   add_lagged_columns(
     "at",
@@ -263,7 +262,7 @@ The next step merges annual sorting variables onto the monthly CRSP stock panel 
 ```{r}
 #| label: fig-lagging-illustration
 #| fig-cap: "Two lagging mechanisms in `add_lagged_columns()`. Each column represents a data series with observed (filled) and missing (hollow) cells. Dashed rectangles mark the search window; arrows show which value gets matched to each target month."
-#| #| fig-width: 12
+#| fig-width: 12
 #| fig-height: 6
 #| echo: false
 library(ggforce)
@@ -342,12 +341,12 @@ obs <- df_data[df_data$observed, ]
 miss <- df_data[!df_data$observed, ]
 
 # --- Window for highlighted target (Mar Y, pos 16) ---------------------------
-# lag = months(3), max_lag = months(13)
-# Window: [target - max_lag, target - lag] = [16-13, 16-3] = [3, 13]
+# lag = months(7), max_lag = months(18)
+# Window: [target - max_lag, target - lag] = [16-18, 16-7] = [-2, 9]
 # i.e., Feb Y-1 through Dec Y-1
 target <- 16
-win_left <- 3 # Feb Y-1
-win_right <- 13 # Dec Y-1
+win_left <- 7 # Feb Y-1
+win_right <- 18 # Dec Y-1
 
 # Standard: most recent observed in [3, 13]
 # Observed in window: 6, 9, 11 → most recent = 11 (Oct Y-1)
@@ -597,7 +596,7 @@ ggplot() +
     "text",
     x = max(x_std, x_ff) + ts / 2 + 0.55,
     y = n / 2,
-    label = "data |> add_lagged_columns(lag = months(3), max_lag = months(13))",
+    label = "data |> add_lagged_columns(lag = months(7), max_lag = months(18))",
     color = "black",
     size = 4.0,
     family = "mono",
@@ -951,7 +950,6 @@ tibble::tribble(
 
 We host precomputed factor returns for all specifications on Hugging Face and make them accessible via the `tidyfinance` API. Researchers can retrieve results without re-running the computationally intensive portfolio sort pipeline. An interactive download interface is also available at [factors.tidy-finance.org](https://factors.tidy-finance.org).
 
-
 @sec-library provides a comprehensive overview of all available sorting variables and their empirical properties.
 
 ```{r}
@@ -1004,23 +1002,9 @@ tab
 #| cache: true
 #| warning: false
 
-portfolio_performance <- arrow::open_dataset("data/portfolio_returns") |>
-  filter(date >= date_start & date < date_end) |>
-  group_by(sorting_variable, id) |>
-  summarise(
-    sharpe_ratio = sqrt(12) * mean(ret, na.rm = TRUE) / sd(ret, na.rm = TRUE),
-    .groups = "drop"
-  ) |>
-  collect()
-
-portfolio_performance |>
-  mutate(
-    sorting_variable = forcats::fct_reorder(
-      .f = sorting_variable,
-      .x = sharpe_ratio,
-      .fun = median
-    )
-  ) |>
+arrow::open_dataset(
+  "data/portfolio_performance.parquet"
+) |>
   ggplot(aes(x = sorting_variable, y = sharpe_ratio)) +
   ggdist::stat_halfeye(alpha = 0.3, fatten_point = 0, color = tf_dark_blue) +
   coord_flip(clip = "off") +
