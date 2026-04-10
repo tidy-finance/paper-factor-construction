@@ -115,3 +115,134 @@ After filtering, the grid is sorted by `sorting_variable_lag` then
 `rowid_to_column()`. This `id` uniquely identifies each portfolio-sort task
 for parallel execution in Stage 5. The final grid is saved to
 `data/portfolio_sort_grid.parquet`.
+
+# Stage 2 — Raw Data Download {#sec-raw-data}
+
+## Purpose
+
+All raw inputs are downloaded once and saved as Parquet files. The sample
+window is **1 January 1960 through 31 December 2024** for every dataset.
+Data are obtained from two sources: the Wharton Research Data Services
+(WRDS) platform and the Kenneth French Data Library. Downloads are handled
+by `tidyfinance::download_data()`.
+
+## Fama–French five-factor data
+
+Two Fama–French datasets are downloaded without any additional filtering:
+
+- **Monthly factors** (`data/factors_ff_5_monthly.parquet`): the standard
+  Fama–French five-factor series (market excess return `mkt_excess`, size
+  `smb`, value `hml`, profitability `rmw`, investment `cma`) plus the
+  risk-free rate. Used in Stage 3 to compute excess returns and to estimate
+  rolling betas.
+- **Daily factors** (`data/factors_ff_5_daily.parquet`): the same series at
+  daily frequency. Used in Stage 3 to estimate within-month idiosyncratic
+  volatility and skewness via Fama–French three-factor residuals.
+
+## CRSP monthly stock data
+
+Downloaded with `dataset = "crsp_monthly"`, `version = "v2"`, and
+`add_ccm_links = TRUE`. The `v2` flag selects the post-2022 CRSP data
+format. Setting `add_ccm_links = TRUE` instructs `tidyfinance` to merge the
+CRSP–Compustat Merged (CCM) link table, appending the Compustat identifier
+`gvkey` to each CRSP observation. This link is required to join
+CRSP market data with Compustat accounting data in later stages.
+
+The `download_data()` function for CRSP monthly internally performs the
+following steps:
+
+- Retains only ordinary common shares (share codes 10 and 11).
+- Applies delisting return adjustments: if a stock is delisted and the
+  delisting return is missing, a penalty return of −30% is imputed for
+  NYSE/AMEX-listed stocks and −55% for NASDAQ-listed stocks, following
+  standard practice.
+- Computes the excess return `ret_excess` as the raw return minus the
+  monthly risk-free rate from the Fama–French data.
+- Computes lagged market capitalization `mktcap_lag` as the prior-month
+  end-of-month price times shares outstanding (in millions of dollars).
+  This lagged value is used as the value-weighting variable in portfolio
+  sorts.
+- Classifies each stock into an exchange group (`exchange`: NYSE, AMEX,
+  NASDAQ) and a broad industry category (`industry`: Manufacturing,
+  Finance, Utilities, etc.) based on the historical SIC code.
+- Adjusts trading volume for the known NASDAQ double-counting period.
+
+The resulting file `data/crsp_monthly.parquet` contains one row per
+permno–month combination for all ordinary common shares with valid
+return data within the sample period.
+
+## CRSP daily stock data
+
+Downloaded with `dataset = "crsp_daily"`, `version = "v2"`,
+`adjust_volume = TRUE`, and a set of additional columns beyond the default:
+`shrout` (shares outstanding), `dlyprc` (raw daily price), `dlyvol` (raw
+daily volume), `primaryexch` (primary exchange code), and `dlyfacprc`
+(cumulative adjustment factor for prices). Setting `adjust_volume = TRUE`
+corrects NASDAQ reported volume for the double-counting that affects the
+pre-2004 period following Gao and Ritter (2010).
+
+The daily data are not filtered at download time beyond the CRSP universe
+restrictions applied by `download_data()`. All filtering and aggregation
+happens in Stage 3a. Saved to `data/crsp_daily.parquet`.
+
+## Compustat annual data
+
+Downloaded with `dataset = "compustat_annual"`, `only_us = TRUE`, and
+53 additional columns covering balance-sheet items, income-statement items,
+and cash-flow statement items needed for the annual sorting variables.
+Setting `only_us = TRUE` restricts the download to firms with currency code
+`USD` and company type `"Domestic"`, excluding foreign private issuers.
+
+`tidyfinance` additionally restricts Compustat to firms with:
+- Industry format code `INDL` (industrial firms; excludes financial
+  statement formats for banks and insurance companies).
+- Data format code `STD` (standardised annual financial data).
+- Consolidation level `C` (consolidated statements).
+
+After download, **four post-processing steps** are applied before saving:
+
+1. **Replace negative sales, total assets, capital expenditures, and
+   inventory with missing values.** Negative values for these items are
+   economically implausible and typically reflect data errors or restatements.
+   Specifically, `sale`, `at`, `capx`, and `invt` are set to `NA` wherever
+   the raw value is strictly negative.
+
+2. **Filter to firms present in CRSP.** Only firms whose `gvkey` appears in
+   the CRSP monthly dataset are retained. This removes Compustat firms that
+   were never listed on a US exchange covered by CRSP and ensures that every
+   accounting observation can eventually be merged with a market-data
+   counterpart.
+
+3. **Drop the `at_lag` column** that `tidyfinance` appends by default (a
+   one-year lag of total assets). This column would conflict with the
+   manually constructed lags in Stage 3c, so it is removed here.
+
+The cleaned file is saved to `data/compustat_annual.parquet`.
+
+## Compustat quarterly data
+
+Downloaded with `dataset = "compustat_quarterly"`, `only_us = TRUE`, and
+14 additional columns: the cumulative adjustment factor for earnings per
+share (`ajexq`), total assets (`atq`), common equity (`ceqq`), shares
+outstanding (`cshprq`), EPS excluding extraordinary items (`epspxq`),
+quarterly income before extraordinary items (`ibq`), total liabilities
+(`ltq`), preferred stock — redemption value (`pstkrq`), preferred stock
+(`pstkq`), net sales (`saleq`), stockholders' equity (`seqq`), deferred
+taxes — balance sheet (`txdbq`), deferred taxes and investment tax credit
+(`txditcq`), and the currency code (`curcdq`).
+
+The same industry format, data format, and consolidation level restrictions
+as for the annual data apply. Three post-processing steps follow:
+
+1. **Drop the currency code column** (`curcdq`). Because `only_us = TRUE`
+   already restricts to USD-reporting firms, this column is uniformly `"USD"`
+   and carries no information.
+
+2. **Replace negative total assets and negative sales with missing values.**
+   `atq` and `saleq` are set to `NA` wherever the raw value is strictly
+   negative, for the same reasons as in the annual data.
+
+3. **Filter to firms present in CRSP** using the same `gvkey` filter
+   described for the annual data.
+
+The cleaned file is saved to `data/compustat_quarterly.parquet`.
