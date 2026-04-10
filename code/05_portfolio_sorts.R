@@ -26,11 +26,8 @@ grid <- read_parquet("data/portfolio_sort_grid.parquet") |>
   )
 
 process_task <- function(row, sorting_data, output_dir) {
-  start <- Sys.time()
-
   warnings_collected <- character(0)
   state <- new.env(parent = emptyenv())
-  state$cpr_elapsed <- NA_real_
 
   result <- tryCatch(
     withCallingHandlers(
@@ -97,7 +94,6 @@ process_task <- function(row, sorting_data, output_dir) {
             options_secondary$n_portfolios
         }
 
-        cpr_start <- Sys.time()
         portfolio_returns <- compute_portfolio_returns(
           sorting_data,
           sorting_variables,
@@ -108,11 +104,6 @@ process_task <- function(row, sorting_data, output_dir) {
           min_portfolio_size = min_portfolio_size,
           quiet = TRUE
         )
-        state$cpr_elapsed <- as.numeric(difftime(
-          Sys.time(),
-          cpr_start,
-          units = "secs"
-        ))
 
         long_short_return <- portfolio_returns |>
           compute_long_short_returns(direction = row$direction) |>
@@ -141,14 +132,10 @@ process_task <- function(row, sorting_data, output_dir) {
     error = function(e) e
   )
 
-  elapsed <- as.numeric(difftime(Sys.time(), start, units = "secs"))
-
   if (is.character(result)) {
     tibble(
       id = row$id,
       status = result,
-      elapsed_secs = elapsed,
-      cpr_elapsed_secs = state$cpr_elapsed,
       n_warnings = length(warnings_collected),
       warnings = paste(warnings_collected, collapse = " | ")
     )
@@ -156,8 +143,6 @@ process_task <- function(row, sorting_data, output_dir) {
     tibble(
       id = row$id,
       status = paste("error:", as.character(result)),
-      elapsed_secs = elapsed,
-      cpr_elapsed_secs = state$cpr_elapsed,
       n_warnings = length(warnings_collected),
       warnings = paste(warnings_collected, collapse = " | ")
     )
@@ -204,8 +189,6 @@ for (p in seq_along(unique_paths)) {
     paste0("sorting_variable_lag=", group_grid$sorting_variable_lag)
   )
 
-  group_start <- Sys.time()
-
   results <- future_lapply(
     seq_len(nrow(group_grid)),
     function(i) {
@@ -235,11 +218,10 @@ for (p in seq_along(unique_paths)) {
 
   message(
     sprintf(
-      "[%s] Finished %s — %d tasks in %.1f seconds",
+      "[%s] Finished %s — %d tasks",
       Sys.time(),
       basename(path),
-      nrow(group_grid),
-      as.numeric(difftime(Sys.time(), group_start, units = "secs"))
+      nrow(group_grid)
     )
   )
 }
