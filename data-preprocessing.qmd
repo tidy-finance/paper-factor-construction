@@ -1,0 +1,117 @@
+---
+title: "Data Preprocessing Pipeline"
+subtitle: "Steps, Filters, Adjustments, and Computations"
+format:
+  typst:
+    toc: true
+    toc-depth: 3
+    number-sections: true
+---
+
+# Overview
+
+This document describes every data preprocessing step implemented in the
+multilingual factor library. The goal is to give a precise, self-contained
+account of which data are retained, which observations are discarded, which
+raw values are adjusted, and which derived quantities are computed at each
+stage of the pipeline. The pipeline runs in five sequential stages, each
+corresponding to one or more R scripts in the `code/` directory.
+
+**Pipeline stages**
+
+| Stage | Script | Purpose |
+|-------|--------|---------|
+| 1 | `01_define_portfolio_sorts_grid.R` | Define the full grid of portfolio-sort configurations |
+| 2 | `02_download_raw_data.R` | Download and clean raw data from WRDS and Fama–French |
+| 3a | `03_sorting_variables_monthly.R` | Construct monthly sorting variables from CRSP |
+| 3b | `03_sorting_variables_quarterly.R` | Construct quarterly sorting variables from Compustat |
+| 3c | `03_sorting_variables_yearly.R` | Construct annual sorting variables from Compustat |
+| 4 | `04_sorting_variables_combination_lag.R` | Combine and lag sorting variables across frequencies |
+| 5 | `05_portfolio_sorts.R` | Execute portfolio sorts and compute long–short returns |
+
+The sample period covers January 1960 through December 2024. All intermediate
+datasets are stored as Apache Parquet files in the `data/` directory, enabling
+efficient column-level access in subsequent stages.
+
+# Stage 1 — Portfolio Sort Grid {#sec-grid}
+
+## Purpose
+
+Before any data are touched, the full combinatorial space of portfolio-sort
+configurations is enumerated. This grid drives the parallel execution in
+Stage 5 and ensures that every specification is uniquely identified and
+reproducible.
+
+## Sorting variable metadata
+
+A tibble called `sorting_variable_information` records metadata for each of
+the **57 sorting variables** included in the library. Each row contains:
+
+- `sorting_variable`: a short identifier (e.g., `"mom"`, `"bm"`, `"ivol"`).
+- `full_name`: the human-readable name of the characteristic.
+- `direction`: either `"top_minus_bottom"` (high values predict high returns)
+  or `"bottom_minus_top"` (low values predict high returns). This sign
+  convention is used in Stage 5 to define which portfolio leg is "long".
+- `citation`: the original academic reference.
+
+The 57 characteristics span six economic categories:
+
+- **Momentum / price signals**: `mom`, `rmom`, `rs`, `sue`, `52w`
+- **Size**: `me`
+- **Profitability**: `cbop`, `gpa`, `o`, `ope`, `roa`, `roe`, `tbi`
+- **Valuation**: `bm`, `cfm`, `dm`, `ebm`, `em`, `ndm`, `npy`, `ocm`, `rev`, `sm`
+- **Investment**: `aci`, `ag`, `dinv`, `dnoa`, `dpia`, `dwc`, `ig`, `noa`, `oa`
+- **Financing / issuance**: `cdi`, `csi`, `dbe`, `dcol`, `dfnl`, `ndf`, `nef`, `nxf`
+- **Market microstructure**: `hr`, `ol`, `rer`, `ami`, `beta`, `dtv`, `iskew`, `ivol`, `mdr`, `tur`
+
+## Full grid construction
+
+`expand_grid()` crosses all configuration dimensions to form the `full_grid`:
+
+| Dimension | Options | Count |
+|---|---|---|
+| Sorting variable | 57 variables prefixed `sv_` | 57 |
+| Exclude micro-cap stocks (NYSE size percentile) | 0%, 20% | 2 |
+| Exclude financial firms | TRUE / FALSE | 2 |
+| Exclude utility firms | TRUE / FALSE | 2 |
+| Exclude negative earnings | TRUE / FALSE | 2 |
+| Variable lag convention | `"3m"`, `"6m"`, `"ff"` | 3 |
+| Rebalancing frequency | `"monthly"`, `"annual"` | 2 |
+| Number of main portfolios (breakpoints) | 3, 5, 10 | 3 |
+| Sorting method | `"univariate"`, `"bivariate-dependent"`, `"bivariate-independent"` | 3 |
+| Minimum size threshold for breakpoints | none, 20th NYSE percentile | 2 |
+| Number of secondary portfolios | 2, 5 | 2 |
+| Exchanges used for breakpoints | NYSE only / NYSE+AMEX+NASDAQ | 2 |
+| Weighting scheme | EW, VW, capped VW | 3 |
+
+## Grid reduction — three filters applied
+
+Three logical filters prune the full grid to remove nonsensical or redundant
+configurations before assigning IDs.
+
+**Filter 1 — Secondary breakpoints for univariate sorts.**
+When `sorting_method == "univariate"`, there is only one sorting dimension and
+the secondary-breakpoints parameter is irrelevant. Rows with
+`breakpoints_secondary > 2` (the minimum option) are removed. For all
+remaining univariate rows, `breakpoints_secondary` is set to `NA`.
+
+**Filter 2 — Market equity excluded from bivariate sorts.**
+The variable `sv_me` (log market equity) is used as the first sorting
+dimension in all bivariate sorts (size is always the secondary sort). Adding
+`sv_me` as the primary variable in a bivariate sort would therefore be
+circular. All rows with `sorting_variable == "sv_me"` and
+`sorting_method %in% c("bivariate-dependent", "bivariate-independent")` are
+removed.
+
+**Filter 3 — Earnings-to-market with negative earnings.**
+`sv_em` (earnings-to-market) is defined only for firms with positive earnings
+(see Stage 3c). Combining it with `exclude_negative_earnings == FALSE` would
+yield a variable that is always missing after the earnings filter is skipped.
+All rows with `sorting_variable == "sv_em"` and
+`exclude_negative_earnings == FALSE` are removed.
+
+After filtering, the grid is sorted by `sorting_variable_lag` then
+`sorting_variable`, and a sequential integer `id` is assigned via
+`rowid_to_column()`. This `id` uniquely identifies each portfolio-sort task
+for parallel execution in Stage 5. The final grid is saved to
+`data/portfolio_sort_grid.parquet`.
