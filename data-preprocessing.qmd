@@ -246,3 +246,238 @@ as for the annual data apply. Three post-processing steps follow:
    described for the annual data.
 
 The cleaned file is saved to `data/compustat_quarterly.parquet`.
+
+# Stage 3a — Monthly Sorting Variables {#sec-monthly}
+
+## Purpose
+
+This stage builds all sorting variables that are derived from CRSP market
+data (prices, returns, volume, shares outstanding) and from daily return
+observations. It produces `data/sorting_variables_monthly.parquet` with
+one row per permno–month and 13 sorting variable columns prefixed `sv_`,
+plus a stock-age filter column.
+
+## Input data and initial joins
+
+The CRSP monthly dataset is loaded and the market capitalisation column
+`mktcap` is aliased as `int_me` (the prefix `int_` marks all intermediate
+variables that are not final sorting variables). Monthly liquidity
+statistics are aggregated from daily data (see below) and joined to the
+monthly panel. The Fama–French five-factor monthly series is also joined
+by date to make `mkt_excess`, `smb`, and `hml` available for rolling
+regressions.
+
+## Liquidity variables from daily data
+
+Daily observations are used to compute three liquidity measures that are
+later aggregated to monthly frequency.
+
+For each daily observation, three quantities are computed:
+
+- `int_daily_dollar_volume` = |`prc`| × adjusted volume `vol_adj`. The
+  absolute value of price is taken because CRSP encodes missing-price days
+  with negative prices (the bid–ask midpoint with a negative sign).
+- `int_daily_turnover` = `vol_adj` / `shrout`. Daily share turnover.
+- `int_amihud` = |`ret_excess`| / `int_daily_dollar_volume`. The raw
+  Amihud (2002) illiquidity ratio for a single day. Any non-finite value
+  (arising from zero dollar volume) is immediately replaced with `NA`.
+
+After computing these three quantities, all rows with any missing value in
+the three columns are dropped (`drop_na()`). The remaining observations are
+then grouped by permno and calendar month (`floor_date(date, "month")`) and
+aggregated:
+
+- `int_amihud` is summed across trading days within the month.
+- `int_daily_dollar_volume` is summed.
+- `int_daily_turnover` is summed.
+- `int_daily_obs` counts the number of non-missing trading days.
+
+These monthly aggregates are left-joined onto the monthly CRSP panel.
+
+## Five-year lagged market equity
+
+`tidyfinance::add_lagged_columns()` adds a five-year (60-month) lag of
+`int_me` for each permno, labelled `int_me_lag5y`. This is required to
+compute composite share issuance (`sv_csi`): the difference between the
+growth in log market equity and the cumulative total return over the same
+five-year window isolates the dilution component due to net equity issuance.
+
+`add_lagged_columns()` enforces a strict lag: the lagged value is only
+assigned if an observation at exactly the target date (current date minus
+the lag period) exists for that permno. If no observation falls on that
+exact date, the result is `NA`, preventing forward contamination.
+
+## CAPM beta estimation
+
+Rolling CAPM betas are estimated over a **60-month (five-year) lookback
+window** using `tidyfinance::estimate_betas()` with the model specification
+`ret_excess ~ mkt_excess`. For each permno–month, the function fits an
+OLS regression over up to the last 60 monthly observations and returns
+the slope coefficient on `mkt_excess`.
+
+The minimum number of observations required for a valid estimate defaults
+to 80% of the lookback (48 months). Months with fewer observations receive
+`NA`. The estimated slope is stored as `int_capm_beta`. Computation is
+parallelised across permnos using `furrr` (via `use_furrr = TRUE`).
+
+## Rolling Fama–French three-factor residuals (monthly)
+
+For each permno–month, the last residual from a rolling OLS regression of
+`ret_excess ~ mkt_excess + smb + hml` over the **most recent 36 months**
+is retained as `int_roll_residual`. This is computed using
+`tidyfinance::compute_rolling_value()` with `period = "month"`,
+`periods = 36`, and `min_obs = 12`. Permno–months where fewer than
+12 observations are available in the rolling window receive `NA`.
+
+The stored residual is the last in-sample residual of the 36-month window
+(the current month's residual), not a forecast. It is later used as
+input to the residual momentum calculation.
+
+## Rolling cumulative return windows
+
+Three cumulative gross-return products are computed via `slider::slide_index_prod()`
+over rolling windows aligned by calendar month:
+
+- `int_roll_ret_11m`: product of (1 + `ret`) over the **11 most recent
+  months** (current month inclusive), then subtract 1. Requires all
+  11 months to be present (`complete = TRUE`).
+- `int_roll_ret_5y`: product over the **60 most recent months**, then
+  subtract 1. Used for composite share issuance.
+- `int_roll_ret_47m`: product over the **47 most recent months**, then
+  subtract 1. Used for long-term reversal after an additional lag.
+
+`complete = TRUE` means a window that does not cover the full required
+span returns `NA` rather than a partial product.
+
+## Residual momentum
+
+`int_rmom_11m` is computed with `compute_rolling_value()` over an
+**11-month rolling window** (`periods = 11`, `min_obs = 11`) using the
+custom function:
+
+$$
+\text{int\_rmom\_11m} = \frac{\prod_{t-10}^{t}(1 + \hat{u}_t) - 1}{\text{sd}(\hat{u}_{t-10}, \ldots, \hat{u}_t)}
+$$
+
+where $\hat{u}_t$ is the FF3 residual `int_roll_residual` for month $t$.
+The numerator is the cumulative abnormal return and the denominator
+standardises by the time-series standard deviation of residuals in the
+window, following Blitz, Huij, and Martens (2011).
+
+## Return lags (skip-month convention)
+
+Momentum and reversal strategies conventionally skip one month between
+the signal measurement period and the portfolio formation date to avoid
+microstructure-induced bid–ask bounce. This is implemented with two
+separate lag operations:
+
+- **Skip one month**: `add_lagged_columns()` with `lag = months(1)` is
+  applied to `int_roll_ret_11m` and `int_rmom_11m`, producing
+  `int_roll_ret_11m_lag` (11-month return skipping the most recent month,
+  i.e., months $t{-}12$ through $t{-}2$) and `int_rmom_11m_lag`.
+- **Skip one year (13-month lag)**: `add_lagged_columns()` with
+  `lag = months(13)` is applied to `int_roll_ret_47m`, producing
+  `int_roll_ret_47m_lag`. This implements the standard long-term reversal
+  signal: returns from 60 months ago through 13 months ago, skipping the
+  most recent year.
+
+After the lagged versions are created, the raw unlagged rolling-return
+columns are removed from the dataset.
+
+## 52-week high price
+
+From the daily CRSP data, the maximum adjusted price `prc_adj` within each
+calendar month is computed, subject to a minimum of **3 daily observations**
+per month (`min_obs_for_max_price = 3`). Months with 3 or fewer
+daily observations receive `NA` for the monthly maximum. This gives
+`int_max_price_month`.
+
+A rolling **12-month maximum** of `int_max_price_month` is then computed
+with `slider::slide_index_max()` (`before = months(11)`, `complete = FALSE`),
+yielding `int_max_price_month_52w`. The current month's end-of-month price
+`prc` divided by this 12-month high is the 52-week-high signal.
+
+## Rolling liquidity aggregates (6-month windows)
+
+Three liquidity measures are aggregated over a **rolling 6-month window**
+using `slider::slide_index_sum()` (`before = months(5)`). Before dividing
+by the number of days, a minimum daily-observation threshold is enforced:
+if the total number of valid daily observations summed over the 6-month
+window is fewer than **50**, all three liquidity aggregates for that
+permno–month are set to `NA` by replacing the observation count with `NA`.
+
+After this threshold check:
+
+- `int_rolling_amihud` = sum of monthly `int_amihud` over 6 months /
+  total daily obs in window. Average daily Amihud illiquidity.
+- `int_rolling_dtv` = sum of monthly `int_daily_dollar_volume` over
+  6 months / total daily obs. Average daily dollar trading volume.
+- `int_rolling_turnover` = sum of monthly `int_daily_turnover` over
+  6 months / total daily obs. Average daily share turnover.
+
+## Within-month FF3 residuals (daily)
+
+Daily excess returns are joined with the daily Fama–French five-factor
+data (using only `mkt_excess`, `smb`, `hml` for FF3). Each daily
+observation is tagged with its calendar month via `floor_date(date, "month")`.
+
+**Minimum observations filter**: permno–month combinations with fewer than
+**15 daily observations** are discarded. This filter is implemented by
+counting daily observations per permno–month and retaining only those with
+`n >= 15`. The filtered daily panel is joined back via an inner join.
+
+For each qualifying permno–month, a Fama–French three-factor OLS regression
+is estimated on the daily observations within that month:
+
+$$\text{ret\_excess}_{d} = \alpha + \beta_1 \text{mkt\_excess}_d + \beta_2 \text{smb}_d + \beta_3 \text{hml}_d + \hat{u}_d$$
+
+The vector of residuals $\hat{u}_d$ is extracted. Three statistics are then
+computed per permno–month:
+
+- `int_max_ret`: maximum daily excess return in the month (maximum daily
+  return, MDR).
+- `int_res_ivol`: standard deviation of the FF3 residuals (idiosyncratic
+  volatility).
+- `int_res_iskew`: skewness of the FF3 residuals via `moments::skewness()`
+  (idiosyncratic skewness).
+
+These are joined onto the monthly CRSP panel with a left join so that
+permno–months without sufficient daily data receive `NA`.
+
+## Final sorting variable definitions
+
+Thirteen monthly sorting variables are computed as explicit transformations
+of the intermediate columns:
+
+| Variable | Formula | Description |
+|---|---|---|
+| `sv_csi` | $\ln(\text{int\_me}) - \ln(\text{int\_me\_lag5y}) - \ln(1 + \text{int\_roll\_ret\_5y})$ | Composite share issuance |
+| `sv_mom` | `int_roll_ret_11m_lag` | 12-2 month momentum |
+| `sv_rmom` | `int_rmom_11m_lag` | Residual momentum |
+| `sv_52w` | `prc` / `int_max_price_month_52w` | 52-week high ratio |
+| `sv_ami` | `int_rolling_amihud` | Amihud illiquidity |
+| `sv_beta` | `int_capm_beta` | CAPM market beta |
+| `sv_dtv` | `int_rolling_dtv` | Average daily dollar volume |
+| `sv_iskew` | `int_res_iskew` | Idiosyncratic skewness |
+| `sv_ivol` | `int_res_ivol` | Idiosyncratic volatility |
+| `sv_mdr` | `int_max_ret` | Maximum daily return |
+| `sv_tur` | `int_rolling_turnover` | Share turnover |
+| `sv_me` | $\ln(\text{mktcap} \times 10^6)$ | Log market equity (in dollars) |
+| `sv_rev` | `int_roll_ret_47m_lag` | Long-term reversal (60-13 month return) |
+
+## Post-computation filters
+
+**Non-finite removal.** All 13 `sv_*` columns are passed through
+`if_else(is.finite(.x), .x, NA_real_)`. This replaces `Inf`, `-Inf`,
+and `NaN` with `NA`. Division-by-zero (e.g., zero market equity for
+`sv_csi`, zero 52-week high for `sv_52w`) and log of non-positive numbers
+are the main sources of non-finite values.
+
+**Stock age filter.** For each permno, the number of years since the
+permno's first appearance in the CRSP monthly panel is computed as
+`filter_stock_age = days_since_first_obs / 365`. This column is retained
+in the output (not yet applied here) so that Stage 4 can enforce a
+minimum stock age of 2 years at the point of portfolio formation.
+
+The output file `data/sorting_variables_monthly.parquet` contains
+`permno`, `date`, `filter_stock_age`, and all 13 `sv_*` columns.
