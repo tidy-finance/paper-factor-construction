@@ -481,3 +481,348 @@ minimum stock age of 2 years at the point of portfolio formation.
 
 The output file `data/sorting_variables_monthly.parquet` contains
 `permno`, `date`, `filter_stock_age`, and all 13 `sv_*` columns.
+
+# Stage 3b — Quarterly Sorting Variables {#sec-quarterly}
+
+## Purpose
+
+Four sorting variables are derived from Compustat quarterly data:
+standardized unexpected earnings (`sv_sue`), revenue surprise (`sv_rs`),
+return on assets (`sv_roa`), and return on equity (`sv_roe`). These are
+saved to `data/sorting_variables_quarterly.parquet`.
+
+## Sample date restriction
+
+Compustat quarterly data quality is insufficient before 1972 for the
+earnings and revenue surprise measures. A minimum analysis date of
+**1 January 1972** is therefore applied to `sv_rs` and `sv_sue` after
+computation, discarding earlier observations for these two variables.
+`sv_roa` and `sv_roe` are not subject to this date restriction.
+
+## Intermediate variables
+
+Three intermediate quantities are computed from the raw quarterly columns:
+
+- `int_rps` = `saleq` / (`cshprq` × `ajexq`). Revenue per adjusted share:
+  quarterly net sales divided by the product of common shares outstanding
+  and the cumulative EPS adjustment factor. Adjusting by `ajexq` accounts
+  for stock splits and stock dividends so that per-share figures are
+  comparable across time.
+
+- `int_sue` = `epspxq` / `ajexq`. Adjusted EPS: earnings per share
+  excluding extraordinary items divided by the cumulative adjustment factor.
+
+- `int_beq` = book equity for the quarter. Computed as a coalesce of
+  three balance-sheet definitions in priority order:
+  1. `seqq` (stockholders' equity);
+  2. `ceqq` + `pstkq` (common equity plus preferred stock);
+  3. `atq` − `ltq` (total assets minus total liabilities).
+
+  To this base, the deferred tax asset is added using:
+  `coalesce(txditcq, txdbq, 0)` — deferred taxes and investment tax credit
+  (quarterly), with `txdbq` as fallback, and 0 if both are missing.
+  Preferred stock at redemption value `pstkrq` (or `pstkq` as fallback)
+  is then subtracted to arrive at common book equity.
+
+## Lagged columns
+
+Two sets of lags are added with `add_lagged_columns()`, using the
+`datadate` column as the date reference (Compustat's fiscal period end date,
+distinct from the later-assigned calendar `date`):
+
+- **One-quarter lag** (`lag = months(3)`): `atq` → `atq_lag1`,
+  `int_beq` → `int_beq_lag1`. These denominators are lagged to avoid
+  using contemporaneous total assets or book equity in the profitability
+  ratios.
+- **Four-quarter lag** (`lag = months(12)`): `int_rps` → `int_rps_lag4`,
+  `int_sue` → `int_sue_lag4`. Year-over-year comparisons are required
+  for the earnings and revenue surprise signals to remove seasonal patterns.
+
+## Standardized seasonal surprise
+
+Both `sv_rs` and `sv_sue` use the same functional form. For a given
+quarterly variable $x_t$, the year-over-year change is:
+$$\Delta x_t = x_t - x_{t-4}$$
+
+This change is then standardized by the rolling standard deviation of
+$\Delta x$ over the **8 most recent quarters** (minimum 6 quarters
+required), following the convention of Foster, Olsen, and Shevlin (1984):
+$$\text{standardized surprise}_t = \frac{\Delta x_t}{\text{sd}(\Delta x_{t-7}, \ldots, \Delta x_t)}$$
+
+Implemented via `compute_rolling_value()` with `period = "quarter"`,
+`periods = 8`, `min_obs = 6`. The custom function passed is
+`.f = ~ last(.x$int_delta) / sd(.x$int_delta)`, where `int_delta` holds
+$\Delta x_t$ and `last()` picks the most recent delta (the numerator).
+
+Before computing the rolling standard deviation, any non-finite delta
+(arising from missing lags) is set to `NA`, and rows with `NA` delta are
+dropped within the `compute_standardized_surprise()` helper function to
+avoid corrupting the rolling standard deviation computation.
+
+The two surprise measures are computed separately and joined back to the
+main quarterly data. After the join, both are filtered to observations on
+or after 1 January 1972.
+
+## Profitability ratios
+
+- `sv_roa` = `ibq` / `atq_lag1`. Quarterly income before extraordinary
+  items divided by lagged total assets.
+- `sv_roe` = `ibq` / `int_beq_lag1`. Quarterly income before extraordinary
+  items divided by lagged book equity.
+
+## Post-computation filter
+
+All four `sv_*` columns are passed through `if_else(is.finite(.x), .x, NA_real_)`
+to replace `Inf`, `-Inf`, and `NaN` with `NA`. Non-finite values arise
+most commonly from zero or negative denominators (e.g., negative book
+equity for `sv_roe`).
+
+The output file contains `gvkey`, `date`, and the four `sv_*` columns.
+
+# Stage 3c — Annual Sorting Variables {#sec-yearly}
+
+## Purpose
+
+The largest set of sorting variables (38 in total) is derived from
+Compustat annual data. This stage is also the most involved in terms of
+intermediate variable construction, lag structure, and industry-level
+adjustments.
+
+## Joining CRSP market data
+
+Before computing accounting-based variables, the Compustat annual dataset
+is enriched with two columns from the CRSP monthly data:
+`mktcap` (market capitalisation in millions) and `siccd` (historical SIC
+code). The join is on `gvkey` and `date`, using the link established in
+Stage 2. The `mktcap` column is then renamed `int_me` for use in
+valuation ratios.
+
+## Intermediate variables computed before lagging
+
+The following intermediate quantities are derived from raw Compustat items.
+All computations use the fiscal year-end observation; missing components
+are replaced with 0 via `replace_na()` unless stated otherwise.
+
+**Total debt** (`int_td`):
+$$\text{int\_td} = \text{dlc} + \text{dltt}$$
+Short-term debt plus long-term debt. If the resulting sum is zero or
+negative, `int_td` is set to `NA` (no meaningful positive debt level).
+
+**Current operating liabilities** (`int_col`):
+$$\text{int\_col} = \text{lct} - \text{replace\_na}(\text{dlc}, 0)$$
+Total current liabilities minus the current portion of long-term debt,
+isolating operating current liabilities.
+
+**Financial liabilities** (`int_fnl`):
+$$\text{int\_fnl} = \text{dlc} + \text{dltt} + \text{pstk}$$
+Total interest-bearing debt including preferred stock. Set to `NA` if all
+three components (`dlc`, `dltt`, `pstk`) are simultaneously missing, to
+distinguish genuine zero financial liabilities from missing data.
+
+**Real estate ratio** (`int_rer`):
+$$\text{int\_rer} = \begin{cases}
+(\text{ppenb} + \text{ppenls}) / \text{ppent} & \text{if datadate} < \text{1984-01-01} \\
+(\text{fatb} + \text{fatl}) / \text{ppegt} & \text{otherwise}
+\end{cases}$$
+The ratio of buildings and leaseholds to total property, plant, and
+equipment. The construction changes in 1984 because Compustat changed
+its PP&E reporting variables. `ppenb` and `ppenls` are used for the
+pre-1984 period; `fatb` and `fatl` for 1984 onward.
+
+**Two-digit SIC code** (`int_sic_2`): first two characters of `siccd`,
+used for industry-level real estate adjustment.
+
+**Capital expenditure to sales** (`int_ce`):
+$$\text{int\_ce} = \text{capx} / \text{sale} \quad \text{if sale} \geq 10, \text{ else NA}$$
+The minimum sales threshold of **\$10 million** (`min_sales = 10`) avoids
+extreme capex/sales ratios for very small firms, which can create spurious
+signals in the abnormal corporate investment measure.
+
+**Net operating assets** (`int_noa`):
+$$\text{int\_noa} = (\text{at} - \text{che}) - (\text{at} - \text{dlc} - \text{dltt} - \text{mib} - \text{pstk} - \text{ceq})$$
+Equivalently, total assets excluding cash minus total net financing (debt,
+minority interest, preferred stock, and common equity), following
+Hirshleifer et al. (2004).
+
+**Working capital** (`int_wc`):
+$$\text{int\_wc} = \text{act} - \text{che} - \text{lct} + \text{replace\_na}(\text{dlc}, 0)$$
+
+**Operating accruals helper** (`int_oa_helper`):
+$$\text{int\_oa\_helper} = \text{act} - \text{che} - \text{lct} + \text{dlc} + \text{replace\_na}(\text{txp}, 0)$$
+Adds taxes payable to the working capital definition; used only for the
+pre-1988 operating accruals calculation.
+
+**Ohlson O-Score components** (`int_o_1` through `int_o_7`):
+Seven financial distress indicators used in the Ohlson (1980) score:
+$\ln(\text{at})$, total debt/total assets, working capital/total assets,
+current liabilities/total assets, an indicator for liabilities exceeding
+assets, net income/total assets, and operating income/total liabilities.
+
+**Net income negativity flag** (`int_o_ni_negative`): 1 if `ni < 0`, else 0.
+
+**Operating profit** (`int_op`):
+$$\text{int\_op} = \text{revt} - \text{replace\_na}(\text{cogs}, 0) - \text{replace\_na}(\text{xsga}, 0) - \text{replace\_na}(\text{xint}, 0)$$
+Revenue minus cost of goods sold, SG&A expenses, and interest expense.
+Missing components are treated as 0, consistent with Fama and French (2015).
+
+**Book equity** (`int_be`): coalesce-based construction in priority order:
+1. `seq` (stockholders' equity);
+2. `ceq` + `pstk` (common equity plus preferred stock);
+3. `at` − `lt` (total assets minus total liabilities).
+
+Deferred taxes are added: `coalesce(txditc, txdb + itcb, 0)`.
+Preferred stock is subtracted using the best available measure:
+`coalesce(pstkrv, pstkl, pstk, 0)`.
+
+**Net debt** (`int_netdebt`):
+$$\text{int\_netdebt} = \text{dltt} + \text{dlc} + \text{pstk} + \text{replace\_na}(\text{dvpa}, 0) - \text{replace\_na}(\text{tstkp}, 0) - \text{che}$$
+
+**Enterprise book-to-market numerator and denominator**:
+$$\text{int\_ebm\_numerator} = \text{int\_netdebt} + \text{ceq} + \text{replace\_na}(\text{tstkp}, 0) - \text{replace\_na}(\text{dvpa}, 0)$$
+$$\text{int\_ebm\_denominator} = \text{int\_netdebt} + \text{int\_me}$$
+
+## Lag structure
+
+Multiple lags of the above variables are added with
+`add_lagged_columns()`, using `datadate` as the date reference and `gvkey`
+as the firm identifier. All lags enforce exact date matching:
+
+- **One-year lag** (`lag = years(1)`): 26 columns including `ceq`, `at`,
+  `emp`, `ppegt`, `invt`, `capx`, `ni`, `pstkrv`, `act`, `che`, `lct`,
+  `dlc`, `revt`, `xpp`, `drc`, `drlt`, `ap`, `xacc`, `wcap`, `int_ce`,
+  `int_col`, `int_fnl`, `int_noa`, `int_wc`, `int_oa_helper`,
+  `int_o_ni_negative`. Suffixed `_lag1`.
+- **Two-year lag** (`lag = years(2)`): `int_ce` → `int_ce_lag2`. Used in
+  the 3-year average capex/sales denominator for abnormal investment.
+- **Three-year lag** (`lag = years(3)`): `int_ce` → `int_ce_lag3`.
+- **Five-year lag** (`lag = years(5)`): `int_td` → `int_td_lag5`.
+  Used for composite debt issuance.
+
+## Industry adjustment for real estate ratio
+
+For each fiscal year and two-digit SIC industry group, the mean real
+estate ratio is computed across all firms that have a non-missing `int_rer`.
+This industry mean is only defined for industry-years with **at least
+5 firms** (`min_n_firms = 5`); industry-years with fewer firms receive `NA`
+for the industry mean. The industry average `int_rer_industry` is joined
+back to the firm-level data on `year` and `int_sic_2`.
+
+The firm-level `sv_rer` (real estate ratio) is then the deviation from the
+industry mean: `int_rer − int_rer_industry`. This removes cross-industry
+variation in property intensity and focuses on within-industry differences.
+
+## Sorting variable definitions
+
+**Financing and issuance (7 variables)**
+
+| Variable | Formula | Description |
+|---|---|---|
+| `sv_cdi` | $\ln(\text{int\_td}) - \ln(\text{int\_td\_lag5})$ | Composite debt issuance (5-year log change in total debt) |
+| `sv_dbe` | $(\text{ceq} - \text{ceq\_lag1}) / \text{at\_lag1}$ | Change in common book equity scaled by lagged assets |
+| `sv_dcol` | $(\text{int\_col} - \text{int\_col\_lag1}) / \text{at\_lag1}$ | Change in current operating liabilities |
+| `sv_dfnl` | $(\text{int\_fnl} - \text{int\_fnl\_lag1}) / \text{at\_lag1}$ | Change in financial liabilities |
+| `sv_ndf` | $(\text{dltis} - \text{dltr} + \text{replace\_na}(\text{dlcch},0)) / \frac{1}{2}(\text{at}+\text{at\_lag1})$ | Net debt financing |
+| `sv_nef` | $(\text{sstk} - \text{prstkc} - \text{dv}) / \frac{1}{2}(\text{at}+\text{at\_lag1})$ | Net equity financing |
+| `sv_nxf` | `sv_ndf` + `sv_nef` | Net external financing |
+
+**Growth and investment (11 variables)**
+
+| Variable | Formula | Description |
+|---|---|---|
+| `sv_hr` | $(\text{emp} - \text{emp\_lag1}) / \frac{1}{2}(\text{emp}+\text{emp\_lag1})$ | Hiring rate |
+| `sv_ol` | $(\text{cogs} + \text{xsga}) / \text{at}$ | Operating leverage |
+| `sv_rer` | `int_rer` − `int_rer_industry` | Industry-adjusted real estate ratio |
+| `sv_aci` | `int_ce` / $\frac{1}{3}$(`int_ce_lag1`+`int_ce_lag2`+`int_ce_lag3`) − 1 | Abnormal corporate investment |
+| `sv_ag` | $(\text{at} - \text{at\_lag1}) / \text{at\_lag1}$ | Asset growth |
+| `sv_dnoa` | $(\text{int\_noa} - \text{int\_noa\_lag1}) / \text{at\_lag1}$ | Change in net operating assets |
+| `sv_dpia` | $[(\text{ppegt}-\text{ppegt\_lag1}) + (\text{invt}-\text{invt\_lag1})] / \text{at\_lag1}$ | Change in PPE and inventories |
+| `sv_dwc` | $(\text{int\_wc} - \text{int\_wc\_lag1}) / \text{at\_lag1}$ | Change in working capital |
+| `sv_ig` | $(\text{capx} - \text{capx\_lag1}) / \text{capx\_lag1}$ | Investment growth |
+| `sv_dinv` | $(\text{invt} - \text{invt\_lag1}) / \frac{1}{2}(\text{at}+\text{at\_lag1})$ | Inventory changes |
+| `sv_noa` | `int_noa` / `at_lag1` | Net operating assets level |
+
+**Operating accruals** (`sv_oa`): the computation switches based on data
+availability:
+$$\text{sv\_oa} = \begin{cases}
+(\text{int\_oa\_helper} - \text{int\_oa\_helper\_lag1} - \text{dp}) / \text{at\_lag1} & \text{if year} < 1988 \\
+(\text{ni} - \text{oancf}) / \text{at\_lag1} & \text{if year} \geq 1988
+\end{cases}$$
+Before 1988, the cash-flow statement is not available in Compustat, so
+accruals are estimated from the balance-sheet approach (change in working
+capital minus depreciation). From 1988 onward, operating cash flows
+`oancf` are used directly.
+
+**Profitability (4 variables)**
+
+| Variable | Formula | Notes |
+|---|---|---|
+| `sv_cbop` | $(r - c - s + d - \Delta r - \Delta i - \Delta p + \Delta d_r + \Delta d_{rl} + \Delta a + \Delta x) / \text{at}$ | Cash-based operating profitability (Ball et al. 2016); revenue minus costs adjusted for changes in receivables, inventory, prepaid expenses, deferred revenue, payables, and accruals |
+| `sv_gpa` | $(\text{revt} - \text{cogs}) / \text{at}$ | Gross profitability |
+| `sv_ope` | `int_op` / `int_be` | Operating profitability scaled by book equity |
+| `sv_tbi` | `pi` / `ni`, if `pi > 0` and `ni > 0`, else `NA` | Taxable income to book income |
+
+The **Ohlson O-Score** (`sv_o`) is a linear combination of the seven
+distress components:
+$$\text{sv\_o} = -1.32 - 0.407 \ln(\text{at}) + 6.030 \frac{D}{\text{at}} - 1.430 \frac{\text{WC}}{\text{at}} + 0.076 \frac{\text{lct}}{\text{at}} - 1.720 \cdot \mathbf{1}[\text{lt}>\text{at}] - 2.370 \frac{\text{ni}}{\text{at}} - 1.830 \frac{\pi+\text{dp}}{\text{lt}} + 0.285 \cdot \mathbf{1}[\text{ni}<0 \text{ and } \text{ni}_{t-1}<0] - 0.521 \cdot \tilde{\Delta\text{ni}}$$
+
+where the last term is a winsorized net income change:
+$\tilde{\Delta\text{ni}} = \text{winsorize}\!\left((\text{ni}-\text{ni\_lag1})/(|\text{ni}|+|\text{ni\_lag1}|),\, 0.01\right)$,
+winsorizing at the 1st and 99th percentiles to limit the influence of
+very large earnings swings. The two-year consecutive losses indicator
+(`int_o_ni_negative & int_o_ni_negative_lag1`) requires that both the
+current and prior year show negative net income.
+
+**Valuation (9 variables)**
+
+| Variable | Formula | Notes |
+|---|---|---|
+| `sv_bm` | `int_be` / `int_me` | Book-to-market |
+| `sv_cfm` | `(ib + dp)` / `int_me`, if `(ib+dp) > 0`, else `NA` | Cash flow to market |
+| `sv_dm` | `(dlc + dltt)` / `int_me` | Debt to market |
+| `sv_ebm` | `int_ebm_numerator` / `int_ebm_denominator`, if both > 0, else `NA` | Enterprise book-to-market |
+| `sv_em` | `ib` / `int_me`, if `ib > 0`, else `NA` | Earnings to market |
+| `sv_ndm` | `int_netdebt` / `int_me` | Net debt to market |
+| `sv_sm` | `sale` / `int_me` | Sales to market |
+
+**Net payout yield** (`sv_npy`):
+$$\text{sv\_npy} = \frac{(\text{dvc} + \text{prstkc} + \min(0, \text{pstkrv}-\text{pstkrv\_lag1})) - (\text{sstk} - \max(0, \text{pstkrv}-\text{pstkrv\_lag1}))}{\text{int\_me}}$$
+Cash dividends plus stock repurchases plus decreases in preferred stock
+(capital returned to preferred holders) minus stock issuances plus
+increases in preferred stock (capital raised from preferred holders),
+all scaled by market equity.
+
+**Operating cash flow to market** (`sv_ocm`):
+$$\text{sv\_ocm} = \begin{cases}
+(\text{fopt} - \Delta\text{wcap}) / \text{int\_me} & \text{if year} < 1988 \\
+\text{oancf} / \text{int\_me} & \text{if year} \geq 1988
+\end{cases}$$
+Same pre/post-1988 data availability switch as for operating accruals.
+
+`filter_earnings = ib` is stored as a separate column (not an `sv_`
+variable). In Stage 5, the option `exclude_negative_earnings` filters on
+`filter_earnings > 0`, which is equivalent to restricting to
+firms with positive income before extraordinary items.
+
+## Post-computation filters and sign adjustments
+
+Three additional rules are applied after computing all 38 variables:
+
+1. **Zero hiring rate → NA** (`sv_hr = na_if(sv_hr, 0)`). An exact zero
+   hiring rate typically indicates missing employment data (`emp = 0` or
+   both years have the same rounding to zero), not a genuine lack of hiring.
+
+2. **Negative net payout yield → NA** (`sv_npy = if_else(sv_npy < 0, NA_real_, sv_npy)`).
+   Negative values indicate net capital raising (issuance exceeds payout).
+   By construction, the long–short sort on `sv_npy` targets firms returning
+   capital; negative observations are excluded.
+
+3. **Negative operating cash flow to market → NA**
+   (`sv_ocm = if_else(sv_ocm < 0, NA_real_, sv_ocm)`).
+   Negative operating cash flow is excluded so that `sv_ocm` purely
+   captures the magnitude of positive operating cash yield.
+
+After these three adjustments, the blanket finite filter
+`if_else(is.finite(.x), .x, NA_real_)` is applied to all `sv_*` columns.
+
+The output file `data/sorting_variables_yearly.parquet` contains
+`gvkey`, `date`, `filter_earnings`, and all 38 `sv_*` columns.
