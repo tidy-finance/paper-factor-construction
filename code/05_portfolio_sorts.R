@@ -250,14 +250,37 @@ write_parquet(diagnostics, "data/task_diagnostics.parquet")
 message("All done! ", nrow(diagnostics), " tasks processed.")
 
 # Clean up and finalize partition
+# Write exactly one Parquet file per (sorting_variable, sorting_variable_lag)
+# partition to avoid the small-files overhead that degrades Arrow read
+# performance when thousands of tiny per-task files remain on disk.
 
 temporary_folder <- "data/portfolio_returns_new"
-open_dataset("data/portfolio_returns/") |>
-  mutate(sorting_variable = str_remove(sorting_variable, "^sv_")) |>
-  write_dataset(
-    path = temporary_folder,
-    partitioning = c("sorting_variable", "sorting_variable_lag")
+
+ds <- open_dataset("data/portfolio_returns/") |>
+  mutate(sorting_variable = str_remove(sorting_variable, "^sv_"))
+
+partitions <- ds |>
+  select(sorting_variable, sorting_variable_lag) |>
+  distinct() |>
+  collect()
+
+for (i in seq_len(nrow(partitions))) {
+  sv  <- partitions$sorting_variable[i]
+  lag <- partitions$sorting_variable_lag[i]
+
+  out_dir <- file.path(
+    temporary_folder,
+    paste0("sorting_variable=", sv),
+    paste0("sorting_variable_lag=", lag)
   )
+  dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
+
+  ds |>
+    filter(sorting_variable == sv, sorting_variable_lag == lag) |>
+    select(-sorting_variable, -sorting_variable_lag) |>
+    collect() |>
+    write_parquet(file.path(out_dir, "part-0.parquet"))
+}
 
 fs::dir_delete("data/portfolio_returns/")
 fs::file_move(temporary_folder, "data/portfolio_returns/")
