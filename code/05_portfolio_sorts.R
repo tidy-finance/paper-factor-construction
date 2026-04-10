@@ -260,7 +260,7 @@ portfolio_performance <- arrow::open_dataset("data/portfolio_returns") |>
   select(sorting_variable, id, ret) |>
   group_by(sorting_variable, id) |>
   summarise(
-    sharpe_ratio = sqrt(12) * mean(ret) / sd(ret),
+    sharpe_ratio = sqrt(12) * mean(ret, na.rm = TRUE) / sd(ret, na.rm = TRUE),
     .groups = "drop"
   ) |>
   collect() |>
