@@ -826,3 +826,292 @@ After these three adjustments, the blanket finite filter
 
 The output file `data/sorting_variables_yearly.parquet` contains
 `gvkey`, `date`, `filter_earnings`, and all 38 `sv_*` columns.
+
+# Stage 4 — Combining and Lagging Sorting Variables {#sec-lag}
+
+## Purpose
+
+The three frequency-specific sorting variable datasets (monthly, quarterly,
+annual) are merged with the CRSP monthly return panel and converted into
+three ready-to-use datasets — one per lag convention. Each dataset contains
+one row per permno–month with the contemporaneous return data and all
+applicable sorting variable values lagged by the required amount.
+
+## Input data assembled
+
+The following datasets are loaded:
+
+- `data/sorting_variables_yearly.parquet` — split into filter columns
+  (prefix `filter_`) and sorting variable columns (prefix `sv_`).
+- `data/sorting_variables_quarterly.parquet` — sorting variable columns only.
+- `data/sorting_variables_monthly.parquet` — split into filter columns
+  and sorting variable columns.
+- `data/crsp_monthly.parquet` — columns `gvkey`, `permno`, `date`,
+  `ret_excess`, `exchange`, `industry`, `mktcap_lag`.
+
+## Stock age filter and earnings filter join
+
+Before any lag is applied, two filter columns are joined to the CRSP
+monthly panel using `tidyfinance::join_lagged_values()` with a lag window
+of `min_lag = months(3)` and `max_lag = months(12)`:
+
+- `filter_stock_age` from the monthly sorting variables (joined on
+  `permno`).
+- `filter_earnings` from the yearly sorting variables (joined on `gvkey`).
+
+`join_lagged_values()` performs a non-equi join: for each CRSP
+observation on date $t$, it looks up the most recent value of the filter
+variable from a date $s$ satisfying $t - 12\text{m} < s \leq t - 3\text{m}$.
+If no value falls in this window, the filter receives `NA`.
+
+Immediately after this join, rows where `filter_stock_age < 2` (i.e.,
+the firm has been in CRSP for less than 2 years) are discarded. The
+`filter_stock_age` column is then removed from the dataset. This ensures
+that very new listings — which may have unreliable or non-representative
+early returns — are excluded from all portfolio sorts. The earnings filter
+column is retained for use in Stage 5.
+
+## Lag conventions
+
+Three lag conventions are applied, each producing a separate dataset.
+Within each convention, sorting variable columns from all three
+frequencies are appended to the CRSP monthly panel using
+`join_lagged_values()`. The function finds the most recent available
+value of each sorting variable within the specified lag window relative
+to the portfolio-formation month.
+
+**Lag 3m** (`data/sorting_variables_lag_3m.parquet`)
+
+For each portfolio-formation month $t$, a sorting variable value from
+month $s$ is accepted if:
+$$t - 12\text{m} < s \leq t - 3\text{m}$$
+That is, the value must be at least 3 months old and at most 11 months
+old. This convention is appropriate for variables that are published with
+a short delay and do not require a longer waiting period. Monthly, quarterly,
+and annual sorting variables are all included.
+
+**Lag 6m** (`data/sorting_variables_lag_6m.parquet`)
+
+$$t - 12\text{m} < s \leq t - 6\text{m}$$
+The value must be at least 6 months old. This is a more conservative lag
+that provides additional protection against look-ahead bias for quarterly
+and annual accounting data that may not be publicly available within 3
+months of the fiscal year end.
+
+**Lag FF** (`data/sorting_variables_lag_ff.parquet`)
+
+$$t - 18\text{m} < s \leq t - 7\text{m}, \quad \text{with FF adjustment}$$
+This implements the Fama–French (1992) annual-rebalancing convention: for
+the portfolio formed in July of year $t+1$, accounting data from fiscal
+year $t$ are used. The `ff_adjustment = TRUE` flag in
+`join_lagged_values()` enforces this by first filtering the sorting
+variable data to the **last observation per firm per fiscal year** before
+applying the lag window. The extended maximum lag of 18 months accommodates
+firms with December fiscal year ends (data available by June, lagged to
+July is 7 months) and those with June fiscal year ends (data available by
+December, still lagged to July is 13 months). The 18-month upper bound
+ensures that data older than 1.5 years are not used.
+
+## Output structure
+
+Each of the three output files contains:
+- `permno`, `date` — identifiers and portfolio-formation date.
+- `ret_excess`, `exchange`, `industry`, `mktcap_lag` — return and
+  firm characteristics needed for portfolio construction and filtering.
+- `filter_earnings` — earnings filter for Stage 5.
+- All 57 `sv_*` columns with values lagged according to the convention.
+
+Rows where all sorting variable values are `NA` remain in the file; the
+column-level `NA` values are handled in Stage 5 when each specific
+sorting variable is selected.
+
+# Stage 5 — Portfolio Sorts {#sec-sorts}
+
+## Purpose
+
+For each row in the portfolio sort grid (Stage 1), a long–short factor
+return series is constructed using the lagged sorting variable dataset
+appropriate for that row's lag convention. All tasks are executed in
+parallel using `future.apply::future_lapply()` with multicore workers.
+
+## Data loading and task grouping
+
+Tasks in the grid are grouped by their lag convention (`parquet_path`).
+For each group, the corresponding lagged dataset is loaded once from
+disk, selecting only the columns needed for the tasks in that group
+(plus the required metadata columns). Within each group, tasks are
+further filtered to the `EW` weighting scheme at load time, because
+`compute_portfolio_returns()` always returns equal-weighted, value-weighted,
+and capped value-weighted returns simultaneously — running only the `EW`
+row avoids tripling the computation.
+
+## Per-task preprocessing filters
+
+Each task processes a slice of the data with one sorting variable column.
+Within the `process_task()` function, up to four sequential filters are
+applied to the data before portfolio construction, depending on the
+task's grid parameters:
+
+**Filter 1 — Micro-cap exclusion.**
+If `exclude_size == 0.2`, the 20th percentile of `mktcap_lag` among
+NYSE-listed stocks is computed for each calendar month. Stocks with a
+lagged market capitalisation below this threshold are dropped, regardless
+of their exchange. This removes the smallest 20% of NYSE firms and all
+stocks smaller than that NYSE threshold from AMEX and NASDAQ. A threshold
+of 0 leaves all stocks in.
+
+**Filter 2 — Financial firms.**
+If `exclude_financials == TRUE`, all rows with `industry == "Finance"` are
+removed. Financial firms often have leverage and profitability ratios that
+are not comparable to non-financial firms.
+
+**Filter 3 — Utility firms.**
+If `exclude_utilities == TRUE`, all rows with `industry == "Utilities"` are
+removed. Regulated utilities may have distorted investment and valuation
+ratios.
+
+**Filter 4 — Negative earnings.**
+If `exclude_negative_earnings == TRUE`, all rows with
+`filter_earnings <= 0` (i.e., income before extraordinary items is zero
+or negative) are removed. This is the pre-computed `ib` column joined in
+Stage 4.
+
+After the four optional filters, `drop_na()` is applied to all sorting
+variable columns present in the task slice, removing any remaining rows
+with missing values in the sorting variable.
+
+## Breakpoint options
+
+For each task, a `breakpoint_options` object is constructed for the main
+sort via `tidyfinance::breakpoint_options()`:
+
+- `n_portfolios`: the number of main portfolios (3, 5, or 10 from the
+  grid).
+- `breakpoint_exchanges`: the exchange(s) used to compute breakpoints.
+  Either only NYSE firms, or NYSE plus AMEX and NASDAQ.
+- `min_size_threshold`: if `breakpoints_min_size == 0.2` in the grid,
+  the breakpoints for the main sort are computed only from stocks above
+  the 20th NYSE size percentile. This is a separate parameter from the
+  `exclude_size` filter — the former excludes stocks from the sample
+  entirely, while the latter restricts only the set of stocks used to
+  compute cut-off percentiles.
+
+For bivariate sorts, a secondary `breakpoint_options` object is also
+constructed with `n_portfolios` equal to the `breakpoints_secondary`
+value from the grid (2 or 5) and the same exchange specification. The
+secondary sort always uses market capitalisation (`mktcap_lag`) as the
+secondary variable.
+
+## Portfolio return computation
+
+`tidyfinance::compute_portfolio_returns()` is called with:
+
+- `sorting_variables`: for univariate sorts, a single `sv_*` column; for
+  bivariate sorts, both the `sv_*` column and `mktcap_lag`.
+- `sorting_method`: `"univariate"`, `"bivariate-dependent"`, or
+  `"bivariate-independent"`.
+  - *Dependent*: breakpoints for the secondary variable (size) are
+    computed within each portfolio of the primary variable.
+  - *Independent*: breakpoints for both variables are computed
+    independently on the full sample; stocks are assigned to the
+    intersection cell.
+- `rebalancing_month`: `NULL` for monthly rebalancing (portfolios
+  reformed every month), or `7` for annual rebalancing in July (the
+  Fama–French convention).
+- `min_portfolio_size`: the minimum number of stocks required in each
+  portfolio cell for the cell to contribute to returns. For univariate
+  sorts this equals the number of main portfolios; for bivariate sorts
+  it equals the product of main and secondary portfolio counts.
+
+The function returns a panel of equal-weighted (`ret_excess_ew`),
+value-weighted (`ret_excess_vw`), and capped value-weighted
+(`ret_excess_vw_capped`) portfolio returns for each portfolio cell and
+date. The capped value-weighting caps any individual stock's weight at
+the 80th percentile of market capitalisation within the portfolio.
+
+## Long–short return computation
+
+`tidyfinance::compute_long_short_returns()` takes the portfolio return
+panel and computes the return spread between the top and bottom portfolios
+for each weighting scheme. The `direction` parameter determines the sign:
+
+- `"top_minus_bottom"`: long the highest-ranked portfolio, short the
+  lowest. Used for characteristics where high values predict high returns
+  (e.g., momentum, profitability, book-to-market).
+- `"bottom_minus_top"`: long the lowest-ranked portfolio, short the
+  highest. Used for characteristics where low values predict high returns
+  (e.g., size, beta, idiosyncratic volatility).
+
+The direction for each sorting variable comes from the
+`sorting_variable_information` metadata created in Stage 1.
+
+The resulting long–short returns are pivoted to long format with a
+`ret_type` column (`"ew"`, `"vw"`, `"vw_capped"`). Missing return values
+(arising from months where a portfolio has no constituents) are replaced
+with 0 via `replace_na(ret, 0)`.
+
+## Output structure and ID assignment
+
+Each task writes a single Parquet file to
+`data/portfolio_returns/sorting_variable=<sv>/sorting_variable_lag=<lag>/id_<id>.parquet`.
+The `id` column within the file encodes the weighting scheme offset:
+the EW task's `id` is `row$id`; VW uses `row$id + 1`; capped VW uses
+`row$id + 2`. This allows all three weighting schemes to share a single
+computation and to be identified by adjacent integer IDs in the final
+dataset.
+
+After all tasks complete, the partitioned folder is reorganised: the `sv_`
+prefix is stripped from the `sorting_variable` partition value, and the
+full dataset is rewritten to the final `data/portfolio_returns/` path
+partitioned by `sorting_variable` and `sorting_variable_lag`.
+
+Execution diagnostics (task ID, status, elapsed time, number of warnings,
+warning messages) are saved to `data/task_diagnostics.parquet`.
+
+# Summary of Key Design Choices {#sec-summary}
+
+The preprocessing pipeline embodies several deliberate methodological
+choices that affect which observations enter portfolio sorts:
+
+1. **Universe**: ordinary common shares on NYSE, AMEX, and NASDAQ with valid
+   return data in CRSP, restricted to US Compustat firms. Foreign private
+   issuers and preferred shares are excluded throughout.
+
+2. **Negative accounting values**: negative total assets, sales, capital
+   expenditures, and inventory are treated as data errors and set to `NA`
+   at the point of download.
+
+3. **Non-finite sorting variables**: division by zero and other
+   non-finite outcomes are replaced with `NA` after each variable is
+   computed, so they do not affect breakpoint calculations or portfolio
+   assignments.
+
+4. **Stock age**: stocks younger than 2 years (measured from first CRSP
+   appearance) are excluded at the lag-combination stage, before any
+   portfolio sort runs.
+
+5. **Minimum daily observations**: liquidity variables (Amihud, DTV,
+   turnover) require at least 50 daily observations over the 6-month
+   rolling window; within-month volatility and skewness estimation requires
+   at least 15 daily observations per month.
+
+6. **Pre/post-1988 accounting**: operating accruals and operating cash
+   flow to market switch construction methodology in 1988, the year from
+   which Compustat's cash-flow statement coverage becomes reliable.
+
+7. **Pre-1984 PP&E**: the real estate ratio switches construction in
+   1984 to reflect a change in Compustat's property, plant, and equipment
+   reporting variables.
+
+8. **Quarterly data quality**: standardized unexpected earnings and
+   revenue surprise variables are restricted to observations from 1972
+   onward due to insufficient data quality in earlier quarters.
+
+9. **Industry exclusions**: financial and utility firms can be optionally
+   excluded at the sort level via grid parameters; this is not a global
+   filter but a per-task choice captured in the grid.
+
+10. **Lag conventions**: three lag windows (3m, 6m, FF) are offered to
+    allow researchers to study sensitivity to look-ahead bias assumptions.
+    The FF convention additionally enforces the "last observation per
+    fiscal year" rule to match the Fama–French portfolio-formation calendar.
