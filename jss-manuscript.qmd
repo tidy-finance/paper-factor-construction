@@ -788,7 +788,7 @@ portfolios_dependent <- cross_section |>
 #| echo: false
 common_theme <- list(
   scale_x_continuous(labels = scales::percent, breaks = breakpoints_ag, expand = c(0.01, 0)),
-  scale_y_continuous(labels = scales::percent, breaks = breakpoints_size, expand = c(0.01, 0)),
+  scale_y_continuous(labels = scales::percent, expand = c(0.01, 0)),
   labs(x = "Asset growth rank", y = "Size rank"),
   theme(panel.grid = element_blank())
 )
