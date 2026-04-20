@@ -38,6 +38,7 @@ tf_dark_blue <- "#3B9AB2FF"
 
 library(ggforce)
 library(ggplot2)
+library(patchwork)
 
 pal <- grDevices::colorRampPalette(list(
   tf_dark_blue,
@@ -49,10 +50,6 @@ pal <- grDevices::colorRampPalette(list(
 
 scale_colour_discrete <- function(...) {
   discrete_scale("colour", palette = pal, ...)
-}
-
-scale_fill_discrete <- function(...) {
-  discrete_scale("fill", palette = pal, ...)
 }
 
 ggplot2::theme_set(
@@ -128,7 +125,7 @@ To illustrate the functionalities of `tidyfinance`, we load a minimal set of add
 #| message: false
 library(dplyr)
 library(tidyr)
-library(lubridate) # TODO: NEEDED?
+library(lubridate)
 ```
 
 ### Data sources {#sec-data-acquisition}
@@ -703,7 +700,6 @@ The resulting dataset merges monthly stock returns with the lagged sorting varia
 #| label: fig-breakpoints
 #| fig-cap: "Distribution of asset growth over time. Lines show the 33rd, 50th, and 66th percentiles of the cross-sectional distribution of asset growth in `sorting_data`, the firm-month panel used as input for portfolio construction."
 #| echo: false
-
 plot_data <- sorting_data |>
   drop_na() |>
   group_by(date) |>
@@ -743,6 +739,86 @@ With the sorting variable constructed and merged onto the monthly stock panel, w
 In portfolio sorts, stocks are ranked each period by their sorting variable and divided into quantile portfolios. Portfolio returns are equal-weighted or value-weighted averages of constituent stock returns. The long-short factor return is the difference between the extreme portfolios, for instance bottom minus top for asset growth, reflecting the negative premium documented by @cooper.2008. Key methodological decisions include the number of portfolios, the exchange universe for computing breakpoints, the weighting scheme, and the rebalancing frequency.
 
 The `tidyfinance` package implements this workflow through three functions. First, `breakpoint_options()` configures the sorting parameters: the number of quantile portfolios and which exchanges determine the breakpoints. Second, `compute_portfolio_returns()` takes the sorting data, applies the specified configuration, and returns portfolio-level returns. Third, `compute_long_short_returns()` constructs the hedge portfolio return from the extreme quantiles.
+
+```{r}
+#| label: illustrate-portfolio-helper
+cross_section <- sorting_data |>
+  filter(date == "2024-12-01") |>
+  mutate(
+    asset_growth   = rank(asset_growth) / n(),
+    mktcap_lag = rank(mktcap_lag)   / n()
+  )
+
+n_portfolio <- 2
+
+breakpoints_ag   <- cross_section |>
+  compute_breakpoints("asset_growth", breakpoint_options = breakpoint_options(n_portfolios = n_portfolio))
+
+portfolios_univariate <- cross_section |>
+  mutate(
+    ag_portfolio = assign_portfolio(pick(everything()), "asset_growth",
+                                    breakpoint_options = breakpoint_options(n_portfolios = n_portfolio))
+  )
+
+portfolios_independent <- cross_section |>
+  mutate(
+    ag_portfolio   = assign_portfolio(pick(everything()), "asset_growth",
+                                      breakpoint_options = breakpoint_options(n_portfolios = n_portfolio)),
+    size_portfolio = assign_portfolio(pick(everything()), "mktcap_lag",
+                                      breakpoint_options = breakpoint_options(n_portfolios = n_portfolio)),
+    portfolio_cell = paste0(ag_portfolio, "-", size_portfolio)
+  )
+
+portfolios_dependent <- cross_section |>
+  mutate(
+    ag_portfolio = assign_portfolio(pick(everything()), "asset_growth",
+                                    breakpoint_options = breakpoint_options(n_portfolios = n_portfolio))
+  ) |>
+  group_by(ag_portfolio) |>
+  mutate(
+    size_portfolio = assign_portfolio(pick(everything()), "mktcap_lag",
+                                      breakpoint_options = breakpoint_options(n_portfolios = n_portfolio)),
+    portfolio_cell = paste0(ag_portfolio, "-", size_portfolio)
+  ) |>
+  ungroup()
+```
+
+```{r}
+#| label: fig-illustrate-portfolio-helper
+#| echo: false
+common_theme <- list(
+  scale_x_continuous(labels = scales::percent, breaks = breakpoints_ag, expand = c(0.01, 0)),
+  scale_y_continuous(labels = scales::percent, breaks = breakpoints_size, expand = c(0.01, 0)),
+  labs(x = "Asset growth rank", y = "Size rank"),
+  theme(panel.grid = element_blank())
+)
+
+p1 <- portfolios_univariate |>
+  ggplot(aes(x = asset_growth, y = mktcap_lag, color = as.factor(ag_portfolio))) +
+  geom_point(alpha = 0.4, size = 0.8) +
+  labs(subtitle = "Univariate sort") +
+  common_theme
+
+p2 <- portfolios_independent |>
+  ggplot(aes(x = asset_growth, y = mktcap_lag, color = portfolio_cell)) +
+  geom_point(alpha = 0.4, size = 0.8) +
+  labs(subtitle = "Independent bivariate sort") +
+  common_theme
+
+p3 <- portfolios_dependent |>
+  ggplot(aes(x = asset_growth, y = mktcap_lag, color = portfolio_cell)) +
+  geom_point(alpha = 0.4, size = 0.8) +
+  labs(subtitle = "Dependent bivariate sort") +
+  common_theme
+
+p1 + p2 + p3 +
+  plot_annotation(
+    title    = "Portfolio sort approaches",
+    subtitle = glue::glue("December 2024 — {n_portfolio}×{n_portfolio} portfolios"),
+    theme    = theme(plot.title = element_text(face = "bold"))
+  )
+
+```
 
 #### Univariate sorts {#sec-univariate-sorts}
 
