@@ -35,9 +35,9 @@ bibliography: bibliography.bib
 #| echo: false
 #| message: false
 
-library(ggforce)
-library(ggplot2)
-library(patchwork)
+library("ggforce")
+library("ggplot2")
+library("patchwork")
 
 tf_dark_blue <- "#3B9AB2FF"
 
@@ -123,7 +123,7 @@ Once installed, load the `tidyfinance` package.
 
 ```{r}
 #| label: load-tidyfinance
-library(tidyfinance)
+library("tidyfinance")
 ```
 
 To illustrate the functionalities of `tidyfinance`, we load a minimal set of additional libraries for data manipulation and visualization.
@@ -131,9 +131,9 @@ To illustrate the functionalities of `tidyfinance`, we load a minimal set of add
 ```{r}
 #| label: load-libraries
 #| message: false
-library(dplyr)
-library(tidyr)
-library(lubridate)
+library("dplyr")
+library("tidyr")
+library("lubridate")
 ```
 
 ### Data sources {#sec-data-acquisition}
