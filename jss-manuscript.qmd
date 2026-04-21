@@ -911,7 +911,7 @@ bind_rows(decile_stats, ls_row) |>
 
 #### Bivariate sorts {#sec-bivariate-sorts}
 
-Bivariate (double) sorts control for a second variable, typically firm size (`mktcap_lag`), when forming portfolios. In dependent sorts, stocks are first sorted into groups by the secondary variable; within each group, they are then sorted on the main characteristic. In independent sorts, both sorts apply unconditionally, and portfolios form at the intersections. The factor return averages across the secondary dimension, isolating the effect of the primary variable after controlling for size.
+Bivariate (double) sorts control for a second variable, typically firm size (`mktcap_lag`), when forming portfolios. In dependent sorts, stocks are first sorted into groups by the secondary variable; within each group, they are then sorted on the main characteristic. In independent sorts, both sorts apply unconditionally, and portfolios form at the intersections. The factor return averages across the secondary dimension, isolating the effect of the primary variable after controlling for size. @fig-illustrate-portfolio-helper illustrates the three approaches for a single cross-section.
 
 ```{r}
 #| label: bivariate-sort-ag
