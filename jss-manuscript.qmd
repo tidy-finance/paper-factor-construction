@@ -1,5 +1,5 @@
 ---
-title: A transparent financial risk factor library
+title: A Transparent Financial Risk Factor Library
 format:
     jss-pdf:
         keep-tex: false
