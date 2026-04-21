@@ -9,9 +9,9 @@ author:
     orcid: 0000-0002-9937-0903
     email: christoph.frey@gmail.com
   - name: Christoph Scheuch
+    affiliation: Tidy Intelligence
     email: christoph@tidy-intelligence.com
     orcid: 0009-0004-0423-6819
-    affiliation: Tidy Intelligence
   - name: Stefan Voigt
     affiliation: University of Copenhagen
     orcid: 0000-0001-5619-3161
@@ -34,11 +34,12 @@ bibliography: bibliography.bib
 #| include: false
 #| echo: false
 #| message: false
-tf_dark_blue <- "#3B9AB2FF"
 
 library(ggforce)
 library(ggplot2)
 library(patchwork)
+
+tf_dark_blue <- "#3B9AB2FF"
 
 pal <- grDevices::colorRampPalette(list(
   tf_dark_blue,
@@ -55,7 +56,11 @@ scale_colour_discrete <- function(...) {
 ggplot2::theme_set(
   ggplot2::theme_bw() + ggplot2::theme(legend.position = "none")
 )
+```
 
+```{r}
+#| label: read-in-summary-information
+#| echo: false
 sorting_variable_information <- arrow::read_parquet(
   "data/sorting_variable_information.parquet"
 )
@@ -1093,7 +1098,7 @@ r_version <- renv_lock$R$Version
 
 We obtained the results in this paper using [R]{.proglang}~`{r} r_version` with the following packages: [tidyfinance]{.pkg}~`{r} pkg_version("tidyfinance")`, [dplyr]{.pkg}~`{r} pkg_version("dplyr")`, [tidyr]{.pkg}~`{r} pkg_version("tidyr")`, [ggplot2]{.pkg}~`{r} pkg_version("ggplot2")`, [lubridate]{.pkg}~`{r} pkg_version("lubridate")`, [arrow]{.pkg}~`{r} pkg_version("arrow")`, [stringr]{.pkg}~`{r} pkg_version("stringr")`, [forcats]{.pkg}~`{r} pkg_version("forcats")`, [ggdist]{.pkg}~`{r} pkg_version("ggdist")`, and [knitr]{.pkg}~`{r} pkg_version("knitr")`. CRAN hosts [R]{.proglang} and all packages at [https://CRAN.R-project.org/](https://CRAN.R-project.org/). `renv`~`{r} pkg_version("renv")` ensures full reproducibility of the computational environment.
 
-We publish all code, data workflows, and documentation at [https://github.com/tidy-finance/jss-multilingual-factor-library](https://github.com/tidy-finance/jss-multilingual-factor-library).
+We publish all code, data workflows, and documentation at [https://github.com/tidy-finance/jss-multilingual-factor-library](https://github.com/tidy-finance/jss-multilingual-factor-library). The code is released under the MIT License, which is compatible with the GNU General Public License (GPL).
 
 ## Acknowledgments {.unnumbered}
 

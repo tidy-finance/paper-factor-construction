@@ -45,7 +45,7 @@ sorting_variable_information <- tribble(
   "ndf"             , "Net Debt Financing"                      , "bottom_minus_top" , "\\cite{baker.2006}"                            ,
   "nef"             , "Net Equity Financing"                    , "bottom_minus_top" , "\\cite{baker.2006}"                            ,
   "nxf"             , "Net External Financing"                  , "bottom_minus_top" , "\\cite{baker.2006}"                            ,
-  "hr"              , "Hiring Rate"                             , "bottom_minus_top" , "\\cite{belo.2012}"                             ,
+  "hr"              , "Hiring Rate"                             , "bottom_minus_top" , "\\cite{belo.2014}"                             ,
   "ol"              , "Operating Leverage"                      , "top_minus_bottom" , "\\cite{novy-marx.2011}"                        ,
   "rer"             , "Real-Estate Ratio"                       , "top_minus_bottom" , "\\cite{titman.2004}"                           ,
   "ami"             , "Amihud Illiquidity"                      , "top_minus_bottom" , "\\cite{amihud.2002}"                           ,
