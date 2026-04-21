@@ -105,7 +105,7 @@ flowchart LR
 
 ### Data access {#sec-data-access}
 
-`tidyfinance` provides a single interface, `download_data()`, to `{r} nrow(list_supported_types())` dataset types: equity returns, fixed-income transactions, macroeconomic predictors, index constituents, and more. @tbl-data-sources lists all available sources. `list_supported_types()` and `list_supported_indexes()` return the full catalogue programmatically. `py-tidyfinance` provides the same interface in [Python]{.proglang}, so researchers can switch environments without rebuilding data workflows.
+`tidyfinance` provides a single interface, `download_data()`, to `{r} nrow(tidyfinance::list_supported_types())` dataset types: equity returns, fixed-income transactions, macroeconomic predictors, index constituents, and more. @tbl-data-sources lists all available sources. `list_supported_types()` and `list_supported_indexes()` return the full catalogue programmatically. `py-tidyfinance` provides the same interface in [Python]{.proglang}, so researchers can switch environments without rebuilding data workflows.
 
 | Source | Description | Example |
 |---|---|---|
