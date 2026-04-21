@@ -112,10 +112,11 @@ install.packages("tidyfinance")
 
 You can install the development version of `tidyfinance` from [GitHub](https://github.com/tidy-finance/r-tidyfinance) via:
 
+First install the [pak]{.pkg} package if needed, then install the development version:
+
 ```{r}
 #| label: install-tidyfinance-dev
 #| eval: false
-# install.packages("pak")
 pak::pak("tidy-finance/r-tidyfinance")
 ```
 
@@ -305,18 +306,13 @@ obs <- df_data[df_data$observed, ]
 miss <- df_data[!df_data$observed, ]
 std_win_left <- 2
 std_win_right <- 13
-std_matched <- 11 # Oct Y (most recent observed in [2,13])
+std_matched <- 11
 
-# FF window: lag=7, max_lag=18 from Jul Y+1 (pos 20), with ff_adjustment
-# Window [2, 13] same as standard, but ff_adjustment anchors ALL months
-# (Jul Y through Jun Y+1) to the SAME rebalancing-date match
 ff_win_left <- 2
 ff_win_right <- 13
-ff_matched <- 11 # Oct Y (most recent observed in [2,13])
+ff_matched <- 11
 
 target <- 20
-
-# Build rounded-rectangle polygons for geom_shape
 tiles <- function(rows, cx, grp_offset = 0, alpha_col = NULL, xsize = ts) {
   do.call(
     rbind,
@@ -1006,7 +1002,6 @@ tab <- sorting_variable_information |>
     col.names = c("Variable", "Name", "", "Main reference")
   )
 
-# Replace the second column spec (l -> p{5cm}) to allow line wrapping in Name column
 tab[1] <- sub("llll", "lp{5cm}ll", tab[1], fixed = TRUE)
 tab
 ```
