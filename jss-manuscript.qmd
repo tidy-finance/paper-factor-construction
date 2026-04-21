@@ -1030,7 +1030,7 @@ arrow::open_dataset(
   theme(axis.text.y = element_text(size = 7))
 ```
 
-To download factor returns from the factor library, simply call
+@fig-sharpe-ratio shows the distribution of Sharpe ratios across all specifications for each sorting variable. Most factors exhibit substantial variation, confirming that construction choices have material effects on factor performance. To download factor returns from the factor library, simply call
 ```{r}
 #| label: download-factor-library
 asset_growth_returns <- download_data(
