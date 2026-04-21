@@ -1018,7 +1018,7 @@ tab
 #| out-width: 100%
 #| dpi: 300
 #| fig-pos: p
-#| fig-cap: "\\textbf{Sharpe ratios across construction choices.} Ridge plots show the distribution of annualized Sharpe ratios of long-short return differentials for each sorting variable across all `{r} nrow(portfolio_sort_grid)` specifications illustrated in @tbl-sorting-decisions, based on the available sample period per factor. Most variables exhibit substantial variation across specifications, underscoring the sensitivity of factor returns to construction choices."
+#| fig-cap: "Sharpe ratios across construction choices. Ridge plots show the distribution of annualized Sharpe ratios of long-short return differentials for each sorting variable across all `{r} nrow(portfolio_sort_grid)` specifications illustrated in @tbl-sorting-decisions, based on the available sample period per factor. Most variables exhibit substantial variation across specifications, underscoring the sensitivity of factor returns to construction choices."
 #| label: fig-sharpe-ratio
 #| echo: false
 #| warning: false
