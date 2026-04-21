@@ -55,8 +55,11 @@ set_wrds_credentials()
 Then run the scripts in order:
 
 ```bash
+Rscript code/01_define_portfolio_sorts_grid.R
 Rscript code/02_download_raw_data.R
-Rscript code/03_sorting_variables_yearly.R   # (and monthly/quarterly variants)
+Rscript code/03_sorting_variables_monthly.R
+Rscript code/03_sorting_variables_quarterly.R
+Rscript code/03_sorting_variables_yearly.R
 Rscript code/04_sorting_variables_combination_lag.R
 Rscript code/05_portfolio_sorts.R
 Rscript code/06_analyze_diagnostics.R
@@ -80,7 +83,7 @@ quarto render jss-manuscript.qmd
 ## Related resources
 
 - R package: [tidy-finance/r-tidyfinance](https://github.com/tidy-finance/r-tidyfinance) on CRAN
-- Python package: `py-tidyfinance`
+- Python package: [tidy-finance/py-tidyfinance](https://github.com/tidy-finance/py-tidyfinance)
 - Interactive dashboard: [factors.tidy-finance.org](https://factors.tidy-finance.org)
 - Tidy Finance textbook: [tidy-finance.org](https://tidy-finance.org)
 
