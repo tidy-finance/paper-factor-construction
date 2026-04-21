@@ -88,7 +88,7 @@ Our core focus is to present the [R]{.proglang} package `tidyfinance`. We walk t
 ```{mermaid}
 %%| label: fig-workflow-diagram
 %%| fig-cap: "Research workflow for factor construction with `tidyfinance`, illustrating the three-stage pipeline and the package functions involved at each step."
-%%| fig-width: 6
+%%| fig-width: 7.5
 flowchart LR
     A("Data acquisition<br><code>download_data()</code>") --> B("Variable construction<br><code>add_lagged_columns()</code><br><code>join_lagged_values()</code>")
     B -->  C("Portfolio returns
@@ -259,7 +259,7 @@ The next step merges annual sorting variables onto the monthly CRSP stock panel 
 ```{r}
 #| label: fig-lagging-illustration
 #| fig-cap: "Two lagging mechanisms in `add_lagged_columns()`. Each column represents a data series with observed (filled) and missing (hollow) cells. Dashed rectangles mark the search window; arrows show which value gets matched to each target month."
-#| fig-width: 6
+#| fig-width: 7.5
 #| fig-height: 3
 #| echo: false
 ts <- 0.94
@@ -864,7 +864,7 @@ factor_returns_ag <- portfolio_returns |>
 
 ```{r}
 #| label: tbl-univariate-sort-ag
-#| tbl-cap: "Time-series averages of annualised monthly excess returns for asset growth decile portfolios. Portfolios are formed annually in July using NYSE breakpoints, rebalanced annually. Means are annualised (multiplied by 12). The $t$-statistic tests whether the mean monthly excess return differs from zero. The L/S row is the long-short portfolio (bottom minus top decile)."
+#| tbl-cap: "Time-series averages of annualised monthly excess returns for asset growth decile portfolios. Portfolios are formed annually in July using NYSE breakpoints, rebalanced annually. Means are annualised (multiplied by 12). The $t$~statistic tests whether the mean monthly excess return differs from zero. The L/S row is the long-short portfolio (bottom minus top decile)."
 #| echo: false
 decile_stats <- portfolio_returns |>
   drop_na() |>
@@ -1008,7 +1008,7 @@ tab
 
 ### The factor library {#sec-library-practice}
 ```{r}
-#| fig-width: 6
+#| fig-width: 7.5
 #| fig-height: 9
 #| out-width: 100%
 #| dpi: 300
