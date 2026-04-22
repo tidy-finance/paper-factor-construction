@@ -1105,7 +1105,7 @@ bind_rows(
       `VW $t$~stat` = mean(ret_excess_vw) / (sd(ret_excess_vw) / sqrt(n()))
     )
 ) |>
-  knitr::kable(digits = 3, escape = TRUE)
+  knitr::kable(digits = 3, escape = FALSE)
 ```
 
 The AG premium survives size control, suggesting it captures an investment effect distinct from the size factor. The `sorting_method` argument switches between dependent and independent double sorts, so researchers can inspect both configurations without modifying the pipeline.
@@ -1137,7 +1137,7 @@ tibble::tribble(
 ) |>
   knitr::kable(
     booktabs = TRUE,
-    escape = TRUE,
+    escape = FALSE,
     col.names = c("Preprocessing choice", "Argument", "Options", "Description")
   )
 ```
@@ -1242,7 +1242,7 @@ tab <- sorting_variable_information |>
   dplyr::select(sorting_variable, full_name, direction, citation) |>
   knitr::kable(
     format = "latex",
-    escape = TRUE,
+    escape = FALSE,
     booktabs = TRUE,
     longtable = TRUE,
     col.names = c("Variable", "Name", "", "Main reference")
