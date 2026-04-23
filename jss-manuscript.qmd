@@ -22,8 +22,7 @@ author:
     email: patrickw@ru.is
 
 abstract: |
-  We introduce `tidyfinance`, an [R]{.proglang} package on CRAN for the core data workflow in empirical asset pricing: downloading stock returns and financial statements, constructing sorting variables, forming quantile portfolios, and computing long-short factor returns. A unified `download_data()` interface covers WRDS (CRSP, Compustat), Ken French's Data Library, FRED, and further sources. Modular functions handle fiscal-year lagging, breakpoint computation, and portfolio aggregation; every construction choice has a documented default and can be varied independently, making pipelines transparent and reproducible. We illustrate with a risk factor library covering `{r} arrow::read_parquet("data/sorting_variable_information.parquet") |> nrow()` sorting variables across `{r} arrow::read_parquet("data/portfolio_sort_grid.parquet") |> nrow()` precomputed specifications; construction choices shift Sharpe ratios enough to reverse the sign of the premium for several factors. A programmatic API, an interactive dashboard at [factors.tidy-finance.org](https://factors.tidy-finance.org), and `py-tidyfinance` extend access to [Python]{.proglang} researchers.
-
+  We introduce `tidyfinance`, an [R]{.proglang} and [Python]{.proglang} package for the core data workflow in empirical asset pricing: downloading stock returns and financial statements, constructing sorting variables, forming quantile portfolios, and computing long-short factor returns. A unified `download_data()` interface covers WRDS (CRSP, Compustat), Ken French's Data Library, FRED, and further sources. Modular functions handle fiscal-year lagging, breakpoint computation, and portfolio aggregation; every construction choice has a documented default and can be varied independently, making pipelines transparent and reproducible. We illustrate with a risk factor library covering `{r} arrow::read_parquet("data/sorting_variable_information.parquet") |> nrow()` sorting variables across `{r} arrow::read_parquet("data/portfolio_sort_grid.parquet") |> nrow()` precomputed specifications, showing that varying construction choices can shift Sharpe enough to reverse the sign of the premium for several factors. The library is accessible through a programmatic API and an interactive dashboard at [factors.tidy-finance.org](https://factors.tidy-finance.org).
 keywords: [financial risk factors, reproducible research, asset pricing, API design, R, Python]
 keywords-formatted: [financial risk factors, reproducible research, asset pricing, API, "[R]{.proglang}", "[Python]{.proglang}"]
 
@@ -1105,7 +1104,7 @@ bind_rows(
       `VW $t$~stat` = mean(ret_excess_vw) / (sd(ret_excess_vw) / sqrt(n()))
     )
 ) |>
-  knitr::kable(digits = 3, escape = FALSE)
+  knitr::kable(digits = 3, escape = TRUE)
 ```
 
 The AG premium survives size control, suggesting it captures an investment effect distinct from the size factor. The `sorting_method` argument switches between dependent and independent double sorts, so researchers can inspect both configurations without modifying the pipeline.
@@ -1137,7 +1136,7 @@ tibble::tribble(
 ) |>
   knitr::kable(
     booktabs = TRUE,
-    escape = FALSE,
+    escape = TRUE,
     col.names = c("Preprocessing choice", "Argument", "Options", "Description")
   )
 ```
@@ -1242,7 +1241,7 @@ tab <- sorting_variable_information |>
   dplyr::select(sorting_variable, full_name, direction, citation) |>
   knitr::kable(
     format = "latex",
-    escape = FALSE,
+    escape = TRUE,
     booktabs = TRUE,
     longtable = TRUE,
     col.names = c("Variable", "Name", "", "Main reference")
