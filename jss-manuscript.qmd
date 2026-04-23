@@ -37,6 +37,11 @@ execute:
 #| echo: false
 #| message: false
 
+library("tidyfinance")
+library("dplyr")
+library("tidyr")
+library("lubridate")
+
 library("ggforce")
 library("ggplot2")
 library("patchwork")
@@ -75,13 +80,14 @@ Factor returns drive empirical asset pricing tests, portfolio allocation, and pe
 
 No widely adopted, transparent source standardizes factor construction. Current practice relies on informal publication of factor series without code or documented workflows, limiting reproducibility, comparability, and extension. Existing resources illustrate the gap: the French Data Library [@fama.2023] provides canonical factors but no code; the Open Source Asset Pricing Project [@chen.2022] focuses on replication; the global factor database [@jensen.2023] targets [Python]{.proglang} only. No unified, open-source alternative exists.
 
-We introduce `tidyfinance` ([R]{.proglang}, on CRAN): a modular framework for reproducible factor construction. The library covers `{r} sorting_variable_information |> nrow()` sorting variables and `{r} portfolio_sort_grid |> nrow()` total specifications. We document and test every design choice (breakpoints, weighting, rebalancing, sample inclusion) and expose each as a configurable parameter.
+We introduce `tidyfinance`, a multilanguage framework ([R]{.proglang} on CRAN, [Python]{.proglang} on PyPI) for reproducible factor construction.^[All examples in this paper use the [R]{.proglang} implementation, but the exact same interface is provided in [Python]{.proglang} via the same package `tidyfinance`, so researchers can switch environments without rebuilding data workflows.] The library covers `{r} sorting_variable_information |> nrow()` sorting variables and `{r} portfolio_sort_grid |> nrow()` total specifications. We document and test every design choice (breakpoints, weighting, rebalancing, sample inclusion) and expose each as a configurable parameter.
 
-The package implements an end-to-end pipeline: data acquisition from the Wharton Research Data Services (WRDS), Compustat, and other common providers; automated variable construction with standard lagging and cleaning routines; and portfolio aggregation with configurable sorting. A programmatic application programming interface (API) provides access to precomputed factor series with versioning and batch retrieval. An interactive dashboard at [factors.tidy-finance.org](https://factors.tidy-finance.org) makes the library accessible without code. [Python]{.proglang} researchers access the same data download functions and factor library via `py-tidyfinance`. All software and workflows are publicly available to enable replication, sensitivity analysis, and extension.
+The package implements an end-to-end pipeline: data acquisition from the Wharton Research Data Services (WRDS), Compustat, and other common providers; automated variable construction with standard lagging and cleaning routines; and portfolio aggregation with configurable sorting. A programmatic application programming interface (API) provides access to precomputed factor series with versioning and batch retrieval. An interactive dashboard at [factors.tidy-finance.org](https://factors.tidy-finance.org) makes the library accessible without code. All software and workflows are publicly available to enable replication, sensitivity analysis, and extension.
 
 @hou.2020 replicate 452 cross-sectional anomalies and find that most fail to survive out-of-sample, attributing failures in part to undocumented construction variation across studies. @chen.2022 respond by publishing code for 212 anomaly portfolios, but their library targets a fixed, documented set rather than a reconfigurable pipeline. @jensen.2023 provide a global factor database without an open construction workflow. `tidyfinance` fills the gap all three leave open: every construction decision is explicit, configurable, and version-controlled, so researchers can trace and vary any assumption systematically.
 
-Among [R]{.proglang} packages for quantitative finance, [tidyquant]{.pkg} [@dancho.2026], [PerformanceAnalytics]{.pkg} [@peterson.2026], and [quantmod]{.pkg} [@ryan.2025] support time-series retrieval and portfolio performance analytics. None begins at raw accounting and return data, applies the cleaning and lagging conventions factor construction requires, or exposes construction choices as configurable parameters. `tidyfinance` provides this upstream pipeline in [R]{.proglang} with a consistent API; `py-tidyfinance` extends the same interface to [Python]{.proglang}. Researchers access standardized factor series without rebuilding data workflows in each environment.
+Among [R]{.proglang} packages for quantitative finance, [tidyquant]{.pkg} [@dancho.2026], [PerformanceAnalytics]{.pkg} [@peterson.2026], and [quantmod]{.pkg} [@ryan.2025] support time-series retrieval and portfolio performance analytics. None begins at raw accounting and return data, applies the cleaning and lagging conventions factor construction requires, or exposes construction choices as configurable parameters. `tidyfinance` provides this upstream pipeline with a consistent API across both languages. Hence, it enables researchers to access standardized factor series without rebuilding data workflows in each environment.
+
 
 ## Package overview {#sec-overview}
 
@@ -92,7 +98,7 @@ Among [R]{.proglang} packages for quantitative finance, [tidyquant]{.pkg} [@danc
 ```{mermaid}
 %%| label: fig-workflow-diagram
 %%| fig-cap: "Research workflow for factor construction with `tidyfinance`, illustrating the three-stage pipeline and the package functions involved at each step."
-%%{init: {'flowchart': {'rankSpacing': 30, 'padding': 15}, 'themeVariables': {'fontSize': '12x'}}}%%
+%%{init: {'flowchart': {'rankSpacing': 30, 'padding': 15}, 'themeVariables': {'fontSize': '10x'}}}%%
 
 flowchart LR
     A("<b>Data acquisition</b><br/><br/><code>download_data()</code><br/><br/><br/>")
@@ -107,7 +113,7 @@ flowchart LR
 
 ### Data access {#sec-data-access}
 
-`tidyfinance` provides a single interface, `download_data()`, to `{r} nrow(tidyfinance::list_supported_types())` dataset types: equity returns, fixed-income transactions, macroeconomic predictors, index constituents, and more. @tbl-data-sources lists all available sources. `list_supported_types()` and `list_supported_indexes()` return the full catalogue programmatically. The same interface is provided in [Python]{.proglang} via `tidyfinance`, so researchers can switch environments without rebuilding data workflows.
+`tidyfinance` provides a single interface, `download_data()`, to `{r} nrow(tidyfinance::list_supported_types())` dataset types: equity returns, fixed-income transactions, macroeconomic predictors, index constituents, and more. @tbl-data-sources lists all available sources. `list_supported_types()` and `list_supported_indexes()` return the full catalogue programmatically.
 
 ```{=latex}
 \begingroup
@@ -194,10 +200,6 @@ flowchart LR
 \endgroup
 ```
 
-
-
-
-
 ### Standard data cleaning {#sec-cleaning-conventions}
 
 `download_data()` applies standard cleaning conventions automatically. For CRSP monthly data (version 2), the function restricts the universe to common equity securities traded on NYSE, AMEX, or NASDAQ. It computes market capitalisation as shares outstanding times price, constructs a one-month lag for portfolio weights, and maps exchange codes and SIC codes to readable labels. Excess returns are raw returns minus the Fama-French risk-free rate; observations with missing returns or market capitalisation are dropped. CRSP version 2 incorporates delisting returns directly, eliminating the need for a separate adjustment.
@@ -206,40 +208,7 @@ For Compustat annual data, `download_data()` restricts to industrial-format cons
 
 ## Vignette: A case study in factor construction {#sec-ag}
 
-We walk through the construction of the asset growth factor from raw CRSP and Compustat data to long-short portfolio returns, implementing each stage of @fig-workflow-diagram in turn. Each step uses a `tidyfinance` function and generalises directly to any sorting variable in the factor library.
-
-### Installation and setup {#sec-installation}
-
-You can install the released version of `tidyfinance` [from CRAN](https://cran.r-project.org/package=tidyfinance) via:
-
-```{r}
-#| label: install-tidyfinance-cran
-#| eval: false
-install.packages("tidyfinance")
-```
-
-To install the development version of `tidyfinance` from [GitHub](https://github.com/tidy-finance/r-tidyfinance), first install the [pak]{.pkg} package if needed, then install the development version:
-
-```{r}
-#| label: install-tidyfinance-dev
-#| eval: false
-pak::pak("tidy-finance/r-tidyfinance")
-```
-
-Once installed, load `tidyfinance` and a minimal set of packages for data manipulation and visualisation.
-
-```{r}
-#| label: load-tidyfinance
-library("tidyfinance")
-```
-
-```{r}
-#| label: load-libraries
-#| message: false
-library("dplyr")
-library("tidyr")
-library("lubridate")
-```
+We walk through the construction of the asset growth factor from raw CRSP and Compustat data to long-short portfolio returns, implementing each stage of @fig-workflow-diagram in turn. Each step uses a `tidyfinance` function and generalises directly to any sorting variable in the factor library.^[Installation of the `tidyfinance` package is described in the appendix in  @sec-installation Installation and setup.]
 
 ### Data download {#sec-data-download}
 
@@ -1344,6 +1313,40 @@ Stefan Voigt is grateful to the Danish Finance Institute for financial support.
 \renewcommand{\thefigure}{IA-\arabic{figure}}
 
 # Internet Appendix {.unnumbered}
+
+## Installation and setup {#sec-installation}
+
+You can install the released version of `tidyfinance` [from CRAN](https://cran.r-project.org/package=tidyfinance) via:
+
+```{r}
+#| label: install-tidyfinance-cran
+#| eval: false
+install.packages("tidyfinance")
+```
+
+To install the development version of `tidyfinance` from [GitHub](https://github.com/tidy-finance/r-tidyfinance), first install the [pak]{.pkg} package if needed, then install the development version:
+
+```{r}
+#| label: install-tidyfinance-dev
+#| eval: false
+pak::pak("tidy-finance/r-tidyfinance")
+```
+
+Once installed, load `tidyfinance` and a minimal set of packages for data manipulation and visualisation.
+
+```{r}
+#| label: load-tidyfinance
+library("tidyfinance")
+```
+
+```{r}
+#| label: load-libraries
+#| message: false
+library("dplyr")
+library("tidyr")
+library("lubridate")
+```
+
 
 ## Variable construction {#sec-variable-details}
 
