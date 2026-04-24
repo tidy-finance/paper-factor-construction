@@ -47,12 +47,13 @@ library("ggplot2")
 library("patchwork")
 
 tf_dark_blue <- "#3B9AB2FF"
-tf_yellow <- "#E1AF00"
+tf_yellow <- "#EBCC2AFF"
 
 pal <- grDevices::colorRampPalette(list(
   tf_dark_blue,
   "#78B7C5",
   tf_yellow,
+  "#E1AF00FF",
   "#F21A00"
 ))
 
