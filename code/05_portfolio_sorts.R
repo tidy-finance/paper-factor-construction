@@ -34,6 +34,9 @@ process_task <- function(row, sorting_data, output_dir) {
       {
         sorting_variables <- grep("sv_", names(sorting_data), value = TRUE)
 
+        # The size quantile filter is applied manually here rather than via
+        # filter_options(min_size_quantile = ...) because filter_sorting_data()
+        # computes the quantile across all stocks, whereas the original
         if (!is.na(row$min_size_quantile)) {
           sorting_data <- sorting_data |>
             group_by(date) |>
@@ -48,6 +51,10 @@ process_task <- function(row, sorting_data, output_dir) {
             ungroup()
         }
 
+        # Industry filters are applied manually because the parquet data stores
+        # industries as a text column ("Finance", "Utilities"), whereas
+        # filter_options(exclude_financials/utilities) expects a numeric SIC
+        # code column.
         if (row$exclude_financials) {
           sorting_data <- sorting_data |>
             filter(industry != "Finance")
@@ -58,14 +65,11 @@ process_task <- function(row, sorting_data, output_dir) {
             filter(industry != "Utilities")
         }
 
-        if (row$exclude_negative_earnings) {
-          sorting_data <- sorting_data |>
-            filter(filter_earnings > 0)
-        }
-
         rebalancing_month <- if (row$rebalancing == "monthly") NULL else 7
         bp_exchanges <- strsplit(row$breakpoints_exchanges, split = "\\|")[[1]]
-        breakpoints_min_size_threshold = if (!is.na(row$breakpoints_min_size_threshold)) {
+        breakpoints_min_size_threshold = if (
+          !is.na(row$breakpoints_min_size_threshold)
+        ) {
           row$breakpoints_min_size_threshold
         } else {
           NULL
@@ -94,14 +98,20 @@ process_task <- function(row, sorting_data, output_dir) {
             options_secondary$n_portfolios
         }
 
-        portfolio_returns <- compute_portfolio_returns(
+        portfolio_returns <- implement_portfolio_sort(
           sorting_data,
-          sorting_variables,
+          sorting_variables = sorting_variables,
           sorting_method = row$sorting_method,
-          rebalancing_month,
-          options_main,
-          options_secondary,
+          rebalancing_month = rebalancing_month,
+          portfolio_sort_options = portfolio_sort_options(
+            filter_options = filter_options(
+              positive_earnings = row$exclude_negative_earnings
+            ),
+            breakpoint_options_main = options_main,
+            breakpoint_options_secondary = options_secondary
+          ),
           min_portfolio_size = min_portfolio_size,
+          data_options = data_options(earnings = "filter_earnings"),
           quiet = TRUE
         )
 
