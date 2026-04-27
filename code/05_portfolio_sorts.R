@@ -34,14 +34,14 @@ process_task <- function(row, sorting_data, output_dir) {
       {
         sorting_variables <- grep("sv_", names(sorting_data), value = TRUE)
 
-        if (row$exclude_size != 0) {
+        if (!is.na(row$min_size_quantile)) {
           sorting_data <- sorting_data |>
             group_by(date) |>
             filter(
               mktcap_lag >=
                 quantile(
                   mktcap_lag[exchange == "NYSE"],
-                  row$exclude_size,
+                  row$min_size_quantile,
                   na.rm = TRUE
                 )
             ) |>
@@ -65,16 +65,16 @@ process_task <- function(row, sorting_data, output_dir) {
 
         rebalancing_month <- if (row$rebalancing == "monthly") NULL else 7
         bp_exchanges <- strsplit(row$breakpoints_exchanges, split = "\\|")[[1]]
-        min_size_threshold = if (!is.na(row$breakpoints_min_size)) {
-          row$breakpoints_min_size
+        breakpoints_min_size_threshold = if (!is.na(row$breakpoints_min_size_threshold)) {
+          row$breakpoints_min_size_threshold
         } else {
           NULL
         }
 
         options_main <- breakpoint_options(
-          n_portfolios = row$breakpoints_main,
-          breakpoint_exchanges = bp_exchanges,
-          min_size_threshold = min_size_threshold
+          n_portfolios = row$n_portfolios_main,
+          breakpoints_exchanges = bp_exchanges,
+          breakpoints_min_size_threshold = breakpoints_min_size_threshold
         )
 
         options_secondary <- NULL
@@ -82,8 +82,8 @@ process_task <- function(row, sorting_data, output_dir) {
         if (row$sorting_method != "univariate") {
           sorting_variables <- c(sorting_variables, "mktcap_lag")
           options_secondary <- breakpoint_options(
-            n_portfolios = row$breakpoints_secondary,
-            breakpoint_exchanges = bp_exchanges
+            n_portfolios = row$n_portfolios_secondary,
+            breakpoints_exchanges = bp_exchanges
           )
         }
 
@@ -246,7 +246,7 @@ open_dataset("data/portfolio_returns/") |>
       "sorting_variable",
       "sorting_variable_lag",
       "sorting_method",
-      "breakpoints_main"
+      "n_portfolios_main"
     )
   )
 
