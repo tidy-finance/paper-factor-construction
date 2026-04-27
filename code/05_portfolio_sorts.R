@@ -36,7 +36,7 @@ process_task <- function(row, sorting_data, output_dir) {
 
         # The size quantile filter is applied manually here rather than via
         # filter_options(min_size_quantile = ...) because filter_sorting_data()
-        # computes the quantile across all stocks, whereas the original
+        # computes the quantile across all stocks
         if (!is.na(row$min_size_quantile)) {
           sorting_data <- sorting_data |>
             group_by(date) |>
