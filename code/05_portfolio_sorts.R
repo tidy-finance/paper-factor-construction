@@ -27,7 +27,6 @@ grid <- read_parquet("data/portfolio_sort_grid.parquet") |>
 
 process_task <- function(row, sorting_data, output_dir) {
   warnings_collected <- character(0)
-  state <- new.env(parent = emptyenv())
 
   result <- tryCatch(
     withCallingHandlers(
@@ -49,20 +48,6 @@ process_task <- function(row, sorting_data, output_dir) {
                 )
             ) |>
             ungroup()
-        }
-
-        # Industry filters are applied manually because the parquet data stores
-        # industries as a text column ("Finance", "Utilities"), whereas
-        # filter_options(exclude_financials/utilities) expects a numeric SIC
-        # code column.
-        if (row$exclude_financials) {
-          sorting_data <- sorting_data |>
-            filter(industry != "Finance")
-        }
-
-        if (row$exclude_utilities) {
-          sorting_data <- sorting_data |>
-            filter(industry != "Utilities")
         }
 
         rebalancing_month <- if (row$rebalancing == "monthly") NULL else 7
@@ -87,7 +72,7 @@ process_task <- function(row, sorting_data, output_dir) {
           sorting_variables <- c(sorting_variables, "mktcap_lag")
           options_secondary <- breakpoint_options(
             n_portfolios = row$n_portfolios_secondary,
-            breakpoints_exchanges = bp_exchanges
+            breakpoint_exchanges = bp_exchanges
           )
         }
 
@@ -105,6 +90,8 @@ process_task <- function(row, sorting_data, output_dir) {
           rebalancing_month = rebalancing_month,
           portfolio_sort_options = portfolio_sort_options(
             filter_options = filter_options(
+              exclude_financials = row$exclude_financials,
+              exclude_utilities = row$exclude_utilities,
               positive_earnings = row$exclude_negative_earnings
             ),
             breakpoint_options_main = options_main,
@@ -185,7 +172,7 @@ for (p in seq_along(unique_paths)) {
       date,
       ret_excess,
       exchange,
-      industry,
+      siccd,
       filter_earnings,
       mktcap_lag,
       all_of(sv_cols_needed)
@@ -210,7 +197,7 @@ for (p in seq_along(unique_paths)) {
           "date",
           "ret_excess",
           "exchange",
-          "industry",
+          "siccd",
           "filter_earnings",
           "mktcap_lag",
           row$sorting_variable
