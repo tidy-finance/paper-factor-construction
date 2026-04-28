@@ -26,7 +26,7 @@ crsp_monthly_liquidity <- crsp_daily |>
   mutate(
     int_daily_dollar_volume = (abs(prc) * vol_adj),
     int_daily_turnover = vol_adj / shrout,
-    int_amihud = abs(ret_excess) / int_daily_dollar_volume,
+    int_amihud = abs(ret) / int_daily_dollar_volume,
     int_amihud = if_else(is.finite(int_amihud), int_amihud, NA_real_)
   ) |>
   select(
@@ -63,14 +63,19 @@ crsp_monthly <- crsp_monthly |>
 crsp_monthly <- crsp_monthly |>
   add_lagged_columns(cols = "int_me", by = "permno", lag = years(5)) |>
   rename(int_me_lag5y = int_me_lag)
-    
+
 # Compute CAPM regression coefficients and FF3 residuals
 # NOTE: multisession needs to be initialized before using furrr for beta estimation
 future::plan(future::multisession, workers = future::availableCores() - 1)
 
 capm_betas <- crsp_monthly |>
   arrange(permno, date) |>
-  estimate_betas("ret_excess ~ mkt_excess", months(60), use_furrr = TRUE) |>
+  estimate_betas(
+    "ret_excess ~ mkt_excess",
+    months(60),
+    min_obs = 24,
+    use_furrr = TRUE
+  ) |>
   select(everything(), int_capm_beta = beta_mkt_excess, -intercept)
 
 crsp_monthly <- crsp_monthly |>
@@ -90,7 +95,7 @@ crsp_monthly <- crsp_monthly |>
       .f = ~ last(lm(ret_excess ~ mkt_excess + smb + hml, data = .x)$residuals),
       period = "month",
       periods = 36,
-      min_obs = 12
+      min_obs = 24
     )
   ) |>
   ungroup() |>
