@@ -133,12 +133,12 @@ pak::pak("tidy-finance/r-tidyfinance")
 
 ### Design and workflow {#sec-design}
 
-`tidyfinance` organises the empirical asset pricing workflow into three stages: data acquisition, variable construction, and portfolio sorting. @fig-workflow-diagram shows the pipeline and the package functions at each stage. Each stage exposes modular functions with documented defaults and configurable parameters. Researchers can adopt the full pipeline or call individual functions within their own workflows.
+`tidyfinance` organises the empirical asset pricing workflow into three stages: data acquisition, variable construction, and portfolio sorting. Each stage involves dozens of small decisions, such as universe filters, cleaning rules, rebalancing conventions, and breakpoint definitions. These decisions are rarely documented uniformly across studies, making replication difficult. @fig-workflow-diagram shows the pipeline and the package functions at each stage. The functions expose documented defaults that follow established conventions and configurable parameters where reasonable researchers might disagree. In this way, researchers can adopt the full pipeline or call individual functions within their own workflows.^[A companion Python package `tidyfinance` provides the same interface with identical function signatures and dataset identifiers, so analyses can be ported between the two languages without changes to the data layer.]
 
 ```{mermaid}
 %%| label: fig-workflow-diagram
 %%| fig-cap: "Research workflow for factor construction with `tidyfinance`, illustrating the three-stage pipeline and the package functions involved at each step."
-%%{init: {'flowchart': {'rankSpacing': 30, 'padding': 15}, 'themeVariables': {'fontSize': '10x'}}}%%
+%%{init: {'flowchart': {'rankSpacing': 30, 'padding': 15}, 'themeVariables': {'fontSize': '9x'}}}%%
 
 flowchart LR
     A("<b>Data acquisition</b><br/><br/><code>download_data()</code><br/><br/><br/>")
@@ -244,9 +244,15 @@ flowchart LR
 
 For Compustat annual data, `download_data()` restricts to industrial-format consolidated statements and retains only the most recent observation per firm-year. It constructs book equity through a coalesce hierarchy: stockholders' equity, then common equity plus preferred stock, then total assets minus total liabilities. The function adjusts for deferred taxes and investment tax credits and subtracts preferred stock.
 
-### Fiscal year lagging 
+All datasets returned by `download_data()` use a single `date` column that follows the same rules across frequencies. Daily observations return the trading date. Monthly observations are dated to the last calendar day of the reference month, regardless of whether that day was a trading day. Quarterly and annual observations take the fiscal period-end date as reported by the original source; for Compustat, this is the firm's fiscal year-end (`datadate`), which can differ from December across firms and across years for the same firm. Macroeconomic series from FRED keep their original release dates. A simple equality join on `date` therefore aligns observations of the same frequency, while cross-frequency joins, such as merging monthly returns with annual fundamentals, require the lagging logic described in the next subsection.
 
-@fig-lagging-illustration contrasts the two lagging mechanisms. The upper panel shows a standard look-back window controlled by `lag` and `max_lag`. The lower panel implements the Fama-French convention [@fama.1993]: fiscal-year data from year $t$ becomes available only from July of year $t+1$, so all months from July through June share the same lagged value locked in at the previous rebalancing. In both cases, `add_lagged_columns()` selects the most recent observed value within the window.
+### Variable construction {#sec-variable-construction}
+
+Most predictive variables in asset pricing studies are based on lagged information so that portfolio formation in month $t$ should always use only data observable at the end of month $t-1$. `add_lagged_columns()` automates this. For each row in the data, it looks back over a configurable window and attaches the most recent observed value of the chosen columns. By default (`ff_adjustment = FALSE`), the window is bounded by `lag` (the minimum delay between observation and use) and `max_lag` (the maximum delay before a stale value is treated as missing). Within this window, the function picks the most recent non-missing value; if no observation falls in the window, the lagged column takes `NA`.
+
+A second mode, enabled by `ff_adjustment = TRUE`, implements the Fama-French convention [@fama.1993]. Accounting variables for fiscal year $t-1$ are assumed to become public information by June of year $t$ and are then used for portfolio formation from July of $t$ through June of $t+1$. This produces step-function lagged values that update once per year at the June/July boundary, regardless of the underlying fiscal year-end. @fig-lagging-illustration contrasts the two mechanisms. The upper panel shows a standard look-back window controlled by `lag` and `max_lag`. The lower panel implements the Fama-French convention: fiscal-year data from year $t-1$ becomes available only from July of year $t$, so all months from July through June share the same lagged value locked in at the previous rebalancing. In both cases, `add_lagged_columns()` selects the most recent observed value within the window.
+
+`join_lagged_values()` is a related helper that merges lagged values from one data frame into another using the same windowing logic. It is useful when the target panel and the source panel are at different frequencies, for example when joining monthly accounting data into a quarterly target panel. The function takes the same `ff_adjustment` argument as `add_lagged_columns()`, so the Fama-French convention can be applied at the join step rather than as a separate transformation.
 
 ```{r}
 #| label: fig-lagging-illustration
@@ -665,8 +671,19 @@ ggplot() +
   theme(plot.margin = margin(5, 10, 5, 10))
 ```
 
+A handful of additional helpers cover routine operations that recur across empirical studies. `winsorize()` and `trim()` handle outliers in cross-sectional variables: the former replaces values beyond user-specified quantiles with the quantile values themselves, while the latter sets them to `NA`. `estimate_model()` fits a linear model from a formula string and returns the coefficients as a tidy one-row data frame, which composes naturally with `group_by()` for grouped or rolling regressions such as time-series factor exposures. `compute_rolling_value()` applies an arbitrary aggregation function over a rolling window defined in calendar time rather than row counts, accommodating irregular observation frequencies and missing periods.
 
 ### Portfolio sorting {#sec-portfolio-sorting}
+
+Portfolio sorts are among the most widely used tools in empirical asset pricing [@bali.2016]. The procedure groups stocks each period into portfolios based on a sorting variable, such as size, beta, book-to-market, or momentum, and then compares return distributions across the resulting portfolios. The long-short return between the extreme portfolios is interpreted as a factor-mimicking strategy and serves as the basis for tests of whether the sorting variable forecasts future returns. We expose the procedure through four composable functions.
+
+`compute_breakpoints()` takes a cross-section and a sorting variable and returns the numeric cutoffs that define the portfolio boundaries. The user supplies either a number of portfolios (for example, five for quintiles) or an explicit vector of percentiles, but not both. A `breakpoints_exchanges` argument restricts the universe used to compute breakpoints. The standard convention is NYSE-only, which prevents the large cross-section of small NASDAQ firms from dominating the lower bins. A related `breakpoints_min_size_threshold` argument excludes stocks below a market-cap quantile from the breakpoint computation, which is useful for size-related sorts where microcaps would otherwise distort the cutoffs. A `smooth_bunching` flag handles cases where the sorting variable clusters at the edges by pinning extreme values to the boundary portfolios and recomputing breakpoints on the remainder.
+
+`assign_portfolio()` maps each observation to a portfolio integer using the breakpoints. The breakpoint computation is delegated to a user-supplied function (defaulting to `compute_breakpoints()`), so custom rules such as dollar-based cutoffs or industry-adjusted breakpoints can be plugged in without rewriting the assignment logic. In practice, `assign_portfolio()` is called separately for each rebalancing date, so that portfolios are reformed each period rather than fixed once for the whole sample.
+
+`compute_portfolio_returns()` ties the lower-level pieces together into a single call. Given a panel of stock data, one or two sorting variables, a sorting method, and `breakpoint_options`, it handles rebalancing, breakpoint computation, portfolio assignment, and return aggregation. It then returns a complete panel of portfolio returns. For each portfolio-date the function reports three return measures: equal-weighted, value-weighted using `mktcap_lag` as the weight, and capped value-weighted. The capped version pulls weights above the `cap_weight` percentile (default 0.8) back to that cap, which prevents a small number of megacap firms from dominating the portfolio. A `min_portfolio_size` argument sets the minimum number of constituents below which the corresponding return is set to `NA`. An optional `rebalancing_month` argument switches from period-by-period rebalancing to annual rebalancing in the specified month. Portfolios formed in that month are then held constant for the following twelve months.
+
+The function supports three sorting schemes, illustrated in @fig-illustrate-portfolio-helper. A *univariate* sort uses a single variable. An *independent bivariate* sort computes breakpoints on each variable separately and intersects the resulting bins to produce a two-way grid. A *dependent bivariate* sort first partitions the cross-section by the secondary (control) variable and then re-sorts within each bucket on the main variable, which is the appropriate choice when the second variable is treated as a control rather than as an independent dimension of variation. For bivariate sorts, returns are averaged over the secondary variable so that only the main-variable portfolios are returned.
 
 ```{r}
 #| label: illustrate-portfolio-helper
@@ -689,7 +706,7 @@ x2 <- f + sqrt(1 - rho^2) * e2
 
 # map to (0,1)
 asset_growth <- pnorm(x1)
-mktcap_lag   <- pnorm(x2)
+mktcap_lag <- pnorm(x2)
 
 cross_section <- data.frame(asset_growth, mktcap_lag)
 n_portfolio <- 2
@@ -743,7 +760,6 @@ portfolios_dependent <- cross_section |>
   ) |>
   ungroup()
 ```
-
 
 ```{r}
 #| label: fig-illustrate-portfolio-helper
@@ -802,6 +818,8 @@ p1 +
   )
 
 ```
+
+`compute_long_short_returns()` is a thin convenience layer that takes the output of `compute_portfolio_returns()` and computes the spread between the top and bottom portfolios. A `direction` argument controls the sign and defaults to `"top_minus_bottom"`. The function returns one long-short series per return measure available in the input, so the equal-weighted, value-weighted, and capped value-weighted spreads are produced in a single call. This is the long-short factor-mimicking return that is usually the object of interest in the asset-pricing literature.
 
 ## Vignette: A case study in factor construction {#sec-ag}
 

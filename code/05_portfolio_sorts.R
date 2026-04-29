@@ -11,13 +11,10 @@ options(parallelly.fork.enable = TRUE)
 plan(multicore, workers = n_workers)
 
 sv_directions <- read_parquet("data/sorting_variable_information.parquet") |>
-  select(sorting_variable, direction)
+  transmute(sorting_variable = str_c("sv_", sorting_variable), direction)
 
 grid <- read_parquet("data/portfolio_sort_grid.parquet") |>
-  inner_join(
-    sv_directions |> mutate(sorting_variable = str_c("sv_", sorting_variable)),
-    join_by(sorting_variable)
-  ) |>
+  inner_join(sv_directions, join_by(sorting_variable)) |>
   mutate(
     parquet_path = file.path(
       "data",
