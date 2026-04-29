@@ -73,7 +73,11 @@ process_task <- function(row, sorting_data, output_dir) {
               exclude_financials = row$exclude_financials,
               exclude_utilities = row$exclude_utilities,
               positive_earnings = row$exclude_negative_earnings,
-              min_size_quantile = if (!is.na(row$min_size_quantile)) row$min_size_quantile else NULL
+              min_size_quantile = if (!is.na(row$min_size_quantile)) {
+                row$min_size_quantile
+              } else {
+                NULL
+              }
             ),
             breakpoint_options_main = options_main,
             breakpoint_options_secondary = options_secondary
