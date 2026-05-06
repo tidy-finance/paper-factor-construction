@@ -36,7 +36,6 @@ execute:
 #| include: false
 #| echo: false
 #| message: false
-
 library("tidyfinance")
 library("dplyr")
 library("tidyr")
@@ -816,7 +815,6 @@ p1 +
       plot.title.position = "plot"
     )
   )
-
 ```
 
 `compute_long_short_returns()` is a thin convenience layer that takes the output of `compute_portfolio_returns()` and computes the spread between the top and bottom portfolios. A `direction` argument controls the sign and defaults to `"top_minus_bottom"`. The function returns one long-short series per return measure available in the input, so the equal-weighted, value-weighted, and capped value-weighted spreads are produced in a single call. This is the long-short factor-mimicking return that is usually the object of interest in the asset-pricing literature.
@@ -996,11 +994,10 @@ sorting_data <- crsp_monthly |>
 
 sorting_data <- sorting_data |>
   select(date, permno, exchange, ret_excess, mktcap_lag, asset_growth) |>
-  filter(date > date_start + months(12) + months(18))
+  filter(date > date_start + months(12))
 ```
 
-The filter removes the initial year used to compute the growth rate and an additional 18 months to avoid mechanically introduced gaps from the lagging step, leaving a panel of stock-month observations with excess returns, exchange membership, lagged market capitalization, and the lagged sorting variable.
-
+The filter removes the initial year used to compute the growth rate to avoid mechanically introduced gaps from the lagging step, leaving a panel of stock-month observations with excess returns, exchange membership, lagged market capitalization, and the lagged sorting variable.
 
 ```{r}
 #| label: fig-ag-percentiles
@@ -1203,7 +1200,6 @@ The examples above represent single points in a high-dimensional space of method
 #| label: tbl-sorting-decisions
 #| echo: false
 #| tbl-cap: "Preprocessing choices in the portfolio sort grid and corresponding `download_data()` arguments. Italic values indicate the default. For double sorts, the secondary quantiles and exchange choices apply to the size dimension only; for univariate sorts, those rows are not applicable. FF refers to the lag procedure of @fama.1993."
-
 tibble::tribble(
   ~`Preprocessing choice`      , ~Argument                                 , ~Options                                               , ~Description                                                                       ,
   "Size exclusion"             , "\\texttt{exclude\\_size}"                , "None; \\emph{bottom 20\\%}"                           , "Fraction of the smallest stocks (by NYSE market cap) excluded from the universe." ,
@@ -1244,7 +1240,6 @@ This sensitivity is not specific to AG. For all `{r} nrow(sorting_variable_infor
 #| label: fig-sharpe-ratio
 #| echo: false
 #| warning: false
-
 arrow::open_dataset(
   "data/portfolio_performance.parquet"
 ) |>
@@ -1265,7 +1260,6 @@ arrow::open_dataset(
 #| label: tbl-sorting-variables
 #| tbl-cap: "Sorting variables in the factor library. The direction column indicates whether the long-short factor return goes long top-minus-bottom (↑) or bottom-minus-top (↓) of the characteristic distribution."
 #| echo: false
-
 tab <- sorting_variable_information |>
   dplyr::mutate(
     direction = dplyr::if_else(
@@ -1318,7 +1312,6 @@ For finer control, `tidyfinance` exposes lower-level helpers that sit beneath th
 ```{r}
 #| eval: false
 #| label: download-factor-library-ids
-
 full_grid <- get_available_huggingface_files(
   "tidy-finance",
   "factor-library-grid"
@@ -1326,7 +1319,7 @@ full_grid <- get_available_huggingface_files(
   dplyr::pull(.data$url) |>
   arrow::read_parquet()
 
-download_factor_library_returns_ids(c(123, 456))
+tidyfinance:::download_factor_library_ids(123)
 ```
 
 ## Summary and discussion {#sec-summary}
@@ -1335,7 +1328,9 @@ download_factor_library_returns_ids(c(123, 456))
 Keep brief or delete entirely, as the main paper's conclusion already covers the key points.
 ::: 
 
-Factor returns encode their construction history. Two researchers following the same paper can produce different factor series, with no way of knowing why, because breakpoints, weighting, and lagging conventions are rarely published alongside the data. `tidyfinance` makes these decisions visible: the package covers `{r} nrow(sorting_variable_information)` sorting variables across `{r} nrow(portfolio_sort_grid)` documented specifications, each reproducible from raw WRDS and Compustat data in a single, version-controlled workflow.
+Factor returns encode their construction history. Two researchers following the same paper can produce different factor series, with no way of knowing why, because breakpoints, weighting, and lagging conventions are rarely published alongside the data. `tidyfinance` 
+makes these decisions visible: the package covers `{r} nrow(sorting_variable_information)` 
+sorting variables across `{r} nrow(portfolio_sort_grid)` documented specifications, each reproducible from raw WRDS and Compustat data in a single, version-controlled workflow.
 
 The library currently covers US equities. Construction-choice sensitivity in international markets is beyond its current scope.
 

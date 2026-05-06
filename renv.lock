@@ -3683,7 +3683,7 @@
       "RemoteUsername": "tidy-finance",
       "RemoteRepo": "r-tidyfinance",
       "RemoteRef": "HEAD",
-      "RemoteSha": "571d7af4fdc0679ee9f590678520c2a39e8402f5",
+      "RemoteSha": "efdd7d420d9cc99b86cc740cbb6eb893084d9be2",
       "RemoteHost": "api.github.com"
     },
     "tidyr": {
