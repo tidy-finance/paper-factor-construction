@@ -52,7 +52,7 @@ process_task <- function(row, sorting_data, output_dir) {
           sorting_variables <- c(sorting_variables, "mktcap_lag")
           options_secondary <- breakpoint_options(
             n_portfolios = row$n_portfolios_secondary,
-            breakpoint_exchanges = bp_exchanges
+            breakpoints_exchanges = bp_exchanges
           )
         }
 
@@ -72,7 +72,7 @@ process_task <- function(row, sorting_data, output_dir) {
             filter_options = filter_options(
               exclude_financials = row$exclude_financials,
               exclude_utilities = row$exclude_utilities,
-              positive_earnings = row$exclude_negative_earnings,
+              exclude_negative_earnings = row$exclude_negative_earnings,
               min_size_quantile = if (!is.na(row$min_size_quantile)) {
                 row$min_size_quantile
               } else {
