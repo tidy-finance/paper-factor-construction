@@ -1452,27 +1452,25 @@ full_grid <- get_available_huggingface_files(
 tidyfinance:::download_factor_library_ids(123)
 ```
 
-## Summary and discussion {#sec-summary}
+## Summary {#sec-summary}
 
 ::: {.callout-note}
 **Section thesis (three beats, target ~150 words total):**
 
 1. *What the package delivers.* [tidyfinance]{.pkg} makes every construction decision in empirical asset pricing visible, configurable, and reproducible from raw data to factor return.
 2. *Commitment.* The package will be maintained and extended. Concrete next steps: international equities, additional factor methodologies, expanded fixed-income coverage.
-3. *Broader mission.* Reproducible quantitative finance and more effective teaching of empirical methods, in line with tidy-finance.org / tidy-finance.com pedagogical materials.
+3. *Broader mission.* Reproducible quantitative finance and more effective teaching of empirical methods, in line with tidy-finance.org pedagogical materials.
 
 Do not restate the abstract. Do not introduce new findings. Do not embed a grant application.
 
 The existing prose below this note does not yet match these three beats and will need a rewrite.
 :::
 
-Factor returns encode their construction history. Two researchers following the same paper can produce different factor series, with no way of knowing why, because breakpoints, weighting, and lagging conventions are rarely published alongside the data. [tidyfinance]{.pkg} makes these decisions visible: the package covers `{r} nrow(sorting_variable_information)` sorting variables across `{r} nrow(portfolio_sort_grid)` documented specifications, each reproducible from raw WRDS and Compustat data in a single, version-controlled workflow.
+Empirical asset pricing depends on dozens of construction choices that no consensus pins down. [tidyfinance]{.pkg} makes those choices first-class objects in the workflow: each is an argument, each has a documented default, each can be varied without rebuilding the pipeline. Disagreements over construction become empirical questions, not implicit assumptions buried in code.
 
-The library currently covers US equities. Construction-choice sensitivity in international markets is beyond its current scope.
+We will maintain and extend the package on CRAN. The current release covers US equities through CRSP and Compustat; the next milestones add international equity panels, additional factor methodologies, and expanded fixed-income coverage beyond TRACE.
 
-The broader implication is methodological. Researchers who disagree about a construction choice can resolve the disagreement empirically: run both variants through the same pipeline, compare factor returns, and report the difference. The API and interactive dashboard extend this accessibility to practitioners who need standardized series without running the full pipeline.
-
-With `{r} nrow(portfolio_sort_grid)` specifications across `{r} nrow(sorting_variable_information)` sorting variables, the library makes systematic sensitivity analysis newly tractable. This opens a path toward meta-analytic evidence on which factor properties are robust and which are artifacts of undocumented defaults.
+Beyond this paper, [tidyfinance]{.pkg} is part of a broader effort toward reproducible quantitative finance and more effective teaching of empirical methods. Companion materials at [tidy-finance.org](https://tidy-finance.org) integrate the package into open coursework and self-study tracks for graduate finance and asset pricing.
 
 ## Computational details {.unnumbered}
 
