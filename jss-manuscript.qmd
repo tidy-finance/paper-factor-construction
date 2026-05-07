@@ -22,7 +22,7 @@ author:
     email: patrickw@ru.is
 
 abstract: |
-  We introduce `tidyfinance`, an [R]{.proglang} package on CRAN for the core data workflow in empirical asset pricing: downloading stock returns and financial statements, constructing sorting variables, forming quantile portfolios, and computing long-short factor returns. A unified `download_data()` interface covers WRDS (CRSP, Compustat), Ken French's Data Library, FRED, and further sources. Modular functions handle fiscal-year lagging, breakpoint computation, and portfolio aggregation; every construction choice has a documented default and can be varied independently, making pipelines transparent and reproducible. We illustrate the `tidyfinance` workflow with a risk factor library covering `{r} arrow::read_parquet("data/sorting_variable_information.parquet") |> nrow()` sorting variables across `{r} arrow::read_parquet("data/portfolio_sort_grid.parquet") |> nrow()` precomputed specifications. The library is accessible via an open-source API and an interactive dashboard at [factors.tidy-finance.org](https://factors.tidy-finance.org).
+  We introduce [tidyfinance]{.pkg}, an [R]{.proglang} package on CRAN for the core data workflow in empirical asset pricing: downloading stock returns and financial statements, constructing sorting variables, forming quantile portfolios, and computing long-short factor returns. A unified `download_data()` interface covers WRDS (CRSP, Compustat), Ken French's Data Library, FRED, and further sources. Modular functions handle fiscal-year lagging, breakpoint computation, and portfolio aggregation; every construction choice has a documented default and can be varied independently, making pipelines transparent and reproducible. We illustrate the [tidyfinance]{.pkg} workflow with a risk factor library covering `{r} arrow::read_parquet("data/sorting_variable_information.parquet") |> nrow()` sorting variables across `{r} arrow::read_parquet("data/portfolio_sort_grid.parquet") |> nrow()` precomputed specifications. The library is accessible via an open-source API and an interactive dashboard at [factors.tidy-finance.org](https://factors.tidy-finance.org).
 keywords: [financial risk factors, reproducible research, asset pricing, API design, R]
 keywords-formatted: [financial risk factors, reproducible research, asset pricing, API, "[R]{.proglang}"]
 
@@ -36,7 +36,6 @@ execute:
 #| include: false
 #| echo: false
 #| message: false
-
 library("tidyfinance")
 library("dplyr")
 library("tidyr")
@@ -88,13 +87,15 @@ Factor returns drive empirical asset pricing tests, portfolio allocation, and pe
 
 No widely adopted, transparent source standardizes factor construction. Current practice relies on informal publication of factor series without code or documented workflows, limiting reproducibility, comparability, and extension. Existing resources illustrate the gap: the French Data Library [@fama.2023] provides canonical factors but no code; the Open Source Asset Pricing Project [@chen.2022] focuses on replication; the global factor database [@jensen.2023] targets [Python]{.proglang} only. No unified, open-source alternative exists.
 
-We introduce `tidyfinance`, a modular framework ([R]{.proglang} on CRAN, [Python]{.proglang} on PyPI) for reproducible factor construction. The library covers `{r} sorting_variable_information |> nrow()` sorting variables and `{r} portfolio_sort_grid |> nrow()` total specifications. We document and test every design choice (breakpoints, weighting, rebalancing, sample inclusion) and expose each as a configurable parameter.
+We introduce [tidyfinance]{.pkg}, a modular framework ([R]{.proglang} on CRAN, [Python]{.proglang} on PyPI) for reproducible factor construction. The library covers `{r} sorting_variable_information |> nrow()` sorting variables and `{r} portfolio_sort_grid |> nrow()` total specifications. We document and test every design choice (breakpoints, weighting, rebalancing, sample inclusion) and expose each as a configurable parameter.
 
-The package implements an end-to-end pipeline: data acquisition from the Wharton Research Data Services (WRDS), Compustat, and other common providers; automated variable construction with standard lagging and cleaning routines; and portfolio aggregation with configurable sorting. A programmatic application programming interface (API) provides access to precomputed factor series with versioning and batch retrieval. Researchers using [python]{.proglang} access the same data download functions and factor library via `py-tidyfinance`. An interactive dashboard at [factors.tidy-finance.org](https://factors.tidy-finance.org) makes the library accessible without code. All software and workflows are publicly available to enable replication, sensitivity analysis, and extension.
+The package implements an end-to-end pipeline: data acquisition from the Wharton Research Data Services (WRDS), Compustat, and other common providers; automated variable construction with standard lagging and cleaning routines; and portfolio aggregation with configurable sorting. A programmatic application programming interface (API) provides access to precomputed factor series with versioning and batch retrieval. Researchers using [Python]{.proglang} access the same data download functions and factor library via [py-tidyfinance]{.pkg}. An interactive dashboard at [factors.tidy-finance.org](https://factors.tidy-finance.org) makes the library accessible without code. All software and workflows are publicly available to enable replication, sensitivity analysis, and extension.
 
-@hou.2020 replicate 452 cross-sectional anomalies and find that most fail to survive out-of-sample, attributing failures in part to undocumented construction variation across studies. @chen.2022 respond by publishing code for 212 anomaly portfolios, but their library targets a fixed, documented set rather than a reconfigurable pipeline. @jensen.2023 provide a global factor database without an open construction workflow. `tidyfinance` fills the gap all three leave open: every construction decision is explicit, configurable, and version-controlled, so researchers can trace and vary any assumption systematically.
+## Background and related work {#sec-background}
 
-Among [R]{.proglang} packages for quantitative finance, [tidyquant]{.pkg} [@dancho.2026], [PerformanceAnalytics]{.pkg} [@peterson.2026], and [quantmod]{.pkg} [@ryan.2025] support time-series retrieval and portfolio performance analytics. None begins at raw accounting and return data, applies the cleaning and lagging conventions factor construction requires, or exposes construction choices as configurable parameters. `tidyfinance` provides this upstream pipeline with a consistent API across both languages. Hence, it enables researchers to access standardized factor series without rebuilding data workflows in each environment.
+@hou.2020 replicate 452 cross-sectional anomalies and find that most fail to survive out-of-sample, attributing failures in part to undocumented construction variation across studies. @chen.2022 respond by publishing code for 212 anomaly portfolios, but their library targets a fixed, documented set rather than a reconfigurable pipeline. @jensen.2023 provide a global factor database without an open construction workflow. [tidyfinance]{.pkg} fills the gap all three leave open: every construction decision is explicit, configurable, and version-controlled, so researchers can trace and vary any assumption systematically.
+
+Among [R]{.proglang} packages for quantitative finance, [tidyquant]{.pkg} [@dancho.2026], [PerformanceAnalytics]{.pkg} [@peterson.2026], and [quantmod]{.pkg} [@ryan.2025] support time-series retrieval and portfolio performance analytics. None begins at raw accounting and return data, applies the cleaning and lagging conventions factor construction requires, or exposes construction choices as configurable parameters. [tidyfinance]{.pkg} provides this upstream pipeline with a consistent API across both languages. Hence, it enables researchers to access standardized factor series without rebuilding data workflows in each environment.
 
 
 ## Package overview {#sec-overview}
@@ -114,7 +115,7 @@ This section introduces the design choices and workflow of `tidyfinance`.
 
 ### Installation and setup {#sec-installation}
 
-You can install the released version of `tidyfinance` [from CRAN](https://cran.r-project.org/package=tidyfinance) via:
+You can install the released version of [tidyfinance]{.pkg} [from CRAN](https://cran.r-project.org/package=tidyfinance) via:
 
 ```{r}
 #| label: install-tidyfinance-cran
@@ -122,7 +123,7 @@ You can install the released version of `tidyfinance` [from CRAN](https://cran.r
 install.packages("tidyfinance")
 ```
 
-To install the development version of `tidyfinance` from [GitHub](https://github.com/tidy-finance/r-tidyfinance), first install the [pak]{.pkg} package if needed, then install the development version:
+To install the development version of [tidyfinance]{.pkg} from [GitHub](https://github.com/tidy-finance/r-tidyfinance), first install the [pak]{.pkg} package if needed, then install the development version:
 
 ```{r}
 #| label: install-tidyfinance-dev
@@ -133,11 +134,11 @@ pak::pak("tidy-finance/r-tidyfinance")
 
 ### Design and workflow {#sec-design}
 
-`tidyfinance` organises the empirical asset pricing workflow into three stages: data acquisition, variable construction, and portfolio sorting. Each stage involves dozens of small decisions, such as universe filters, cleaning rules, rebalancing conventions, and breakpoint definitions. These decisions are rarely documented uniformly across studies, making replication difficult. @fig-workflow-diagram shows the pipeline and the package functions at each stage. The functions expose documented defaults that follow established conventions and configurable parameters where reasonable researchers might disagree. In this way, researchers can adopt the full pipeline or call individual functions within their own workflows.^[A companion Python package `tidyfinance` provides the same interface with identical function signatures and dataset identifiers, so analyses can be ported between the two languages without changes to the data layer.]
+[tidyfinance]{.pkg} organises the empirical asset pricing workflow into three stages: data acquisition, variable construction, and portfolio sorting. Each stage involves dozens of small decisions, such as universe filters, cleaning rules, rebalancing conventions, and breakpoint definitions. These decisions are rarely documented uniformly across studies, making replication difficult. @fig-workflow-diagram shows the pipeline and the package functions at each stage. The functions expose documented defaults that follow established conventions and configurable parameters where reasonable researchers might disagree. In this way, researchers can adopt the full pipeline or call individual functions within their own workflows.^[A companion [Python]{.proglang} package [py-tidyfinance]{.pkg} provides the same interface with identical function signatures and dataset identifiers, so analyses can be ported between the two languages without changes to the data layer.]
 
 ```{mermaid}
 %%| label: fig-workflow-diagram
-%%| fig-cap: "Research workflow for factor construction with `tidyfinance`, illustrating the three-stage pipeline and the package functions involved at each step."
+%%| fig-cap: "Research workflow for factor construction with [tidyfinance]{.pkg}, illustrating the three-stage pipeline and the package functions involved at each step."
 %%{init: {'flowchart': {'rankSpacing': 30, 'padding': 15}, 'themeVariables': {'fontSize': '9x'}}}%%
 
 flowchart LR
@@ -152,7 +153,7 @@ flowchart LR
 
 ### Data access {#sec-data-access}
 
-`tidyfinance` provides a single interface, `download_data()`, to `{r} nrow(tidyfinance::list_supported_types())` dataset types: equity returns, fixed-income transactions, macroeconomic predictors, index constituents, and more. @tbl-data-sources lists all available sources. `list_supported_types()` and `list_supported_indexes()` return the full catalogue programmatically.
+[tidyfinance]{.pkg} provides a single interface, `download_data()`, to `{r} nrow(tidyfinance::list_supported_types())` dataset types: equity returns, fixed-income transactions, macroeconomic predictors, index constituents, and more. @tbl-data-sources lists all available sources. `list_supported_types()` and `list_supported_indexes()` return the full catalogue programmatically.
 
 ```{=latex}
 \begingroup
@@ -233,7 +234,7 @@ flowchart LR
 |                   |                                 | ```                                   |
 +-------------------+---------------------------------+---------------------------------------+
 
-: Data sources available via `download_data()` in `tidyfinance`. {#tbl-data-sources}
+: Data sources available via `download_data()` in [tidyfinance]{.pkg}. {#tbl-data-sources}
 
 ```{=latex}
 \endgroup
@@ -395,7 +396,7 @@ ggplot() +
     color = "grey40",
     linewidth = 0.4
   ) +
-  # Month labels — just below the axis tick line
+  # Month labels: just below the axis tick line
   geom_text(
     data = df_data,
     aes(x = x_labels - 0.2, y = y, label = label),
@@ -808,17 +809,16 @@ p1 +
   plot_annotation(
     title = "Portfolio sort approaches",
     subtitle = glue::glue(
-      "December 2024 — {n_portfolio}×{n_portfolio} portfolios"
+      "December 2024: {n_portfolio}×{n_portfolio} portfolios"
     ),
     theme = theme(
       plot.title = element_text(face = "bold"),
       plot.title.position = "plot"
     )
   )
-
 ```
 
-`compute_long_short_returns()` is a thin convenience layer that takes the output of `compute_portfolio_returns()` and computes the spread between the top and bottom portfolios. A `direction` argument controls the sign and defaults to `"top_minus_bottom"`. The function returns one long-short series per return measure available in the input, so the equal-weighted, value-weighted, and capped value-weighted spreads are produced in a single call. This is the long-short factor-mimicking return that is usually the object of interest in the asset-pricing literature.
+`compute_long_short_returns()` is a thin convenience layer that takes the output of `compute_portfolio_returns()` and computes the spread between the top and bottom portfolios. A `direction` argument controls the sign and defaults to `"top_minus_bottom"`. The function returns one long-short series per return measure available in the input, so the equal-weighted, value-weighted, and capped value-weighted spreads are produced in a single call. This long-short return is the factor-mimicking spread that the asset-pricing literature typically takes as the object of interest.
 
 ## Vignette: A case study in factor construction {#sec-ag}
 
@@ -830,9 +830,9 @@ This section shows the workflow from scratch without excessive documentation by 
 - Illustrate "standard" summary stats for one specification of the factor or use fama-mac beth functionality for some standard testing.
 ::: 
 
-We walk through the construction of the asset growth factor from raw CRSP and Compustat data to long-short portfolio returns, implementing each stage of @fig-workflow-diagram in turn. Each step uses a `tidyfinance` function and generalises directly to any sorting variable in the factor library.^[Installation of the `tidyfinance` package is described in @sec-installation.]
+We walk through the construction of the asset growth factor from raw CRSP and Compustat data to long-short portfolio returns, applying each stage of @fig-workflow-diagram in turn. Each step uses a [tidyfinance]{.pkg} function and generalises directly to any sorting variable in the factor library.^[Installation of [tidyfinance]{.pkg} is described in @sec-installation.]
 
-Once installed, load `tidyfinance` and a minimal set of packages for data manipulation and visualisation.
+Once installed, load [tidyfinance]{.pkg} and a minimal set of packages for data manipulation and visualisation.
 
 ```{r}
 #| label: load-tidyfinance
@@ -906,7 +906,7 @@ $$
 AG_t = (AT_t - AT_{t-1}) / AT_{t-1}.
 $$
 
-The `add_lagged_columns()` function handles temporal alignment by creating a lagged version of total assets grouped by firm identifier (`gvkey`) with a one-year lag. Non-finite values (arising when lagged total assets are zero or missing) become `NA`.^[For the sake of simplicity we do not show every step of the data cleaning process in the paper. For example, we apply an earnings filter to exclude firms with negative or zero income before extraordinary items (`ib`), a common practice in the literature to mitigate the influence of financial distress on asset growth portfolios. This filter is configured through `filter_options()` at the portfolio-sort step rather than applied here. The factor library API provides preprocessed panels with all these filters applied, so users can access the final sorting variables without having to implement these steps themselves.]
+The `add_lagged_columns()` function from [tidyfinance]{.pkg} handles temporal alignment by creating a lagged version of total assets grouped by firm identifier (`gvkey`) with a one-year lag. Non-finite values (arising when lagged total assets are zero or missing) become `NA`.^[For the sake of simplicity we do not show every step of the data cleaning process in the paper. For instance, we apply an earnings filter to exclude firms with negative or zero income before extraordinary items (`ib`), which is a common practice in the literature to mitigate the influence of financial distress on asset growth portfolios. This filter is applied in the code but not shown in the paper for brevity. We also apply an age filter to exclude firms younger than two years, which is common in the literature to ensure that the sorting variable is based on stable financial information. This filter is also applied in the code but not shown in the paper for brevity. The factor library API provides preprocessed panels with all these filters applied, so users can access the final sorting variables without having to repeat these steps themselves.] 
 
 ```{r}
 #| label: compute-sorting-variables
@@ -995,6 +995,7 @@ sorting_data <- crsp_monthly |>
   )
 
 sorting_data <- sorting_data |>
+
   select(
     date,
     permno,
@@ -1130,14 +1131,15 @@ ls_row <- factor_returns_ag |>
 bind_rows(quintile_stats, ls_row) |>
   knitr::kable(
     digits = 3,
+    escape = FALSE,
     col.names = c(
       "Portfolio",
       "VW Mean",
-      "VW t-stat",
+      "VW $t$",
       "EW Mean",
-      "EW t-stat",
+      "EW $t$",
       "VWC Mean",
-      "VWC t-stat"
+      "VWC $t$"
     )
   )
 ```
@@ -1229,8 +1231,7 @@ bind_rows(
     summarise(
       Specification = "Baseline (univariate, no filters)",
       `VW Mean` = mean(ret_excess_vw) * 12,
-      `VW $t$-stat` = mean(ret_excess_vw) /
-        (sd(ret_excess_vw) / sqrt(n()))
+      `VW $t$` = mean(ret_excess_vw) / (sd(ret_excess_vw) / sqrt(n()))
     ),
   factor_returns_bivariate |>
     drop_na() |>
@@ -1249,7 +1250,7 @@ bind_rows(
         (sd(ret_excess_vw) / sqrt(n()))
     )
 ) |>
-  knitr::kable(digits = 3, escape = TRUE)
+  knitr::kable(digits = 3, escape = FALSE)
 ```
 
 For researchers who want even finer control, the package exposes the lower-level building blocks (`filter_sorting_data()`, `compute_breakpoints()`, `assign_portfolio()`, `compute_portfolio_returns()`) as standalone functions. They share signatures and semantics with `implement_portfolio_sort()`, so an analysis that prototypes against the wrapper can be unrolled into its components without rewriting the pipeline. This is convenient when custom logic, for example, computing breakpoints separately within each industry, or from a trailing window of past data rather than the contemporaneous cross-section, needs to be applied at one of the stages only.
@@ -1311,7 +1312,6 @@ The examples above represent single points in a high-dimensional space of method
 #| label: tbl-sorting-decisions
 #| echo: false
 #| tbl-cap: "Preprocessing choices in the portfolio sort grid and corresponding `download_data()` arguments. Italic values indicate the default. For double sorts, the secondary quantiles and exchange choices apply to the size dimension only; for univariate sorts, those rows are not applicable. FF refers to the lag procedure of @fama.1993."
-
 tibble::tribble(
   ~`Preprocessing choice`      , ~Argument                                 , ~Options                                               , ~Description                                                                       ,
   "Size exclusion"             , "\\texttt{exclude\\_size}"                , "None; \\emph{bottom 20\\%}"                           , "Fraction of the smallest stocks (by NYSE market cap) excluded from the universe." ,
@@ -1334,7 +1334,7 @@ tibble::tribble(
 ```
 
 
-We host precomputed factor returns for all specifications on Hugging Face and make them accessible via the `tidyfinance` API. Researchers can retrieve results without re-running the computationally intensive portfolio sort pipeline. An interactive download interface is also available at [factors.tidy-finance.org](https://factors.tidy-finance.org).
+We host precomputed factor returns for all specifications on Hugging Face and make them accessible via the [tidyfinance]{.pkg} API. Researchers can retrieve results without re-running the computationally intensive portfolio sort pipeline. An interactive download interface is also available at [factors.tidy-finance.org](https://factors.tidy-finance.org).
 
 
 The factor library covers `{r} nrow(sorting_variable_information)` sorting variables across seven categories: investment, profitability, valuation, momentum, intangibles, trading frictions, and financing. The selection follows @jensen.2023. @tbl-sorting-variables lists all variables with their long-short direction and primary reference.
@@ -1352,7 +1352,6 @@ This sensitivity is not specific to AG. For all `{r} nrow(sorting_variable_infor
 #| label: fig-sharpe-ratio
 #| echo: false
 #| warning: false
-
 arrow::open_dataset(
   "data/portfolio_performance.parquet"
 ) |>
@@ -1373,7 +1372,6 @@ arrow::open_dataset(
 #| label: tbl-sorting-variables
 #| tbl-cap: "Sorting variables in the factor library. The direction column indicates whether the long-short factor return goes long top-minus-bottom (↑) or bottom-minus-top (↓) of the characteristic distribution."
 #| echo: false
-
 tab <- sorting_variable_information |>
   dplyr::mutate(
     direction = dplyr::if_else(
@@ -1421,12 +1419,11 @@ download_data(
 )
 ```
 
-For finer control, `tidyfinance` exposes lower-level helpers that sit beneath the `download_data()` interface. `get_available_huggingface_files()` returns all available files for a given Hugging Face repository as a tibble; `download_factor_library_returns_ids()` retrieves returns for a specific vector of precomputed specification IDs. Researchers who want to iterate over a custom subset of specifications rather than filter by parameter value will prefer this route.
+For finer control, [tidyfinance]{.pkg} exposes lower-level helpers that sit beneath the `download_data()` interface. `get_available_huggingface_files()` returns all available files for a given Hugging Face repository as a tibble; `download_factor_library_returns_ids()` retrieves returns for a specific vector of precomputed specification IDs. Researchers who want to iterate over a custom subset of specifications rather than filter by parameter value will prefer this route.
 
 ```{r}
 #| eval: false
 #| label: download-factor-library-ids
-
 full_grid <- get_available_huggingface_files(
   "tidy-finance",
   "factor-library-grid"
@@ -1434,7 +1431,7 @@ full_grid <- get_available_huggingface_files(
   dplyr::pull(.data$url) |>
   arrow::read_parquet()
 
-download_factor_library_returns_ids(c(123, 456))
+tidyfinance:::download_factor_library_ids(123)
 ```
 
 ## Summary and discussion {#sec-summary}
@@ -1443,7 +1440,7 @@ download_factor_library_returns_ids(c(123, 456))
 Keep brief or delete entirely, as the main paper's conclusion already covers the key points.
 ::: 
 
-Factor returns encode their construction history. Two researchers following the same paper can produce different factor series, with no way of knowing why, because breakpoints, weighting, and lagging conventions are rarely published alongside the data. `tidyfinance` makes these decisions visible: the package covers `{r} nrow(sorting_variable_information)` sorting variables across `{r} nrow(portfolio_sort_grid)` documented specifications, each reproducible from raw WRDS and Compustat data in a single, version-controlled workflow.
+Factor returns encode their construction history. Two researchers following the same paper can produce different factor series, with no way of knowing why, because breakpoints, weighting, and lagging conventions are rarely published alongside the data. [tidyfinance]{.pkg} makes these decisions visible: the package covers `{r} nrow(sorting_variable_information)` sorting variables across `{r} nrow(portfolio_sort_grid)` documented specifications, each reproducible from raw WRDS and Compustat data in a single, version-controlled workflow.
 
 The library currently covers US equities. Construction-choice sensitivity in international markets is beyond its current scope.
 
@@ -1461,7 +1458,9 @@ pkg_version <- function(pkg) renv_lock$Packages[[pkg]]$Version
 r_version <- renv_lock$R$Version
 ```
 
-We obtained the results in this paper using [R]{.proglang}~`{r} r_version` with the following packages: [tidyfinance]{.pkg}~`{r} pkg_version("tidyfinance")`, [dplyr]{.pkg}~`{r} pkg_version("dplyr")`, [tidyr]{.pkg}~`{r} pkg_version("tidyr")`, [ggplot2]{.pkg}~`{r} pkg_version("ggplot2")`, [lubridate]{.pkg}~`{r} pkg_version("lubridate")`, [arrow]{.pkg}~`{r} pkg_version("arrow")`, [stringr]{.pkg}~`{r} pkg_version("stringr")`, [forcats]{.pkg}~`{r} pkg_version("forcats")`, [ggdist]{.pkg}~`{r} pkg_version("ggdist")`, and [knitr]{.pkg}~`{r} pkg_version("knitr")`. CRAN hosts [R]{.proglang} and all packages at [https://CRAN.R-project.org/](https://CRAN.R-project.org/). `renv`~`{r} pkg_version("renv")` ensures full reproducibility of the computational environment. Reproducing the factor return data requires an institutional subscription to Wharton Research Data Services (WRDS), as the underlying CRSP and Compustat data are proprietary and cannot be redistributed.
+We obtained the results in this paper using [R]{.proglang}~`{r} r_version` with the following packages: [tidyfinance]{.pkg}~`{r} pkg_version("tidyfinance")`, [dplyr]{.pkg}~`{r} pkg_version("dplyr")`, [tidyr]{.pkg}~`{r} pkg_version("tidyr")`, [ggplot2]{.pkg}~`{r} pkg_version("ggplot2")`, [lubridate]{.pkg}~`{r} pkg_version("lubridate")`, [arrow]{.pkg}~`{r} pkg_version("arrow")`, [stringr]{.pkg}~`{r} pkg_version("stringr")`, [forcats]{.pkg}~`{r} pkg_version("forcats")`, [ggdist]{.pkg}~`{r} pkg_version("ggdist")`, and [knitr]{.pkg}~`{r} pkg_version("knitr")`. CRAN hosts [R]{.proglang} and all packages at [https://CRAN.R-project.org/](https://CRAN.R-project.org/). [renv]{.pkg}~`{r} pkg_version("renv")` ensures full reproducibility of the computational environment. Reproducing the factor return data requires an institutional subscription to Wharton Research Data Services (WRDS), as the underlying CRSP and Compustat data are proprietary and cannot be redistributed.
+
+Reproducing this paper from cached intermediate data takes about 15 minutes on a regular workstation. Recomputing the full factor library from raw WRDS data across all `{r} nrow(portfolio_sort_grid)` specifications takes about 12 hours on a 64-core machine.
 
 We publish all code, data workflows, and documentation at [https://github.com/tidy-finance/jss-multilingual-factor-library](https://github.com/tidy-finance/jss-multilingual-factor-library). The code is released under the MIT License, which is compatible with the GNU General Public License (GPL).
 

@@ -30,23 +30,6 @@ process_task <- function(row, sorting_data, output_dir) {
       {
         sorting_variables <- grep("sv_", names(sorting_data), value = TRUE)
 
-        # The size quantile filter is applied manually here rather than via
-        # filter_options(min_size_quantile = ...) because filter_sorting_data()
-        # computes the quantile across all stocks
-        if (!is.na(row$min_size_quantile)) {
-          sorting_data <- sorting_data |>
-            group_by(date) |>
-            filter(
-              mktcap_lag >=
-                quantile(
-                  mktcap_lag[exchange == "NYSE"],
-                  row$min_size_quantile,
-                  na.rm = TRUE
-                )
-            ) |>
-            ungroup()
-        }
-
         rebalancing_month <- if (row$rebalancing == "monthly") NULL else 7
         bp_exchanges <- strsplit(row$breakpoints_exchanges, split = "\\|")[[1]]
         breakpoints_min_size_threshold = if (
@@ -89,7 +72,12 @@ process_task <- function(row, sorting_data, output_dir) {
             filter_options = filter_options(
               exclude_financials = row$exclude_financials,
               exclude_utilities = row$exclude_utilities,
-              positive_earnings = row$exclude_negative_earnings
+              positive_earnings = row$exclude_negative_earnings,
+              min_size_quantile = if (!is.na(row$min_size_quantile)) {
+                row$min_size_quantile
+              } else {
+                NULL
+              }
             ),
             breakpoint_options_main = options_main,
             breakpoint_options_secondary = options_secondary
@@ -265,4 +253,5 @@ portfolio_performance <- arrow::open_dataset("data/portfolio_returns") |>
       .fun = median
     )
   )
+
 portfolio_performance |> write_parquet("data/portfolio_performance.parquet")
