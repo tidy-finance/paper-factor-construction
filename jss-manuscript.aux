@@ -1,0 +1,101 @@
+\relax 
+\providecommand*\new@tpo@label[2]{}
+\providecommand\hyper@newdestlabel[2]{}
+\providecommand*\HyPL@Entry[1]{}
+\HyPL@Entry{0<</S/D>>}
+\@writefile{toc}{\contentsline {subsection}{\nonumberline Introduction: Constructing financial risk factors}{1}{subsection*.1}\protected@file@percent }
+\newlabel{sec-intro}{{}{1}{Introduction: Constructing financial risk factors}{subsection*.1}{}}
+\@writefile{toc}{\contentsline {subsection}{\nonumberline Package overview}{3}{subsection*.2}\protected@file@percent }
+\newlabel{sec-overview}{{}{3}{Package overview}{subsection*.2}{}}
+\@writefile{toc}{\contentsline {subsubsection}{\nonumberline Installation and setup}{3}{subsubsection*.3}\protected@file@percent }
+\newlabel{sec-installation}{{}{3}{Installation and setup}{subsubsection*.3}{}}
+\gdef \LT@i {\LT@entry 
+    {1}{94.67282pt}\LT@entry 
+    {1}{162.16681pt}\LT@entry 
+    {4}{185.39827pt}}
+\@writefile{toc}{\contentsline {subsubsection}{\nonumberline Design and workflow}{4}{subsubsection*.4}\protected@file@percent }
+\newlabel{sec-design}{{}{4}{Design and workflow}{subsubsection*.4}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {1}{\ignorespaces Research workflow for factor construction with \texttt  {tidyfinance}, illustrating the three-stage pipeline and the package functions involved at each step.}}{4}{figure.caption.5}\protected@file@percent }
+\newlabel{fig-workflow-diagram}{{1}{4}{Research workflow for factor construction with \texttt {tidyfinance}, illustrating the three-stage pipeline and the package functions involved at each step}{figure.caption.5}{}}
+\@writefile{toc}{\contentsline {subsubsection}{\nonumberline Data access}{4}{subsubsection*.6}\protected@file@percent }
+\newlabel{sec-data-access}{{}{4}{Data access}{subsubsection*.6}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {1}{\ignorespaces Data sources available via \texttt  {download\_data()} in \texttt  {tidyfinance}.}}{4}{table.1}\protected@file@percent }
+\newlabel{tbl-data-sources}{{1}{4}{Data sources available via \texttt {download\_data()} in \texttt {tidyfinance}}{table.1}{}}
+\@writefile{toc}{\contentsline {subsubsection}{\nonumberline Variable construction}{6}{subsubsection*.7}\protected@file@percent }
+\newlabel{sec-variable-construction}{{}{6}{Variable construction}{subsubsection*.7}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {2}{\ignorespaces Two lagging mechanisms in \texttt  {add\_lagged\_columns()}. Each row represents a data series with observed (filled) and missing (hollow) cells. Dashed rectangles mark the search window; arrows show which value gets matched to each target month.}}{7}{figure.caption.8}\protected@file@percent }
+\newlabel{fig-lagging-illustration}{{2}{7}{Two lagging mechanisms in \texttt {add\_lagged\_columns()}. Each row represents a data series with observed (filled) and missing (hollow) cells. Dashed rectangles mark the search window; arrows show which value gets matched to each target month}{figure.caption.8}{}}
+\@writefile{toc}{\contentsline {subsubsection}{\nonumberline Portfolio sorting}{8}{subsubsection*.9}\protected@file@percent }
+\newlabel{sec-portfolio-sorting}{{}{8}{Portfolio sorting}{subsubsection*.9}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {3}{\ignorespaces Portfolio sort approaches illustrated for a single month (December 2024). Each panel plots stock-month observations assigned to \texttt  {r\ .QuartoInlineRender(n\_portfolio)}×\texttt  {r\ .QuartoInlineRender(n\_portfolio)} portfolios based on asset growth rank (x-axis) and size rank (y-axis), both expressed as percentiles. Colors indicate portfolio cell assignment. The univariate sort (left) assigns portfolios on asset growth alone; the independent bivariate sort (center) assigns each dimension independently; the dependent bivariate sort (right) sorts on size first, then on asset growth within size groups.}}{9}{figure.caption.10}\protected@file@percent }
+\newlabel{fig-illustrate-portfolio-helper}{{3}{9}{Portfolio sort approaches illustrated for a single month (December 2024). Each panel plots stock-month observations assigned to \texttt {r\ .QuartoInlineRender(n\_portfolio)}×\texttt {r\ .QuartoInlineRender(n\_portfolio)} portfolios based on asset growth rank (x-axis) and size rank (y-axis), both expressed as percentiles. Colors indicate portfolio cell assignment. The univariate sort (left) assigns portfolios on asset growth alone; the independent bivariate sort (center) assigns each dimension independently; the dependent bivariate sort (right) sorts on size first, then on asset growth within size groups}{figure.caption.10}{}}
+\@writefile{toc}{\contentsline {subsection}{\nonumberline Vignette: A case study in factor construction}{10}{subsection*.11}\protected@file@percent }
+\newlabel{sec-ag}{{}{10}{Vignette: A case study in factor construction}{subsection*.11}{}}
+\@writefile{toc}{\contentsline {subsubsection}{\nonumberline Data download}{11}{subsubsection*.12}\protected@file@percent }
+\newlabel{sec-data-download}{{}{11}{Data download}{subsubsection*.12}{}}
+\@writefile{toc}{\contentsline {subsubsection}{\nonumberline Data cleaning and variable construction}{12}{subsubsection*.13}\protected@file@percent }
+\newlabel{sec-data-cleaning}{{}{12}{Data cleaning and variable construction}{subsubsection*.13}{}}
+\gdef \LT@ii {\LT@entry 
+    {3}{38.85pt}\LT@entry 
+    {1}{38.46616pt}\LT@entry 
+    {3}{36.9441pt}\LT@entry 
+    {3}{40.59045pt}\LT@entry 
+    {3}{40.59045pt}\LT@entry 
+    {1}{47.59846pt}\LT@entry 
+    {3}{36.9441pt}\LT@entry 
+    {3}{30.9441pt}}
+\gdef \LT@iii {\LT@entry 
+    {1}{28.62363pt}\LT@entry 
+    {1}{34.62363pt}\LT@entry 
+    {1}{53.49539pt}\LT@entry 
+    {1}{53.49539pt}\LT@entry 
+    {1}{53.49539pt}\LT@entry 
+    {1}{45.95418pt}\LT@entry 
+    {1}{61.0366pt}\LT@entry 
+    {1}{61.0366pt}\LT@entry 
+    {1}{55.0366pt}}
+\newlabel{tbl-ag-summary}{{2}{13}{Data cleaning and variable construction}{table.2}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {2}{\ignorespaces Cross-sectional summary statistics for asset growth (winsorized at the 1st and 99th percentiles). The table reports the number of firm-year observations (N), the mean, standard deviation (SD), and selected percentiles of the annual asset growth distribution computed from \texttt  {sorting\_variable\_data}.}}{13}{table.2}\protected@file@percent }
+\newlabel{tbl-ag-summary-yearly}{{3}{13}{Data cleaning and variable construction}{table.3}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {3}{\ignorespaces Time-series averages of annual cross-sectional summary statistics for asset growth (winsorized at the 1st and 99th percentiles). For each calendar year, cross-sectional mean, standard deviation, and median are computed from \texttt  {sorting\_variable\_data}; the table reports the time-series mean, minimum, and maximum of those annual statistics.}}{13}{table.3}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {4}{\ignorespaces Distribution of asset growth over time. Lines show the 33rd, 50th, and 66th percentiles of the cross-sectional distribution of asset growth in \texttt  {sorting\_data}, the firm-month panel used as input for portfolio construction. Asset growth is expressed as a proportion (e.g., 0.2 = 20\% annual growth in total assets) and covers the full sample period of the merged CRSP-Compustat dataset.}}{14}{figure.caption.14}\protected@file@percent }
+\newlabel{fig-ag-percentiles}{{4}{14}{Distribution of asset growth over time. Lines show the 33rd, 50th, and 66th percentiles of the cross-sectional distribution of asset growth in \texttt {sorting\_data}, the firm-month panel used as input for portfolio construction. Asset growth is expressed as a proportion (e.g., 0.2 = 20\% annual growth in total assets) and covers the full sample period of the merged CRSP-Compustat dataset}{figure.caption.14}{}}
+\@writefile{toc}{\contentsline {subsubsection}{\nonumberline Portfolio sorts}{14}{subsubsection*.15}\protected@file@percent }
+\newlabel{sec-portfolio-sorts}{{}{14}{Portfolio sorts}{subsubsection*.15}{}}
+\@writefile{toc}{\contentsline {paragraph}{\nonumberline Univariate sorts}{15}{paragraph*.16}\protected@file@percent }
+\newlabel{sec-univariate-sorts}{{}{15}{Univariate sorts}{paragraph*.16}{}}
+\gdef \LT@iv {\LT@entry 
+    {1}{62.77783pt}\LT@entry 
+    {1}{57.42111pt}\LT@entry 
+    {1}{68.77783pt}\LT@entry 
+    {1}{57.42111pt}\LT@entry 
+    {1}{68.77783pt}\LT@entry 
+    {1}{63.11664pt}\LT@entry 
+    {1}{68.47334pt}}
+\newlabel{tbl-univariate-sort-ag}{{4}{16}{Univariate sorts}{table.4}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {4}{\ignorespaces Time-series averages of annualised monthly excess returns for asset growth quintile portfolios. Portfolios are formed annually in July using NYSE breakpoints, rebalanced annually. Means are annualised (multiplied by 12). The \(t\)\textasciitilde statistic tests whether the mean monthly excess return differs from zero. The L/S row is the long-short portfolio (bottom minus top quintile).}}{16}{table.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{\nonumberline Bivariate sorts}{16}{paragraph*.17}\protected@file@percent }
+\newlabel{sec-bivariate-sorts}{{}{16}{Bivariate sorts}{paragraph*.17}{}}
+\gdef \LT@v {\LT@entry 
+    {3}{129.45029pt}\LT@entry 
+    {1}{61.5816pt}\LT@entry 
+    {1}{57.465pt}}
+\newlabel{tbl-bivariate-comparison}{{5}{17}{Bivariate sorts}{table.5}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {5}{\ignorespaces Univariate vs size-controlled long-short returns for asset growth. Annualized value-weighted mean excess return and \(t\)\textasciitilde statistic for the univariate sort and the dependent bivariate sort averaging across two size groups. Portfolios use NYSE breakpoints and annual July rebalancing.}}{17}{table.5}\protected@file@percent }
+\gdef \LT@vi {\LT@entry 
+    {1}{62.31528pt}\LT@entry 
+    {1}{89.14285pt}\LT@entry 
+    {1}{120.44376pt}\LT@entry 
+    {1}{174.902pt}}
+\@writefile{toc}{\contentsline {subsection}{\nonumberline Factor library and API}{18}{subsection*.18}\protected@file@percent }
+\newlabel{sec-library}{{}{18}{Factor library and API}{subsection*.18}{}}
+\@writefile{toc}{\contentsline {subsubsection}{\nonumberline Specification grid}{18}{subsubsection*.19}\protected@file@percent }
+\newlabel{sec-specification-grid}{{}{18}{Specification grid}{subsubsection*.19}{}}
+\newlabel{tbl-sorting-decisions}{{6}{18}{Specification grid}{table.6}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {6}{\ignorespaces Preprocessing choices in the portfolio sort grid and corresponding \texttt  {download\_data()} arguments. Italic values indicate the default. For double sorts, the secondary quantiles and exchange choices apply to the size dimension only; for univariate sorts, those rows are not applicable. FF refers to the lag procedure of Eugene F. Fama and French (1993).}}{18}{table.6}\protected@file@percent }
+\newlabel{tbl-sorting-decisions}{{6}{19}{Specification grid}{table.6}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {6}{\ignorespaces Preprocessing choices in the portfolio sort grid and corresponding \texttt  {download\_data()} arguments. Italic values indicate the default. For double sorts, the secondary quantiles and exchange choices apply to the size dimension only; for univariate sorts, those rows are not applicable. FF refers to the lag procedure of Eugene F. Fama and French (1993).}}{19}{table.6}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\nonumberline The factor library}{19}{subsubsection*.20}\protected@file@percent }
+\newlabel{sec-library-practice}{{}{19}{The factor library}{subsubsection*.20}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {5}{\ignorespaces Sharpe ratios across construction choices. Ridge plots show the distribution of annualized Sharpe ratios of long-short return differentials for each sorting variable across all \texttt  {r\ .QuartoInlineRender(nrow(portfolio\_sort\_grid))} specifications illustrated in Table~\ref {tbl-sorting-decisions}, based on the available sample period per factor. Most variables exhibit substantial variation across specifications, underscoring the sensitivity of factor returns to construction choices.}}{20}{figure.caption.21}\protected@file@percent }
+\newlabel{fig-sharpe-ratio}{{5}{20}{Sharpe ratios across construction choices. Ridge plots show the distribution of annualized Sharpe ratios of long-short return differentials for each sorting variable across all \texttt {r\ .QuartoInlineRender(nrow(portfolio\_sort\_grid))} specifications illustrated in Table~\ref {tbl-sorting-decisions}, based on the available sample period per factor. Most variables exhibit substantial variation across specifications, underscoring the sensitivity of factor returns to construction choices}{figure.caption.21}{}}

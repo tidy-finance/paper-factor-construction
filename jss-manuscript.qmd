@@ -150,7 +150,6 @@ flowchart LR
 
 ```
 
-
 ### Data access {#sec-data-access}
 
 `tidyfinance` provides a single interface, `download_data()`, to `{r} nrow(tidyfinance::list_supported_types())` dataset types: equity returns, fixed-income transactions, macroeconomic predictors, index constituents, and more. @tbl-data-sources lists all available sources. `list_supported_types()` and `list_supported_indexes()` return the full catalogue programmatically.
@@ -679,7 +678,7 @@ Portfolio sorts are among the most widely used tools in empirical asset pricing 
 
 `compute_breakpoints()` takes a cross-section and a sorting variable and returns the numeric cutoffs that define the portfolio boundaries. The user supplies either a number of portfolios (for example, five for quintiles) or an explicit vector of percentiles, but not both. A `breakpoints_exchanges` argument restricts the universe used to compute breakpoints. The standard convention is NYSE-only, which prevents the large cross-section of small NASDAQ firms from dominating the lower bins. A related `breakpoints_min_size_threshold` argument excludes stocks below a market-cap quantile from the breakpoint computation, which is useful for size-related sorts where microcaps would otherwise distort the cutoffs. A `smooth_bunching` flag handles cases where the sorting variable clusters at the edges by pinning extreme values to the boundary portfolios and recomputing breakpoints on the remainder.
 
-`assign_portfolio()` maps each observation to a portfolio integer using the breakpoints. The breakpoint computation is delegated to a user-supplied function (defaulting to `compute_breakpoints()`), so custom rules such as dollar-based cutoffs or industry-adjusted breakpoints can be plugged in without rewriting the assignment logic. In practice, `assign_portfolio()` is called separately for each rebalancing date, so that portfolios are reformed each period rather than fixed once for the whole sample.
+`assign_portfolio()` maps each observation to a portfolio integer using the breakpoints. The breakpoint computation is delegated to a user-supplied function (defaulting to `compute_breakpoints()`), so custom rules can be plugged in without rewriting the assignment logic. In practice, `assign_portfolio()` is called separately for each rebalancing date, so that portfolios are reformed each period rather than fixed once for the whole sample.
 
 `compute_portfolio_returns()` ties the lower-level pieces together into a single call. Given a panel of stock data, one or two sorting variables, a sorting method, and `breakpoint_options`, it handles rebalancing, breakpoint computation, portfolio assignment, and return aggregation. It then returns a complete panel of portfolio returns. For each portfolio-date the function reports three return measures: equal-weighted, value-weighted using `mktcap_lag` as the weight, and capped value-weighted. The capped version pulls weights above the `cap_weight` percentile (default 0.8) back to that cap, which prevents a small number of megacap firms from dominating the portfolio. A `min_portfolio_size` argument sets the minimum number of constituents below which the corresponding return is set to `NA`. An optional `rebalancing_month` argument switches from period-by-period rebalancing to annual rebalancing in the specified month. Portfolios formed in that month are then held constant for the following twelve months.
 
@@ -743,17 +742,17 @@ portfolios_independent <- cross_section |>
 
 portfolios_dependent <- cross_section |>
   mutate(
-    ag_portfolio = assign_portfolio(
-      pick(everything()),
-      "asset_growth",
-      breakpoint_options = breakpoint_options(n_portfolios = n_portfolio)
-    )
-  ) |>
-  group_by(ag_portfolio) |>
-  mutate(
     size_portfolio = assign_portfolio(
       pick(everything()),
       "mktcap_lag",
+      breakpoint_options = breakpoint_options(n_portfolios = n_portfolio)
+    )
+  ) |>
+  group_by(size_portfolio) |>
+  mutate(
+    ag_portfolio = assign_portfolio(
+      pick(everything()),
+      "asset_growth",
       breakpoint_options = breakpoint_options(n_portfolios = n_portfolio)
     ),
     portfolio_cell = paste0(ag_portfolio, "-", size_portfolio)
@@ -831,7 +830,7 @@ This section shows the workflow from scratch without excessive documentation by 
 - Illustrate "standard" summary stats for one specification of the factor or use fama-mac beth functionality for some standard testing.
 ::: 
 
-We walk through the construction of the asset growth factor from raw CRSP and Compustat data to long-short portfolio returns, implementing each stage of @fig-workflow-diagram in turn. Each step uses a `tidyfinance` function and generalises directly to any sorting variable in the factor library.^[Installation of the `tidyfinance` package is described in the appendix in  @sec-installation Installation and setup.]
+We walk through the construction of the asset growth factor from raw CRSP and Compustat data to long-short portfolio returns, implementing each stage of @fig-workflow-diagram in turn. Each step uses a `tidyfinance` function and generalises directly to any sorting variable in the factor library.^[Installation of the `tidyfinance` package is described in @sec-installation.]
 
 Once installed, load `tidyfinance` and a minimal set of packages for data manipulation and visualisation.
 
@@ -901,12 +900,13 @@ Annual Compustat data contains `{r} nrow(compustat_annual)` firm-year observatio
 
 ### Data cleaning and variable construction {#sec-data-cleaning}
 
-We illustrate data cleaning and variable construction using asset growth (AG) as our running example. Asset growth is the year-over-year percentage change in total assets [@cooper.2008], 
+We illustrate data cleaning and variable construction using asset growth (AG) as our running example. Asset growth is the year-over-year percentage change in total assets [@cooper.2008],
+
 $$
 AG_t = (AT_t - AT_{t-1}) / AT_{t-1}.
 $$
 
-The `add_lagged_columns()` function from `tidyfinance` handles temporal alignment by creating a lagged version of total assets grouped by firm identifier (`gvkey`) with a one-year lag. Non-finite values (arising when lagged total assets are zero or missing) become `NA`.^[For the sake of simplicity we do not show every step of the data cleaning process in the paper. For instance, we apply an earnings filter to exclude firms with negative or zero income before extraordinary items (`ib`), which is a common practice in the literature to mitigate the influence of financial distress on asset growth portfolios. This filter is implemented in the code but not shown in the paper for brevity. We also apply an age filter to exclude firms younger than two years, which is common in the literature to ensure that the sorting variable is based on stable financial information. This filter is also implemented in the code but not shown in the paper for brevity. The factor library API provides preprocessed panels with all these filters applied, so users can access the final sorting variables without having to implement these steps themselves.] 
+The `add_lagged_columns()` function handles temporal alignment by creating a lagged version of total assets grouped by firm identifier (`gvkey`) with a one-year lag. Non-finite values (arising when lagged total assets are zero or missing) become `NA`.^[For the sake of simplicity we do not show every step of the data cleaning process in the paper. For example, we apply an earnings filter to exclude firms with negative or zero income before extraordinary items (`ib`), a common practice in the literature to mitigate the influence of financial distress on asset growth portfolios. This filter is configured through `filter_options()` at the portfolio-sort step rather than applied here. The factor library API provides preprocessed panels with all these filters applied, so users can access the final sorting variables without having to implement these steps themselves.]
 
 ```{r}
 #| label: compute-sorting-variables
@@ -920,10 +920,10 @@ sorting_variable_data <- compustat_annual |>
     asset_growth = (at - at_lag) / at_lag,
     asset_growth = if_else(is.finite(asset_growth), asset_growth, NA_real_)
   ) |>
-  select(gvkey, date, asset_growth)
+  select(gvkey, date, asset_growth, ib)
 ```
 
-`sorting_variable_data` contains one observation per firm-year, the natural unit for cross-sectional analysis of annual accounting variables. The package provides `filter_out()` as a convenience wrapper that removes rows matching a logical predicate, and `winsorize()` to clip numeric vectors at specified quantile bounds. Asset growth is heavily right-skewed: a small number of firms with dramatic balance-sheet expansions generate extreme positive values. We winsorize at the 1st and 99th percentiles before computing summary statistics. @tbl-ag-summary reports the pooled cross-sectional summary; @tbl-ag-summary-yearly shows how those moments vary across calendar years.
+`sorting_variable_data` contains one observation per firm-year, the natural unit for cross-sectional analysis of annual accounting variables. We use `dplyr::filter_out()` [@dplyr] to drop rows that match a predicate (here, missing asset-growth values) and `tidyfinance::winsorize()` to clip numeric vectors at specified quantile bounds; we apply the latter at the 1st and 99th percentiles before computing summary statistics. Asset growth is heavily right-skewed: a small number of firms with dramatic balance-sheet expansions generate extreme positive values. @tbl-ag-summary reports the pooled cross-sectional summary; @tbl-ag-summary-yearly shows how those moments vary across calendar years.
 
 ```{r}
 #| label: tbl-ag-summary
@@ -978,9 +978,9 @@ sorting_variable_data |>
   knitr::kable(digits = 3)
 ```
 
-The next step merges annual sorting variables onto the monthly CRSP stock panel using `join_lagged_values()`. The function aligns fiscal-year-end data with monthly observations through a configurable lag window. Setting `ff_adjustment = TRUE` implements the Fama-French convention [@fama.1993], aligning fiscal-year data from year $t$ with portfolio formation in July of year $t+1$ through a 12-to-18-month look-back window. The same lagging process generalizes to all sorting variables in the full factor library. The factor library API provides precomputed lagged panels for all variables.
+The next step merges annual sorting variables onto the monthly CRSP stock panel using `join_lagged_values()`. The function aligns fiscal-year-end data with monthly observations through a configurable lag window. Setting `ff_adjustment = TRUE` implements the Fama-French convention [@fama.1993], aligning fiscal-year data from year $t$ with portfolio formation in July of year $t+1$ through a 12-to-18-month look-back window. The same lagging process generalises to all sorting variables in the full factor library, and the factor library API provides precomputed lagged panels for all of them.
 
-With both lagging mechanisms documented, we apply `join_lagged_values()` to merge the sorting variable onto the monthly return panel. @fig-ag-percentiles shows the 33rd, 50th, and 66th percentiles of asset growth over time in the resulting panel; pronounced spikes during economic expansions and contractions highlight the cyclical nature of corporate investment that portfolio sorts aim to exploit.
+We now apply `join_lagged_values()` to merge the sorting variable onto the monthly return panel. @fig-ag-percentiles shows the 33rd, 50th, and 66th percentiles of asset growth over time in the resulting panel; pronounced spikes during economic expansions and contractions highlight the cyclical nature of corporate investment that portfolio sorts aim to exploit.
 
 ```{r}
 #| label: lag-sorting-variables
@@ -995,12 +995,20 @@ sorting_data <- crsp_monthly |>
   )
 
 sorting_data <- sorting_data |>
-  select(date, permno, exchange, ret_excess, mktcap_lag, asset_growth) |>
+  select(
+    date,
+    permno,
+    exchange,
+    siccd,
+    ret_excess,
+    mktcap_lag,
+    asset_growth,
+    ib
+  ) |>
   filter(date > date_start + months(12) + months(18))
 ```
 
-The filter removes the initial year used to compute the growth rate and an additional 18 months to avoid mechanically introduced gaps from the lagging step, leaving a panel of stock-month observations with excess returns, exchange membership, lagged market capitalization, and the lagged sorting variable.
-
+The filter removes the initial year used to compute the growth rate plus an additional 18 months to avoid mechanically introduced gaps from the lagging step, leaving a panel of stock-month observations with excess returns, exchange membership, lagged market capitalisation, the lagged sorting variable. The auxiliary columns `siccd` and `ib` support the sample-construction filters in the customised subsection -@sec-customised-sorts.
 
 ```{r}
 #| label: fig-ag-percentiles
@@ -1042,38 +1050,42 @@ With the sorting variable constructed and merged onto the monthly stock panel, w
 
 ### Portfolio sorts {#sec-portfolio-sorts}
 
-In portfolio sorts, stocks are ranked each period by their sorting variable and divided into quantile portfolios. Portfolio returns are equal-weighted or value-weighted averages of constituent stock returns. The long-short factor return is the difference between the extreme portfolios, for instance bottom minus top for asset growth, reflecting the negative premium documented by @cooper.2008. Key methodological decisions include the number of portfolios, the exchange universe for computing breakpoints, the weighting scheme, and the rebalancing frequency.
+In portfolio sorts, stocks are ranked each period by their sorting variable and divided into quantile portfolios. Portfolio returns are equal-weighted or value-weighted averages of constituent stock returns. The long-short factor return is the difference between the extreme portfolios. For asset growth, the relevant spread is bottom minus top, reflecting the negative premium documented by @cooper.2008. The construction involves several methodological choices: which stocks enter the universe, how many portfolios to form, which exchange determines the breakpoints, the weighting scheme, and the rebalancing frequency.
 
-The `tidyfinance` package implements this workflow through three functions. First, `breakpoint_options()` configures the sorting parameters: the number of quantile portfolios and which exchanges determine the breakpoints. Second, `compute_portfolio_returns()` takes the sorting data, applies the specified configuration, and returns portfolio-level returns. Third, `compute_long_short_returns()` constructs the hedge portfolio return from the extreme quantiles.
+`implement_portfolio_sort()` exposes all of these choices through a single function call. The function takes the panel data, one or two sorting variables, a sorting method, and a `portfolio_sort_options` object that bundles two configuration layers: `filter_options()` controls which observations enter the breakpoint and return computation (for example, excluding financial firms or stocks below a minimum price), and `breakpoint_options()` controls how portfolios are formed (number of portfolios, exchange universe, bunching). Internally, the function applies the sample filters and then calls `compute_portfolio_returns()`, which produces the time series of portfolio returns. A subsequent call to `compute_long_short_returns()` constructs the hedge portfolio.
 
-#### Univariate sorts {#sec-univariate-sorts}
+`compute_portfolio_returns()` itself rests on two lower-level helpers, `compute_breakpoints()` for quantile cut-points and `assign_portfolio()` for mapping each stock-month to a portfolio number. Both are exported, so researchers who need finer control can call them directly rather than through the wrapper. The two examples below use `implement_portfolio_sort()` throughout.
 
-`compute_portfolio_returns()` is built on two lower-level functions that are also available for custom workflows. `compute_breakpoints()` computes quantile cutpoints for the sorting variable from a specified exchange universe. `assign_portfolio()` maps each stock-month to a portfolio number based on those cutpoints. Researchers who need finer control, for instance to build overlapping portfolios, apply non-standard cutoffs, or weight within cells differently, can call these functions directly rather than through the high-level wrapper.
+#### Baseline specification (univariate sorts) {#sec-baseline-sorts}
 
-In a univariate sort, stocks are ranked on a single characteristic. We illustrate this with asset growth, forming decile portfolios using NYSE breakpoints and value-weighted returns, rebalanced annually in July.
+The simplest call to `implement_portfolio_sort()` requires only a `portfolio_sort_options` object that specifies how to form the breakpoints. In a univariate sort, stocks are ranked on a single characteristic. We illustrate this here using asset growth as the sorting variable and forming quintile portfolios with breakpoints computed from NYSE-listed stocks only, and rebalanced annually in July.
 
 ```{r}
-#| label: breakpoint-options-main
-options_main <- breakpoint_options(
-  n_portfolios = 5,
-  breakpoint_exchanges = "NYSE"
+#| label: baseline-options
+options_baseline <- portfolio_sort_options(
+  breakpoint_options_main = breakpoint_options(
+    n_portfolios = 5,
+    breakpoints_exchanges = "NYSE"
+  )
 )
 ```
 
-The `breakpoint_options()` call specifies that breakpoints come from NYSE-listed stocks only, a common convention that avoids the influence of small AMEX and NASDAQ firms on portfolio cutoffs. We then pass these options to `compute_portfolio_returns()`.
+The `breakpoint_options()` call specifies that breakpoints come from NYSE-listed stocks only, a common convention that avoids the influence of small AMEX and NASDAQ firms on portfolio cutoffs. We then pass these options to `implement_portfolio_sort()`.
 
 ```{r}
-#| label: univariate-sort-ag
-portfolio_returns <- compute_portfolio_returns(
-  sorting_data,
+#| label: baseline-sort
+portfolio_returns <- implement_portfolio_sort(
+  data = sorting_data,
   sorting_variables = "asset_growth",
   sorting_method = "univariate",
   rebalancing_month = 7,
-  options_main
+  portfolio_sort_options = options_baseline
 )
 ```
 
-`compute_portfolio_returns()` returns a long tibble with one row per portfolio-month, containing value-weighted (`ret_excess_vw`), equal-weighted (`ret_excess_ew`), and capped value-weighted (`ret_excess_vw_capped`) excess returns. The long-short factor return is obtained via `compute_long_short_returns()`. The `direction = "bottom_minus_top"` argument means the factor is long low-AG stocks and short high-AG stocks, consistent with the negative premium documented by @cooper.2008.
+Apart from setting `rebalancing_month = 7`, every other choice point falls back to the package default: no smooth bunching, no minimum portfolio size, and a cap-weight cutoff at the 80th percentile of market capitalisation for the capped value-weighted return. The standard CRSP/Compustat column names (`permno`, `date`, `ret_excess`, `mktcap_lag`, `exchange`) are picked up automatically through the default `data_options()`. Setting `rebalancing_month = 7` reforms the portfolios each July and holds them for the following twelve months, the standard Fama-French rebalancing convention. This pairs with `ff_adjustment = TRUE` in `join_lagged_values()`: the signal is locked in at the June/July boundary, so July is the first month in which a fresh fiscal-year update is available.
+
+`compute_portfolio_returns()`, called internally, returns a long tibble with one row per portfolio-month and the three weighting columns introduced in @sec-portfolio-sorting (`ret_excess_vw`, `ret_excess_ew`, `ret_excess_vw_capped`). Piping the result through `compute_long_short_returns()` gives the hedge portfolio. The `direction = "bottom_minus_top"` argument means the factor is long low-AG stocks and short high-AG stocks, in line with the negative premium documented by @cooper.2008.
 
 ```{r}
 #| label: long-short-ag
@@ -1085,9 +1097,9 @@ factor_returns_ag <- portfolio_returns |>
 
 ```{r}
 #| label: tbl-univariate-sort-ag
-#| tbl-cap: "Time-series averages of annualised monthly excess returns for asset growth quintile portfolios. Portfolios are formed annually in July using NYSE breakpoints, rebalanced annually. Means are annualised (multiplied by 12). The $t$~statistic tests whether the mean monthly excess return differs from zero. The L/S row is the long-short portfolio (bottom minus top quintile)."
+#| tbl-cap: "Time-series averages of annualised monthly excess returns for asset growth quintile portfolios. Portfolios are formed annually in July using NYSE breakpoints. Means are annualised (multiplied by 12). The $t$~statistic tests whether the mean monthly excess return differs from zero. The L/S row is the long-short portfolio (bottom minus top quintile)."
 #| echo: false
-decile_stats <- portfolio_returns |>
+quintile_stats <- portfolio_returns |>
   drop_na() |>
   group_by(portfolio) |>
   summarise(
@@ -1115,7 +1127,7 @@ ls_row <- factor_returns_ag |>
       (sd(ret_excess_vw_capped) / sqrt(n()))
   )
 
-bind_rows(decile_stats, ls_row) |>
+bind_rows(quintile_stats, ls_row) |>
   knitr::kable(
     digits = 3,
     col.names = c(
@@ -1130,58 +1142,154 @@ bind_rows(decile_stats, ls_row) |>
   )
 ```
 
-The value-weighted long-short portfolio earns `{r} round(mean(factor_returns_ag$ret_excess_vw, na.rm=TRUE)*12*100, 1)`% per year ($t$~statistic `{r} round(mean(factor_returns_ag$ret_excess_vw, na.rm=TRUE) / (sd(factor_returns_ag$ret_excess_vw, na.rm=TRUE) / sqrt(sum(!is.na(factor_returns_ag$ret_excess_vw)))), 2)`), consistent with the negative premium documented by @cooper.2008. The equal-weighted spread is larger, as expected for characteristics that correlate with size. The monotone decline across quintiles confirms that `tidyfinance` reproduces the literature result from raw WRDS data.
+The value-weighted long-short portfolio earns `{r} round(mean(factor_returns_ag$ret_excess_vw, na.rm = TRUE) * 12 * 100, 1)`% per year ($t$-statistic `{r} round(mean(factor_returns_ag$ret_excess_vw, na.rm = TRUE) / (sd(factor_returns_ag$ret_excess_vw, na.rm = TRUE) / sqrt(sum(!is.na(factor_returns_ag$ret_excess_vw)))), 2)`), consistent with the negative premium documented by @cooper.2008. The equal-weighted spread is larger, as expected for characteristics that correlate with size. The monotone decline of value-weighted means across quintiles confirms that `tidyfinance` reproduces the literature result from raw WRDS data with a single function call.
 
-#### Bivariate sorts {#sec-bivariate-sorts}
+#### Customised specification (bivariate sorts) {#sec-customised-sorts}
 
-Bivariate (double) sorts control for a second variable, typically firm size (`mktcap_lag`), when forming portfolios. In dependent sorts, stocks are first sorted into groups by the secondary variable; within each group, they are then sorted on the main characteristic. In independent sorts, both sorts apply unconditionally, and portfolios form at the intersections. The factor return averages across the secondary dimension, isolating the effect of the primary variable after controlling for size. @fig-illustrate-portfolio-helper illustrates the three approaches for a single cross-section.
+The baseline specification above takes (almost) every package default and runs a univariate sort to form long-short portfolios. The customised specification below changes both: it overrides several of those defaults through `portfolio_sort_options` and moves from sorting on one variable to sorting on two.
 
-We reuse `options_main` from the univariate sort (five portfolios, NYSE breakpoints) and add a separate options object for the secondary size dimension:
+We adopt a specification that combines, in a single call to `implement_portfolio_sort()`, the universe restrictions and breakpoint conventions used in many empirical studies: exclude financials and utilities, exclude firms with non-positive earnings, ignore the smallest 20% of NYSE-sized firms when computing breakpoints, form quintiles on AG within size buckets, use NYSE-only breakpoints, rebalance annually in July, and require at least ten constituents per portfolio.
+
+Bivariate (double) sorts control for a second variable, typically firm size (`mktcap_lag`), when forming portfolios on the main characteristic. We use the dependent variant introduced in @sec-portfolio-sorting and illustrated in @fig-illustrate-portfolio-helper: stocks are first split into size buckets, then sorted into asset growth portfolios within each bucket, with returns averaged across the size dimension.
 
 ```{r}
-#| label: bivariate-sort-ag
-options_secondary <- breakpoint_options(
-  n_portfolios = 2,
-  breakpoint_exchanges = "NYSE"
+#| label: customised-options
+options_customised <- portfolio_sort_options(
+  filter_options = filter_options(
+    exclude_financials = TRUE,
+    exclude_utilities = TRUE,
+    exclude_negative_earnings = TRUE
+  ),
+  breakpoint_options_main = breakpoint_options(
+    n_portfolios = 5,
+    breakpoints_exchanges = "NYSE",
+    breakpoints_min_size_threshold = 0.2
+  ),
+  breakpoint_options_secondary = breakpoint_options(
+    n_portfolios = 2,
+    breakpoints_exchanges = "NYSE"
+  )
 )
-
-portfolio_returns_biv <- compute_portfolio_returns(
-  sorting_data,
-  c("asset_growth", "mktcap_lag"),
-  sorting_method = "bivariate-dependent",
-  rebalancing_month = 7,
-  options_main,
-  options_secondary
-)
-
-factor_returns_biv <- portfolio_returns_biv |>
-  compute_long_short_returns(direction = "bottom_minus_top")
 ```
 
 ```{r}
-#| label: tbl-bivariate-comparison
-#| tbl-cap: "Univariate vs size-controlled long-short returns for asset growth. Annualized value-weighted mean excess return and $t$~statistic for the univariate sort and the dependent bivariate sort averaging across two size groups. Portfolios use NYSE breakpoints and annual July rebalancing."
+#| label: customised-sort
+portfolio_returns_customised <- implement_portfolio_sort(
+  data = sorting_data,
+  sorting_variables = c("asset_growth", "mktcap_lag"),
+  sorting_method = "bivariate-dependent",
+  rebalancing_month = 7,
+  portfolio_sort_options = options_customised,
+  min_portfolio_size = 10,
+  quiet = TRUE
+)
+
+factor_returns_customised <- portfolio_returns_customised |>
+  compute_long_short_returns(direction = "bottom_minus_top")
+```
+
+A single object-construction call (`options_customised`) bundles every methodological choice that distinguishes this specification from the baseline; nothing in the surrounding pipeline changes. Switching from a univariate to a size-controlled dependent double sort is a one-word change in `sorting_method`, and the secondary breakpoint object is supplied alongside the primary one without any additional work. The `quiet = TRUE` flag suppresses the messages that `filter_sorting_data()` would otherwise emit reporting how many observations each filter drops; setting `quiet = FALSE` (the default) is useful when iterating to track the sample-construction effects.
+
+For comparison, we also include a bivariate-dependent sort that uses the default filters and breakpoint conventions, so the only difference from the baseline is the addition of size control. The long-short returns from that specification are appended to the customised one in @tbl-customised-comparison.
+
+```{r}
+#| label: bivariate-only-sort
+options_bivariate <- portfolio_sort_options(
+  breakpoint_options_main = breakpoint_options(
+    n_portfolios = 5,
+    breakpoints_exchanges = "NYSE"
+  ),
+  breakpoint_options_secondary = breakpoint_options(
+    n_portfolios = 2,
+    breakpoints_exchanges = "NYSE"
+  )
+)
+
+portfolio_returns_bivariate <- implement_portfolio_sort(
+  data = sorting_data,
+  sorting_variables = c("asset_growth", "mktcap_lag"),
+  sorting_method = "bivariate-dependent",
+  rebalancing_month = 7,
+  portfolio_sort_options = options_bivariate
+)
+
+factor_returns_bivariate <- portfolio_returns_bivariate |>
+  compute_long_short_returns(direction = "bottom_minus_top")
+```
+
+@tbl-customised-comparison decomposes the customised premium into two layers. Adding the size-controlled double sort alone (the bivariate-only row) lifts the annualised premium from `{r} round(mean(factor_returns_ag$ret_excess_vw, na.rm = TRUE) * 12 * 100, 1)`% to `{r} round(mean(factor_returns_bivariate$ret_excess_vw, na.rm = TRUE) * 12 * 100, 1)`%, with the $t$-statistic moving from borderline to clearly significant. Hence, most of the AG signal in the cross-section was masked by size dispersion in the univariate sort. Layering the filter set and the 20% breakpoint threshold on top trims the magnitude back to `{r} round(mean(factor_returns_customised$ret_excess_vw, na.rm = TRUE) * 12 * 100, 1)`%, where the spread remains significant at conventional levels: removing financials, utilities, and loss-making firms strips out some of the firms that were contributing to the raw spread. Across all three specifications, the spread is positive and reflects the negative AG premium of @cooper.2008.
+
+```{r}
+#| label: tbl-customised-comparison
+#| tbl-cap: "Three-step decomposition of long-short asset growth returns. The baseline is a univariate sort with NYSE breakpoints and no filters. The bivariate-only specification adds a dependent double sort on size to the baseline but otherwise keeps the same universe and breakpoints. The customised specification adds the filter set (financials, utilities, non-positive earnings) and a 20\\% size threshold on the breakpoints. All rows use annual July rebalancing; means are annualised value-weighted excess returns."
 #| echo: false
 bind_rows(
   factor_returns_ag |>
     drop_na() |>
     summarise(
-      Sort = "Univariate",
+      Specification = "Baseline (univariate, no filters)",
       `VW Mean` = mean(ret_excess_vw) * 12,
-      `VW $t$~stat` = mean(ret_excess_vw) / (sd(ret_excess_vw) / sqrt(n()))
+      `VW $t$-stat` = mean(ret_excess_vw) /
+        (sd(ret_excess_vw) / sqrt(n()))
     ),
-  factor_returns_biv |>
+  factor_returns_bivariate |>
     drop_na() |>
     summarise(
-      Sort = "Bivariate (size-controlled)",
+      Specification = "Bivariate only (size-controlled, no filters)",
       `VW Mean` = mean(ret_excess_vw) * 12,
-      `VW $t$~stat` = mean(ret_excess_vw) / (sd(ret_excess_vw) / sqrt(n()))
+      `VW $t$-stat` = mean(ret_excess_vw) /
+        (sd(ret_excess_vw) / sqrt(n()))
+    ),
+  factor_returns_customised |>
+    drop_na() |>
+    summarise(
+      Specification = "Customised (size-controlled, filtered)",
+      `VW Mean` = mean(ret_excess_vw) * 12,
+      `VW $t$-stat` = mean(ret_excess_vw) /
+        (sd(ret_excess_vw) / sqrt(n()))
     )
 ) |>
   knitr::kable(digits = 3, escape = TRUE)
 ```
 
-The AG premium survives size control, suggesting it captures an investment effect distinct from the size factor. The `sorting_method` argument switches between dependent and independent double sorts, so researchers can inspect both configurations without modifying the pipeline.
+For researchers who want even finer control, the package exposes the lower-level building blocks (`filter_sorting_data()`, `compute_breakpoints()`, `assign_portfolio()`, `compute_portfolio_returns()`) as standalone functions. They share signatures and semantics with `implement_portfolio_sort()`, so an analysis that prototypes against the wrapper can be unrolled into its components without rewriting the pipeline. This is convenient when custom logic, for example, computing breakpoints separately within each industry, or from a trailing window of past data rather than the contemporaneous cross-section, needs to be applied at one of the stages only.
+
+#### Asset pricing tests {#sec-fama-macbeth}
+ 
+A long-short return is one summary of whether asset growth predicts the cross-section of returns. A complementary view comes from Fama-MacBeth regressions [@fama.1973], which estimate the average risk premium attached to a characteristic after running cross-sectional regressions period by period. `tidyfinance` implements the standard procedure in `estimate_fama_macbeth()`, which takes a panel and a model formula, fits one cross-sectional OLS regression per period, and aggregates the period-level coefficients into average risk premia with Newey-West standard errors by default.
+
+Here, we winsorise the AG signal at the 1st and 99th percentiles to keep extreme observations from dominating the cross-sectional regressions and pair it with log market capitalisation as a size control.
+ 
+```{r}
+#| label: fama-macbeth-data
+fm_data <- sorting_data |>
+  filter_out(is.na(asset_growth) | is.na(mktcap_lag) | is.na(ret_excess)) |>
+  group_by(date) |>
+  mutate(
+    asset_growth = winsorize(asset_growth, 0.01),
+    log_mktcap = log(mktcap_lag)
+  ) |>
+  ungroup()
+```
+ 
+```{r}
+#| label: fama-macbeth-fit
+fm_results <- estimate_fama_macbeth(
+  fm_data,
+  model = "ret_excess ~ asset_growth + log_mktcap"
+)
+```
+ 
+```{r}
+#| label: tbl-fama-macbeth
+#| tbl-cap: "Fama-MacBeth regression of monthly excess returns on lagged asset growth and lagged log market capitalisation. Coefficients are time-series averages of monthly cross-sectional OLS estimates; standard errors are Newey-West with the default lag selection. The intercept and slopes on the right-hand-side variables are reported on the monthly scale."
+#| echo: false
+fm_results |>
+  knitr::kable(digits = 4)
+```
+ 
+The negative slope on `asset_growth` lines up with the long-short evidence in @tbl-univariate-sort-ag and @tbl-customised-comparison: high-AG firms earn lower subsequent returns, conditional on size. Switching to `vcov = "iid"` or supplying `vcov_options = list(lag = 6, prewhite = FALSE)` would change the standard-error treatment without altering the rest of the call, and adding additional regressors (a beta estimate from `estimate_betas()`, a profitability measure, an idiosyncratic-volatility control) is a one-line extension to the model formula. The same function therefore covers the standard cross-sectional asset-pricing test that complements the portfolio-sort evidence used throughout the rest of the paper.
+
 
 ## Factor library and API {#sec-library}
 
