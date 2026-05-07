@@ -16,7 +16,16 @@ sorting_variables_monthly <- read_parquet(
 )
 
 crsp_monthly <- open_dataset("data/crsp_monthly.parquet") |>
-  select(gvkey, permno, date, ret_excess, exchange, siccd, mktcap_lag) |>
+  select(
+    gvkey,
+    permno,
+    date,
+    ret_excess,
+    exchange,
+    siccd,
+    mktcap_lag,
+    listing_age
+  ) |>
   collect()
 
 filter_monthly <- sorting_variables_monthly |>
