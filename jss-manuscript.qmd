@@ -144,7 +144,7 @@ pak::pak("tidy-finance/r-tidyfinance")
 
 ### Design and workflow {#sec-design}
 
-[tidyfinance]{.pkg} organises the empirical asset pricing workflow into three stages: data acquisition, variable construction, and portfolio sorting. Each stage involves dozens of small decisions, such as universe filters, cleaning rules, rebalancing conventions, and breakpoint definitions. These decisions are rarely documented uniformly across studies, making replication difficult. @fig-workflow-diagram shows the pipeline and the package functions at each stage. The functions expose documented defaults that follow established conventions and configurable parameters where reasonable researchers might disagree. In this way, researchers can adopt the full pipeline or call individual functions within their own workflows.^[A companion [Python]{.proglang} package [py-tidyfinance]{.pkg} provides the same interface with identical function signatures and dataset identifiers, so analyses can be ported between the two languages without changes to the data layer.]
+[tidyfinance]{.pkg} reflects three design principles. *First*, the empirical asset pricing workflow decomposes into three stages: data acquisition, variable construction, and portfolio sorting. Each stage involves dozens of small decisions: universe filters, cleaning rules, rebalancing conventions, breakpoint definitions. @fig-workflow-diagram shows the pipeline and the package functions at each stage. *Second*, every construction decision is exposed as a configurable parameter with a documented default. Defaults follow established convention, so a default call reproduces standard practice. *Third*, the functions are composable. Researchers adopt the full pipeline by chaining them, or call individual pieces inside their own workflows.
 
 ```{mermaid}
 %%| label: fig-workflow-diagram
@@ -163,7 +163,7 @@ flowchart LR
 
 ### Data access {#sec-data-access}
 
-[tidyfinance]{.pkg} provides a single interface, `download_data()`, to `{r} nrow(tidyfinance::list_supported_types())` dataset types: equity returns, fixed-income transactions, macroeconomic predictors, index constituents, and more. @tbl-data-sources lists all available sources. `list_supported_types()` and `list_supported_indexes()` return the full catalogue programmatically.
+[tidyfinance]{.pkg} provides a single interface, `download_data()`, to `{r} nrow(tidyfinance::list_supported_types())` dataset types: equity returns, fixed-income transactions, macroeconomic predictors, index constituents, and more. @tbl-data-sources lists all available sources. `list_supported_types()` and `list_supported_indexes()` return the full catalogue programmatically. The companion [Python]{.proglang} package [py-tidyfinance]{.pkg} exposes the same `download_data()` interface, with identical signatures and dataset identifiers, so analyses can be ported between the two languages without changes to the data layer.
 
 ```{=latex}
 \begingroup
@@ -253,6 +253,8 @@ flowchart LR
 `download_data()` applies standard cleaning conventions automatically. For CRSP monthly data (version 2), the function restricts the universe to common equity securities traded on NYSE, AMEX, or NASDAQ. It computes market capitalisation as shares outstanding times price, constructs a one-month lag for portfolio weights, and maps exchange codes and SIC codes to readable labels. Excess returns are raw returns minus the Fama-French risk-free rate; observations with missing returns or market capitalisation are dropped. CRSP version 2 incorporates delisting returns directly, eliminating the need for a separate adjustment.
 
 For Compustat annual data, `download_data()` restricts to industrial-format consolidated statements and retains only the most recent observation per firm-year. It constructs book equity through a coalesce hierarchy: stockholders' equity, then common equity plus preferred stock, then total assets minus total liabilities. The function adjusts for deferred taxes and investment tax credits and subtracts preferred stock.
+
+For TRACE corporate bond transactions, `download_data()` applies the Dick-Nielsen cleaning protocol [@dicknielsen.2009] to remove cancellations, corrections, and reversals before returning the trade panel.
 
 All datasets returned by `download_data()` use a single `date` column that follows the same rules across frequencies. Daily observations return the trading date. Monthly observations are dated to the last calendar day of the reference month, regardless of whether that day was a trading day. Quarterly and annual observations take the fiscal period-end date as reported by the original source; for Compustat, this is the firm's fiscal year-end (`datadate`), which can differ from December across firms and across years for the same firm. Macroeconomic series from FRED keep their original release dates. A simple equality join on `date` therefore aligns observations of the same frequency, while cross-frequency joins, such as merging monthly returns with annual fundamentals, require the lagging logic described in the next subsection.
 
@@ -829,6 +831,8 @@ p1 +
 ```
 
 `compute_long_short_returns()` is a thin convenience layer that takes the output of `compute_portfolio_returns()` and computes the spread between the top and bottom portfolios. A `direction` argument controls the sign and defaults to `"top_minus_bottom"`. The function returns one long-short series per return measure available in the input, so the equal-weighted, value-weighted, and capped value-weighted spreads are produced in a single call. This long-short return is the factor-mimicking spread that the asset-pricing literature typically takes as the object of interest.
+
+For users who want the full pipeline in a single call, `implement_portfolio_sort()` wraps the four functions above. It takes a panel of stock data, one or two sorting variables, a sorting method, and a configuration object, and returns the long-short factor return series alongside the underlying portfolio returns. The lower-level functions remain available for custom workflows that need finer control over breakpoints, weighting, or rebalancing.
 
 ## Vignette: A case study in factor construction {#sec-ag}
 
