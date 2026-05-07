@@ -3,8 +3,6 @@ library(lubridate)
 library(arrow)
 library(tidyfinance)
 
-min_stock_age <- 2
-
 sorting_variables_yearly <- read_parquet(
   "data/sorting_variables_yearly.parquet"
 )
@@ -46,9 +44,7 @@ crsp_monthly <- crsp_monthly |>
     "gvkey",
     min_lag = months(3),
     max_lag = months(12)
-  ) |>
-  filter(filter_stock_age >= min_stock_age) |>
-  select(-filter_stock_age)
+  )
 
 # Lag 3m ------------------------------------------------------------------
 # Exactly lag by three months
