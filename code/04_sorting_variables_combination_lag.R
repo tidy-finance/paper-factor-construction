@@ -3,8 +3,6 @@ library(lubridate)
 library(arrow)
 library(tidyfinance)
 
-min_stock_age <- 2
-
 sorting_variables_yearly <- read_parquet(
   "data/sorting_variables_yearly.parquet"
 )
@@ -18,11 +16,17 @@ sorting_variables_monthly <- read_parquet(
 )
 
 crsp_monthly <- open_dataset("data/crsp_monthly.parquet") |>
-  select(gvkey, permno, date, ret_excess, exchange, siccd, mktcap_lag) |>
+  select(
+    gvkey,
+    permno,
+    date,
+    ret_excess,
+    exchange,
+    siccd,
+    mktcap_lag,
+    listing_age
+  ) |>
   collect()
-
-filter_monthly <- sorting_variables_monthly |>
-  select(permno, date, starts_with("filter_"))
 
 sorting_variables_monthly <- sorting_variables_monthly |>
   select(permno, date, starts_with("sv_"))
@@ -33,22 +37,13 @@ filter_yearly <- sorting_variables_yearly |>
 sorting_variables_yearly <- sorting_variables_yearly |>
   select(gvkey, date, starts_with("sv_"))
 
-
 crsp_monthly <- crsp_monthly |>
-  join_lagged_values(
-    filter_monthly,
-    "permno",
-    min_lag = months(3),
-    max_lag = months(12)
-  ) |>
   join_lagged_values(
     filter_yearly,
     "gvkey",
     min_lag = months(3),
     max_lag = months(12)
-  ) |>
-  filter(filter_stock_age >= min_stock_age) |>
-  select(-filter_stock_age)
+  )
 
 # Lag 3m ------------------------------------------------------------------
 # Exactly lag by three months

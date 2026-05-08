@@ -335,18 +335,9 @@ sorting_variables_monthly <- sorting_variables_monthly |>
     across(starts_with("sv_"), ~ if_else(is.finite(.x), .x, NA_real_))
   )
 
-# Create column with stock_age to filter later
 sorting_variables_monthly <- sorting_variables_monthly |>
-  arrange(permno, date) |>
-  group_by(permno) |>
-  mutate(
-    filter_stock_age = as.numeric(difftime(date, min(date), units = "days")) /
-      365
-  )
-
-sorting_variables_monthly <- sorting_variables_monthly |>
-  select(permno, date, filter_stock_age, starts_with("sv_")) |>
-  ungroup()
+  select(permno, date, starts_with("sv_")) |>
+  arrange(permno, date)
 
 write_parquet(
   sorting_variables_monthly,
