@@ -28,9 +28,6 @@ crsp_monthly <- open_dataset("data/crsp_monthly.parquet") |>
   ) |>
   collect()
 
-filter_monthly <- sorting_variables_monthly |>
-  select(permno, date, starts_with("filter_"))
-
 sorting_variables_monthly <- sorting_variables_monthly |>
   select(permno, date, starts_with("sv_"))
 
@@ -40,14 +37,7 @@ filter_yearly <- sorting_variables_yearly |>
 sorting_variables_yearly <- sorting_variables_yearly |>
   select(gvkey, date, starts_with("sv_"))
 
-
 crsp_monthly <- crsp_monthly |>
-  join_lagged_values(
-    filter_monthly,
-    "permno",
-    min_lag = months(3),
-    max_lag = months(12)
-  ) |>
   join_lagged_values(
     filter_yearly,
     "gvkey",
