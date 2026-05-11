@@ -4,6 +4,7 @@ library(tidyr)
 library(arrow)
 library(ggplot2)
 library(patchwork)
+library(lubridate)
 
 
 # Data loading
@@ -33,7 +34,8 @@ analyze_sorting_variable <- function(sorting_variable) {
       n_total = n(),
       n_ff_na = sum(is.na(ff)),
       n_3m_na = sum(is.na(m3)),
-      n_6m_na = sum(is.na(m6))
+      n_6m_na = sum(is.na(m6)),
+      .groups = "drop"
     ) |>
     pivot_longer(
       cols = starts_with("n_"),
@@ -41,17 +43,19 @@ analyze_sorting_variable <- function(sorting_variable) {
       values_to = "count"
     ) |>
     ggplot(aes(x = date, y = count, color = lag)) +
-    geom_line() +
-    facet_wrap(~lag, ncol = 2) +
-    theme(legend.position = "none")
+    geom_line(show.legend = FALSE) +
+    facet_wrap(~lag, ncol = 2)
 
   p2 <- sv_combined |>
     group_by(date) |>
-    summarize(across(
-      c(ff, m3, m6),
-      list(SD = \(x) sd(x, na.rm = TRUE)),
-      .names = "{.col}_{.fn}"
-    )) |>
+    summarize(
+      across(
+        c(ff, m3, m6),
+        list(SD = \(x) sd(x, na.rm = TRUE)),
+        .names = "{.col}_{.fn}"
+      ),
+      .groups = "drop"
+    ) |>
     pivot_longer(
       cols = -date,
       names_to = c("variable", "stat"),
@@ -59,10 +63,9 @@ analyze_sorting_variable <- function(sorting_variable) {
       values_to = "value"
     ) |>
     ggplot(aes(x = date, y = value, color = variable)) +
-    geom_line() +
+    geom_line(show.legend = FALSE) +
     facet_wrap(~variable, ncol = 2, scales = "fixed") +
-    labs(title = "SD") +
-    theme(legend.position = "none")
+    labs(title = "SD")
 
   p3 <- sv_combined |>
     group_by(date) |>
@@ -75,7 +78,8 @@ analyze_sorting_variable <- function(sorting_variable) {
           p90 = \(x) quantile(x, 0.90, na.rm = TRUE)
         ),
         .names = "{.col}_{.fn}"
-      )
+      ),
+      .groups = "drop"
     ) |>
     pivot_longer(
       cols = -date,
@@ -84,13 +88,27 @@ analyze_sorting_variable <- function(sorting_variable) {
       values_to = "value"
     ) |>
     ggplot(aes(x = date, y = value, color = percentile)) +
-    geom_line() +
+    geom_line(show.legend = FALSE) +
     facet_wrap(~variable, ncol = 2, scales = "free_y")
 
   print(
     (p1 / p2 / p3) +
       plot_annotation(title = paste("Diagnostics for", sorting_variable))
   )
+
+  sv_combined |>
+    group_by(date) |>
+    summarize(
+      n_total = n(),
+      n_ff_na = sum(is.na(ff)),
+      n_3m_na = sum(is.na(m3)),
+      n_6m_na = sum(is.na(m6)),
+      .groups = "drop"
+    ) |>
+    mutate(month = month(date)) |>
+    group_by(month) |>
+    summarize(across(starts_with("n_"), median), .groups = "drop") |>
+    print()
 
   if (
     tolower(readline("Enter [q] to quit, anything else to continue: ")) == "q"
