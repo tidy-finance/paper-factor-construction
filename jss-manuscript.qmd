@@ -997,7 +997,7 @@ sorting_variable_data |>
   knitr::kable(digits = 3)
 ```
 
-The next step merges annual sorting variables onto the monthly CRSP stock panel using `join_lagged_values()`. The function aligns fiscal-year-end data with monthly observations through a configurable lag window. Setting `ff_adjustment = TRUE` implements the Fama-French convention [@fama.1993], aligning fiscal-year data from year $t$ with portfolio formation in July of year $t+1$ through a 12-to-18-month look-back window. The same lagging process generalises to all sorting variables in the full factor library, and the factor library API provides precomputed lagged panels for all of them.
+The next step merges annual sorting variables onto the monthly CRSP stock panel using `join_lagged_values()`. The function aligns fiscal-year-end data with monthly observations through a configurable lag window. Setting `ff_adjustment = TRUE` implements the Fama-French convention [@fama.1993], aligning fiscal-year data from year $t$ with portfolio formation in July of year $t+1$ through a 12-to-18-month look-back window. The same lagging process generalises to all sorting variables in the full factor library, and the factor library API provides precomputed lagged panels for all of them. Specifically, we implement three and six month lags with maximum look-back periods of 15 and 18 months, respectively.
 
 We now apply `join_lagged_values()` to merge the sorting variable onto the monthly return panel. @fig-ag-percentiles shows the 33rd, 50th, and 66th percentiles of asset growth over time in the resulting panel; pronounced spikes during economic expansions and contractions highlight the cyclical nature of corporate investment that portfolio sorts aim to exploit.
 
