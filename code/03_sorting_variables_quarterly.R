@@ -25,7 +25,7 @@ compustat_quarterly <- compustat_quarterly |>
     cols = c("atq", "int_beq"),
     by = "gvkey",
     lag = months(3),
-    data_options = data_options(date = "datadate")
+    data_options = data_options(date = "date")
   ) |>
   rename(atq_lag1 = atq_lag, int_beq_lag1 = int_beq_lag)
 
@@ -35,7 +35,7 @@ compustat_quarterly <- compustat_quarterly |>
     cols = c("int_rps", "int_sue"),
     by = "gvkey",
     lag = months(12),
-    data_options = data_options(date = "datadate")
+    data_options = data_options(date = "date")
   ) |>
   rename(int_rps_lag4 = int_rps_lag, int_sue_lag4 = int_sue_lag)
 

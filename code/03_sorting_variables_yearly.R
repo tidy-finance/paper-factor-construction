@@ -22,9 +22,9 @@ compustat_annual <- compustat_annual |>
 min_sales <- 10
 
 compustat_annual <- compustat_annual |>
-  arrange(gvkey, datadate) |>
+  arrange(gvkey, date) |>
   mutate(
-    year = floor_date(datadate, "year"),
+    year = floor_date(date, "year"),
     int_td = replace_na(dlc, 0) + replace_na(dltt, 0),
     int_td = if_else(int_td <= 0, NA_real_, int_td),
     int_col = lct - replace_na(dlc, 0),
@@ -36,7 +36,7 @@ compustat_annual <- compustat_annual |>
         replace_na(pstk, 0)
     ),
     int_rer = if_else(
-      datadate < ymd("1984-01-01"),
+      date < ymd("1984-01-01"),
       (ppenb + ppenls) / ppent,
       (fatb + fatl) / ppegt
     ),
@@ -113,7 +113,7 @@ compustat_annual <- compustat_annual |>
     ),
     lag = years(1),
     by = "gvkey",
-    data_options = data_options(date = "datadate")
+    data_options = data_options(date = "date")
   ) |>
   # Append "1" to lag suffix to indicate 1-year lag (e.g., ceq_lag -> ceq_lag1)
   rename_with(ends_with("_lag"), .fn = ~ paste0(.x, "1"))
@@ -124,7 +124,7 @@ compustat_annual <- compustat_annual |>
     cols = "int_ce",
     lag = years(2),
     by = "gvkey",
-    data_options = data_options(date = "datadate")
+    data_options = data_options(date = "date")
   ) |>
   rename(int_ce_lag2 = int_ce_lag)
 
@@ -134,7 +134,7 @@ compustat_annual <- compustat_annual |>
     cols = "int_ce",
     lag = years(3),
     by = "gvkey",
-    data_options = data_options(date = "datadate")
+    data_options = data_options(date = "date")
   ) |>
   rename(int_ce_lag3 = int_ce_lag)
 
@@ -144,7 +144,7 @@ compustat_annual <- compustat_annual |>
     cols = "int_td",
     lag = years(5),
     by = "gvkey",
-    data_options = data_options(date = "datadate")
+    data_options = data_options(date = "date")
   ) |>
   rename(int_td_lag5 = int_td_lag)
 
