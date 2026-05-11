@@ -55,19 +55,19 @@ sv_lag3m <- crsp_monthly |>
     sorting_variables_monthly,
     "permno",
     min_lag = months(3),
-    max_lag = months(12)
+    max_lag = months(15)
   ) |>
   join_lagged_values(
     sorting_variables_quarterly,
     "gvkey",
     min_lag = months(3),
-    max_lag = months(12)
+    max_lag = months(15)
   ) |>
   join_lagged_values(
     sorting_variables_yearly,
     "gvkey",
     min_lag = months(3),
-    max_lag = months(12)
+    max_lag = months(15)
   )
 
 write_parquet(sv_lag3m, "data/sorting_variables_lag_3m.parquet")
@@ -82,19 +82,19 @@ sv_lag6m <- crsp_monthly |>
     sorting_variables_monthly,
     "permno",
     min_lag = months(6),
-    max_lag = months(12)
+    max_lag = months(18)
   ) |>
   join_lagged_values(
     sorting_variables_quarterly,
     "gvkey",
     min_lag = months(6),
-    max_lag = months(12)
+    max_lag = months(18)
   ) |>
   join_lagged_values(
     sorting_variables_yearly,
     "gvkey",
     min_lag = months(6),
-    max_lag = months(12)
+    max_lag = months(18)
   )
 
 write_parquet(sv_lag6m, "data/sorting_variables_lag_6m.parquet")
