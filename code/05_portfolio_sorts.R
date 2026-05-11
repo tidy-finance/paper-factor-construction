@@ -224,7 +224,7 @@ temporary_folder <- "data/portfolio_returns_new"
 open_dataset("data/portfolio_returns/") |>
   mutate(sorting_variable = str_remove(sorting_variable, "^sv_")) |>
   left_join(
-    grid |> select(-sorting_variable, -sorting_variable_lag, -weighting_scheme),
+    grid |> select(id, sorting_variable_lag, sorting_method, n_portfolios_main),
     join_by(id)
   ) |>
   write_dataset(
