@@ -244,25 +244,19 @@ sorting_variables_yearly <- compustat_annual |>
     ),
     sv_em = if_else(ib > 0, ib / int_me, NA_real_),
     sv_ndm = int_netdebt / int_me,
-    # Treat missing payout/issuance fields as zero (firm reported no
-    # dividend/repurchase), guarded by an all-NA check so genuinely
-    # unobserved firms remain NA — mirrors the int_fnl pattern above.
+    # Net payout yield: dvc + prstkc - sstk + Δpstkrv (preferred-stock
+    # activity nets out algebraically: min(Δpstkrv,0) + max(Δpstkrv,0) =
+    # Δpstkrv). Missing Compustat fields are treated as zero; pstkrv and
+    # pstkrv_lag1 are silently zeroed when missing, while sv_npy returns
+    # NA only when dvc, prstkc, AND sstk are all missing (mirrors int_fnl).
     sv_npy = if_else(
       if_all(c(dvc, prstkc, sstk), is.na),
       NA_real_,
-      ((replace_na(dvc, 0) +
-        replace_na(prstkc, 0) +
-        if_else(
-          (replace_na(pstkrv, 0) - replace_na(pstkrv_lag1, 0)) < 0,
-          replace_na(pstkrv, 0) - replace_na(pstkrv_lag1, 0),
-          0
-        )) -
-        (replace_na(sstk, 0) -
-          if_else(
-            (replace_na(pstkrv, 0) - replace_na(pstkrv_lag1, 0)) > 0,
-            replace_na(pstkrv, 0) - replace_na(pstkrv_lag1, 0),
-            0
-          ))) /
+      (replace_na(dvc, 0) +
+        replace_na(prstkc, 0) -
+        replace_na(sstk, 0) +
+        replace_na(pstkrv, 0) -
+        replace_na(pstkrv_lag1, 0)) /
         int_me
     ),
     sv_ocm = if_else(
