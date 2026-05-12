@@ -31,19 +31,9 @@ crsp_monthly <- open_dataset("data/crsp_monthly.parquet") |>
 sorting_variables_monthly <- sorting_variables_monthly |>
   select(permno, date, starts_with("sv_"))
 
-filter_yearly <- sorting_variables_yearly |>
-  select(gvkey, date, starts_with("filter_"))
-
+# Bundle filter_earnings with sv_* so both travel through the same join_lagged_values call.
 sorting_variables_yearly <- sorting_variables_yearly |>
-  select(gvkey, date, starts_with("sv_"))
-
-crsp_monthly <- crsp_monthly |>
-  join_lagged_values(
-    filter_yearly,
-    "gvkey",
-    min_lag = months(3),
-    max_lag = months(12)
-  )
+  select(gvkey, date, filter_earnings, starts_with("sv_"))
 
 # Lag 3m ------------------------------------------------------------------
 # Exactly lag by three months
