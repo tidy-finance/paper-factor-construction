@@ -42,15 +42,16 @@ crsp_monthly_liquidity <- crsp_daily_raw |>
     int_daily_dollar_volume = sum(int_daily_dollar_volume, na.rm = TRUE),
     int_daily_turnover      = sum(int_daily_turnover,      na.rm = TRUE),
     int_daily_obs           = sum(!is.na(int_daily_dollar_volume)),
+    int_daily_obs_ami       = sum(!is.na(int_amihud)),
     int_daily_obs_tur       = sum(!is.na(int_daily_turnover)),
     .groups = "drop"
   ) |>
   mutate(
-    int_amihud              = if_else(int_daily_obs     == 0L, NA_real_, int_amihud),
+    int_amihud              = if_else(int_daily_obs_ami == 0L, NA_real_, int_amihud),
     int_daily_dollar_volume = if_else(int_daily_obs     == 0L, NA_real_, int_daily_dollar_volume),
     int_daily_turnover      = if_else(int_daily_obs_tur == 0L, NA_real_, int_daily_turnover)
   ) |>
-  select(-int_daily_obs_tur)
+  select(-int_daily_obs_ami)
 
 crsp_monthly <- crsp_monthly |>
   left_join(
@@ -260,8 +261,8 @@ crsp_monthly <- crsp_monthly |>
       na_rm = TRUE
     ) /
       int_rolling_daily_obs,
-    int_rolling_daily_obs_tur_raw = slide_index_sum(
-      !is.na(int_daily_turnover),
+    int_rolling_daily_obs_tur = slide_index_sum(
+      int_daily_obs_tur,
       date,
       before = months(6 - 1),
       complete = FALSE,
@@ -274,9 +275,9 @@ crsp_monthly <- crsp_monthly |>
       complete = FALSE,
       na_rm = TRUE
     ) /
-      if_else(int_rolling_daily_obs_tur_raw < 50, NA_real_, int_rolling_daily_obs_tur_raw)
+      if_else(int_rolling_daily_obs_tur < 50, NA_real_, int_rolling_daily_obs_tur)
   ) |>
-  select(-int_rolling_daily_obs, -int_rolling_daily_obs_tur_raw) |>
+  select(-int_rolling_daily_obs, -int_rolling_daily_obs_tur) |>
   ungroup() |>
   collect()
 
