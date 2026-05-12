@@ -78,7 +78,7 @@ process_task <- function(row, sorting_data, output_dir) {
               } else {
                 NULL
               },
-              min_listing_age = 2
+              min_listing_age = 24
             ),
             breakpoint_options_main = options_main,
             breakpoint_options_secondary = options_secondary
