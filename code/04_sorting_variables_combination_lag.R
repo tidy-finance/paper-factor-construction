@@ -31,13 +31,9 @@ crsp_monthly <- open_dataset("data/crsp_monthly.parquet") |>
 sorting_variables_monthly <- sorting_variables_monthly |>
   select(permno, date, starts_with("sv_"))
 
-# Keep filter_* alongside sv_* in the yearly table so they travel together
-# through join_lagged_values. This ensures filter_earnings and the yearly
-# sorting variables are always drawn from the same fiscal-year row with the
-# same window and the same ff_adjustment, eliminating the window mismatch
-# that previously silenced ~15% of stock-months per panel.
+# Bundle filter_earnings with sv_* so both travel through the same join_lagged_values call.
 sorting_variables_yearly <- sorting_variables_yearly |>
-  select(gvkey, date, starts_with("filter_"), starts_with("sv_"))
+  select(gvkey, date, filter_earnings, starts_with("sv_"))
 
 # Lag 3m ------------------------------------------------------------------
 # Exactly lag by three months
