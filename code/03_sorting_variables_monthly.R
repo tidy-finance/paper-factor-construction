@@ -141,14 +141,16 @@ crsp_monthly <- crsp_monthly |>
   ungroup() |>
   collect()
 
-# Skip one month
-crsp_monthly_lag1m <- crsp_monthly |>
-  add_lagged_columns(
-    c("int_roll_ret_11m", "int_rmom_11m"),
-    lag = months(1),
-    by = "permno"
-  ) |>
-  select(permno, date, int_roll_ret_11m_lag, int_rmom_11m_lag) |>
+# Skip one month — keep lag tables separate so drop_na() on int_rmom_11m_lag
+# does not contaminate int_roll_ret_11m_lag (sv_mom needs only 11m; rmom needs ~47m)
+crsp_monthly_lag1m_mom <- crsp_monthly |>
+  add_lagged_columns("int_roll_ret_11m", lag = months(1), by = "permno") |>
+  select(permno, date, int_roll_ret_11m_lag) |>
+  drop_na()
+
+crsp_monthly_lag1m_rmom <- crsp_monthly |>
+  add_lagged_columns("int_rmom_11m", lag = months(1), by = "permno") |>
+  select(permno, date, int_rmom_11m_lag) |>
   drop_na()
 
 # Skip one year
@@ -165,7 +167,12 @@ crsp_monthly_lag1y <- crsp_monthly |>
 crsp_monthly <- crsp_monthly |>
   select(-int_roll_ret_11m, -int_roll_ret_47m, -int_rmom_11m) |>
   left_join(
-    crsp_monthly_lag1m,
+    crsp_monthly_lag1m_mom,
+    join_by(permno, date),
+    relationship = "one-to-one"
+  ) |>
+  left_join(
+    crsp_monthly_lag1m_rmom,
     join_by(permno, date),
     relationship = "one-to-one"
   ) |>
