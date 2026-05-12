@@ -244,11 +244,27 @@ sorting_variables_yearly <- compustat_annual |>
     ),
     sv_em = if_else(ib > 0, ib / int_me, NA_real_),
     sv_ndm = int_netdebt / int_me,
-    sv_npy = ((dvc +
-      prstkc +
-      if_else((pstkrv - pstkrv_lag1) < 0, (pstkrv - pstkrv_lag1), 0)) -
-      (sstk - if_else((pstkrv - pstkrv_lag1) > 0, (pstkrv - pstkrv_lag1), 0))) /
-      int_me,
+    # Treat missing payout/issuance fields as zero (firm reported no
+    # dividend/repurchase), guarded by an all-NA check so genuinely
+    # unobserved firms remain NA — mirrors the int_fnl pattern above.
+    sv_npy = if_else(
+      if_all(c(dvc, prstkc, sstk), is.na),
+      NA_real_,
+      ((replace_na(dvc, 0) +
+        replace_na(prstkc, 0) +
+        if_else(
+          (replace_na(pstkrv, 0) - replace_na(pstkrv_lag1, 0)) < 0,
+          replace_na(pstkrv, 0) - replace_na(pstkrv_lag1, 0),
+          0
+        )) -
+        (replace_na(sstk, 0) -
+          if_else(
+            (replace_na(pstkrv, 0) - replace_na(pstkrv_lag1, 0)) > 0,
+            replace_na(pstkrv, 0) - replace_na(pstkrv_lag1, 0),
+            0
+          ))) /
+        int_me
+    ),
     sv_ocm = if_else(
       year < 1988,
       (fopt - (wcap - wcap_lag1)) / int_me,
