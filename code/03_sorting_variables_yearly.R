@@ -177,8 +177,23 @@ sorting_variables_yearly <- compustat_annual |>
     sv_dbe = (ceq - ceq_lag1) / at_lag1,
     sv_dcol = (int_col - int_col_lag1) / at_lag1,
     sv_dfnl = (int_fnl - int_fnl_lag1) / at_lag1,
-    sv_ndf = (dltis - dltr + replace_na(dlcch, 0)) / (1 / 2 * (at + at_lag1)),
-    sv_nef = (sstk - prstkc - dv) / (1 / 2 * (at + at_lag1)),
+    # Net debt and net equity finance: treat missing Compustat flow fields
+    # as zero (firm reported no issuance/reduction/dividend), guarded by
+    # if_all so genuinely unobserved firms remain NA. Mirrors int_fnl.
+    # at/at_lag1 are not zeroed: missing balance-sheet data is a real
+    # "no observation" signal, not a blank-for-zero convention.
+    sv_ndf = if_else(
+      if_all(c(dltis, dltr, dlcch), is.na),
+      NA_real_,
+      (replace_na(dltis, 0) - replace_na(dltr, 0) + replace_na(dlcch, 0)) /
+        (1 / 2 * (at + at_lag1))
+    ),
+    sv_nef = if_else(
+      if_all(c(sstk, prstkc, dv), is.na),
+      NA_real_,
+      (replace_na(sstk, 0) - replace_na(prstkc, 0) - replace_na(dv, 0)) /
+        (1 / 2 * (at + at_lag1))
+    ),
     sv_nxf = sv_ndf + sv_nef
   ) |>
 
