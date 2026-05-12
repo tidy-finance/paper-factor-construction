@@ -22,30 +22,35 @@ crsp_daily <- open_dataset("data/crsp_daily.parquet")
 factors_ff_5_daily <- open_dataset("data/factors_ff_5_daily.parquet")
 
 # Daily and monthly Amihud measure
-crsp_monthly_liquidity <- crsp_daily |>
+# Aggregate each liquidity input separately so that a missing shrout (needed
+# only for turnover) does not reduce int_daily_obs or contaminate sv_ami/sv_dtv.
+crsp_daily_raw <- crsp_daily |>
   mutate(
-    int_daily_dollar_volume = (abs(prc) * vol_adj),
-    int_daily_turnover = vol_adj / shrout,
-    int_amihud = abs(ret) / int_daily_dollar_volume,
-    int_amihud = if_else(is.finite(int_amihud), int_amihud, NA_real_)
+    int_daily_dollar_volume = abs(prc) * vol_adj,
+    int_daily_turnover      = vol_adj / shrout,
+    int_amihud              = abs(ret) / int_daily_dollar_volume,
+    int_amihud              = if_else(is.finite(int_amihud), int_amihud, NA_real_)
   ) |>
-  select(
-    permno,
-    date,
-    int_daily_dollar_volume,
-    int_daily_turnover,
-    int_amihud
-  ) |>
-  collect() |>
-  drop_na() |>
+  select(permno, date, int_daily_dollar_volume, int_daily_turnover, int_amihud) |>
+  collect()
+
+crsp_monthly_liquidity <- crsp_daily_raw |>
+  filter(!is.na(int_daily_dollar_volume) | !is.na(int_daily_turnover) | !is.na(int_amihud)) |>
   group_by(permno, date = floor_date(date, "month")) |>
   summarize(
-    int_amihud = sum(int_amihud),
-    int_daily_dollar_volume = sum(int_daily_dollar_volume),
-    int_daily_turnover = sum(int_daily_turnover),
-    int_daily_obs = n(),
+    int_amihud              = sum(int_amihud,              na.rm = TRUE),
+    int_daily_dollar_volume = sum(int_daily_dollar_volume, na.rm = TRUE),
+    int_daily_turnover      = sum(int_daily_turnover,      na.rm = TRUE),
+    int_daily_obs           = sum(!is.na(int_daily_dollar_volume)),
+    int_daily_obs_tur       = sum(!is.na(int_daily_turnover)),
     .groups = "drop"
-  )
+  ) |>
+  mutate(
+    int_amihud              = if_else(int_daily_obs     == 0L, NA_real_, int_amihud),
+    int_daily_dollar_volume = if_else(int_daily_obs     == 0L, NA_real_, int_daily_dollar_volume),
+    int_daily_turnover      = if_else(int_daily_obs_tur == 0L, NA_real_, int_daily_turnover)
+  ) |>
+  select(-int_daily_obs_tur)
 
 crsp_monthly <- crsp_monthly |>
   left_join(
@@ -220,6 +225,8 @@ crsp_monthly <- crsp_monthly |>
 
 # Rolling window estimation
 
+# sv_ami and sv_dtv share the price/volume obs count; sv_tur uses its own
+# turnover obs count so missing shrout does not contaminate the other two.
 crsp_monthly <- crsp_monthly |>
   arrange(permno, date) |>
   group_by(permno) |>
@@ -232,7 +239,6 @@ crsp_monthly <- crsp_monthly |>
       complete = FALSE,
       na_rm = TRUE
     ),
-    # Require at least 50 daily observations over the 6-month rolling window
     int_rolling_daily_obs = if_else(
       int_rolling_daily_obs < 50,
       NA,
@@ -254,6 +260,13 @@ crsp_monthly <- crsp_monthly |>
       na_rm = TRUE
     ) /
       int_rolling_daily_obs,
+    int_rolling_daily_obs_tur_raw = slide_index_sum(
+      !is.na(int_daily_turnover),
+      date,
+      before = months(6 - 1),
+      complete = FALSE,
+      na_rm = TRUE
+    ),
     int_rolling_turnover = slide_index_sum(
       int_daily_turnover,
       date,
@@ -261,16 +274,23 @@ crsp_monthly <- crsp_monthly |>
       complete = FALSE,
       na_rm = TRUE
     ) /
-      int_rolling_daily_obs
+      if_else(int_rolling_daily_obs_tur_raw < 50, NA_real_, int_rolling_daily_obs_tur_raw)
   ) |>
-  select(-int_rolling_daily_obs) |>
+  select(-int_rolling_daily_obs, -int_rolling_daily_obs_tur_raw) |>
   ungroup() |>
   collect()
 
 crsp_daily_aggregation <- crsp_daily |>
   left_join(factors_ff_5_daily, join_by(date), relationship = "many-to-one") |>
   mutate(date = floor_date(date, "month")) |>
-  select(permno, date, ret_excess, mkt_excess, smb, hml)
+  select(permno, date, ret_excess, mkt_excess, smb, hml) |>
+  collect()
+
+# sv_mdr = max(ret_excess) needs only 1 observation; compute it before the
+# 15-obs regression filter so it is not contaminated by sv_ivol / sv_iskew.
+int_max_ret_data <- crsp_daily_aggregation |>
+  group_by(permno, date) |>
+  summarize(int_max_ret = max(ret_excess, na.rm = TRUE), .groups = "drop")
 
 # Minimum daily observations to estimate within-month regressions
 min_daily_obs_per_month <- 15
@@ -287,8 +307,7 @@ crsp_daily_aggregation <- crsp_daily_aggregation |>
     permno_month_combinations,
     join_by(permno, date),
     relationship = "one-to-one"
-  ) |>
-  collect()
+  )
 
 aggregation_data_all <- crsp_daily_aggregation |>
   group_by(permno, date) |>
@@ -301,8 +320,7 @@ aggregation_data_all <- crsp_daily_aggregation |>
     )
   ) |>
   summarize(
-    int_max_ret = max(ret_excess, na.rm = TRUE),
-    int_res_ivol = sd(residual_ff3, na.rm = TRUE),
+    int_res_ivol  = sd(residual_ff3, na.rm = TRUE),
     int_res_iskew = moments::skewness(residual_ff3, na.rm = TRUE)
   ) |>
   collect() |>
@@ -310,11 +328,8 @@ aggregation_data_all <- crsp_daily_aggregation |>
 
 # Use left_join to preserve only the crsp_monthly universe
 crsp_monthly <- crsp_monthly |>
-  left_join(
-    aggregation_data_all,
-    join_by(permno, date),
-    relationship = "one-to-one"
-  )
+  left_join(int_max_ret_data,    join_by(permno, date), relationship = "one-to-one") |>
+  left_join(aggregation_data_all, join_by(permno, date), relationship = "one-to-one")
 
 # Main variables
 sorting_variables_monthly <- crsp_monthly |>
