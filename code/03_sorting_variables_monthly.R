@@ -307,7 +307,7 @@ crsp_daily_aggregation <- crsp_daily_aggregation |>
   inner_join(
     permno_month_combinations,
     join_by(permno, date),
-    relationship = "one-to-one"
+    relationship = "many-to-one"
   )
 
 aggregation_data_all <- crsp_daily_aggregation |>
