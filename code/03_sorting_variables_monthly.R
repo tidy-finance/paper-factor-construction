@@ -38,12 +38,15 @@ crsp_monthly_liquidity <- crsp_daily_raw |>
   filter(!is.na(int_daily_dollar_volume) | !is.na(int_daily_turnover) | !is.na(int_amihud)) |>
   group_by(permno, date = floor_date(date, "month")) |>
   summarize(
-    int_amihud              = sum(int_amihud,              na.rm = TRUE),
-    int_daily_dollar_volume = sum(int_daily_dollar_volume, na.rm = TRUE),
-    int_daily_turnover      = sum(int_daily_turnover,      na.rm = TRUE),
+    # Compute obs counts BEFORE shadowing the input column names — otherwise
+    # `sum(!is.na(int_daily_dollar_volume))` would see the just-assigned scalar
+    # and always return 1.
     int_daily_obs           = sum(!is.na(int_daily_dollar_volume)),
     int_daily_obs_ami       = sum(!is.na(int_amihud)),
     int_daily_obs_tur       = sum(!is.na(int_daily_turnover)),
+    int_amihud              = sum(int_amihud,              na.rm = TRUE),
+    int_daily_dollar_volume = sum(int_daily_dollar_volume, na.rm = TRUE),
+    int_daily_turnover      = sum(int_daily_turnover,      na.rm = TRUE),
     .groups = "drop"
   ) |>
   mutate(
