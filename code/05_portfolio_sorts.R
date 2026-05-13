@@ -56,12 +56,7 @@ process_task <- function(row, sorting_data, output_dir) {
           )
         }
 
-        if (row$sorting_method == "univariate") {
-          min_portfolio_size <- options_main$n_portfolios
-        } else {
-          min_portfolio_size <- options_main$n_portfolios *
-            options_secondary$n_portfolios
-        }
+        min_portfolio_size <- 1L
 
         portfolio_returns <- implement_portfolio_sort(
           sorting_data,

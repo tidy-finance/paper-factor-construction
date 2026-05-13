@@ -3680,9 +3680,9 @@
       "RemoteHost": "api.github.com",
       "RemoteRepo": "r-tidyfinance",
       "RemoteUsername": "tidy-finance",
-      "RemotePkgRef": "tidy-finance/r-tidyfinance",
-      "RemoteRef": "HEAD",
-      "RemoteSha": "35ce8865605452fe34cd67d9e2d48d6cc9a07b49",
+      "RemotePkgRef": "tidy-finance/r-tidyfinance@fix/long-short-single-portfolio",
+      "RemoteRef": "fix/long-short-single-portfolio",
+      "RemoteSha": "e7aaec1cfa7442b5786f2a83c3298bdcf2f45838",
       "NeedsCompilation": "no",
       "Author": "Christoph Scheuch [aut, cre, cph] (ORCID: <https://orcid.org/0009-0004-0423-6819>), Stefan Voigt [aut, cph] (ORCID: <https://orcid.org/0000-0001-5619-3161>), Patrick Weiss [aut, cph] (ORCID: <https://orcid.org/0000-0002-9282-5872>), Maximilian Mücke [ctb] (ORCID: <https://orcid.org/0009-0000-9432-9795>)",
       "Maintainer": "Christoph Scheuch <christoph@tidy-intelligence.com>"
