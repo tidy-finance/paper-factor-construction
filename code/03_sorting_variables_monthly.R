@@ -27,32 +27,47 @@ factors_ff_5_daily <- open_dataset("data/factors_ff_5_daily.parquet")
 crsp_daily_raw <- crsp_daily |>
   mutate(
     int_daily_dollar_volume = abs(prc) * vol_adj,
-    int_daily_turnover      = vol_adj / shrout,
-    int_amihud              = abs(ret) / int_daily_dollar_volume,
-    int_amihud              = if_else(is.finite(int_amihud), int_amihud, NA_real_)
+    int_daily_turnover = vol_adj / shrout,
+    int_amihud = abs(ret) / int_daily_dollar_volume,
+    int_amihud = if_else(is.finite(int_amihud), int_amihud, NA_real_)
   ) |>
-  select(permno, date, int_daily_dollar_volume, int_daily_turnover, int_amihud) |>
+  select(
+    permno,
+    date,
+    int_daily_dollar_volume,
+    int_daily_turnover,
+    int_amihud
+  ) |>
   collect()
 
 crsp_monthly_liquidity <- crsp_daily_raw |>
-  filter(!is.na(int_daily_dollar_volume) | !is.na(int_daily_turnover) | !is.na(int_amihud)) |>
+  filter(
+    !is.na(int_daily_dollar_volume) |
+      !is.na(int_daily_turnover) |
+      !is.na(int_amihud)
+  ) |>
   group_by(permno, date = floor_date(date, "month")) |>
   summarize(
-    # Compute obs counts BEFORE shadowing the input column names — otherwise
-    # `sum(!is.na(int_daily_dollar_volume))` would see the just-assigned scalar
-    # and always return 1.
-    int_daily_obs           = sum(!is.na(int_daily_dollar_volume)),
-    int_daily_obs_ami       = sum(!is.na(int_amihud)),
-    int_daily_obs_tur       = sum(!is.na(int_daily_turnover)),
-    int_amihud              = sum(int_amihud,              na.rm = TRUE),
+    int_daily_obs = sum(!is.na(int_daily_dollar_volume)),
+    int_daily_obs_ami = sum(!is.na(int_amihud)),
+    int_daily_obs_tur = sum(!is.na(int_daily_turnover)),
+    int_amihud = sum(int_amihud, na.rm = TRUE),
     int_daily_dollar_volume = sum(int_daily_dollar_volume, na.rm = TRUE),
-    int_daily_turnover      = sum(int_daily_turnover,      na.rm = TRUE),
+    int_daily_turnover = sum(int_daily_turnover, na.rm = TRUE),
     .groups = "drop"
   ) |>
   mutate(
-    int_amihud              = if_else(int_daily_obs_ami == 0L, NA_real_, int_amihud),
-    int_daily_dollar_volume = if_else(int_daily_obs     == 0L, NA_real_, int_daily_dollar_volume),
-    int_daily_turnover      = if_else(int_daily_obs_tur == 0L, NA_real_, int_daily_turnover)
+    int_amihud = if_else(int_daily_obs_ami == 0L, NA_real_, int_amihud),
+    int_daily_dollar_volume = if_else(
+      int_daily_obs == 0L,
+      NA_real_,
+      int_daily_dollar_volume
+    ),
+    int_daily_turnover = if_else(
+      int_daily_obs_tur == 0L,
+      NA_real_,
+      int_daily_turnover
+    )
   ) |>
   select(-int_daily_obs_ami)
 
@@ -278,7 +293,11 @@ crsp_monthly <- crsp_monthly |>
       complete = FALSE,
       na_rm = TRUE
     ) /
-      if_else(int_rolling_daily_obs_tur < 50, NA_real_, int_rolling_daily_obs_tur)
+      if_else(
+        int_rolling_daily_obs_tur < 50,
+        NA_real_,
+        int_rolling_daily_obs_tur
+      )
   ) |>
   select(-int_rolling_daily_obs, -int_rolling_daily_obs_tur) |>
   ungroup() |>
@@ -324,7 +343,7 @@ aggregation_data_all <- crsp_daily_aggregation |>
     )
   ) |>
   summarize(
-    int_res_ivol  = sd(residual_ff3, na.rm = TRUE),
+    int_res_ivol = sd(residual_ff3, na.rm = TRUE),
     int_res_iskew = moments::skewness(residual_ff3, na.rm = TRUE)
   ) |>
   collect() |>
@@ -332,8 +351,16 @@ aggregation_data_all <- crsp_daily_aggregation |>
 
 # Use left_join to preserve only the crsp_monthly universe
 crsp_monthly <- crsp_monthly |>
-  left_join(int_max_ret_data,    join_by(permno, date), relationship = "one-to-one") |>
-  left_join(aggregation_data_all, join_by(permno, date), relationship = "one-to-one")
+  left_join(
+    int_max_ret_data,
+    join_by(permno, date),
+    relationship = "one-to-one"
+  ) |>
+  left_join(
+    aggregation_data_all,
+    join_by(permno, date),
+    relationship = "one-to-one"
+  )
 
 # Main variables
 sorting_variables_monthly <- crsp_monthly |>
