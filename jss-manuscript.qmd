@@ -1318,7 +1318,7 @@ The negative slope on `asset_growth` lines up with the long-short evidence in @t
 
 Argument flow:
 
-1. *Specification grid (`tbl-sorting-decisions`).* The preprocessing decisions varied across the library and their defaults. Cite WWW and @gruber.2023 on the case for comprehensive grids over a single canonical series.
+1. *Specification grid (`tbl-sorting-decisions`).* The preprocessing decisions varied across the library and their defaults. Cite @walter.2024 and @gruber.2025 on the case for comprehensive grids over a single canonical series.
 2. *Coverage.* `{r} nrow(sorting_variable_information)` sorting variables across `{r} nrow(portfolio_sort_grid)` specifications (`tbl-sorting-variables`).
 3. *Access.* API call (`download_data("tidyfinance", "factor_library", ...)`) and dashboard at [factors.tidy-finance.org](https://factors.tidy-finance.org). Researchers retrieve series without rebuilding the pipeline.
 4. *Illustration (`fig-sharpe-ratio`).* Distribution of annualised Sharpe ratios for each variable across specifications. For several variables the premium changes sign across specifications. This is a consequence of the infrastructure, not the paper's contribution.
@@ -1328,7 +1328,7 @@ Mention [py-tidyfinance]{.pkg} once: identical API for Python users.
 
 ### Specification grid {#sec-specification-grid}
 
-When every construction choice is configurable, no single combination is canonical. Rather than ship one default series and force users to rebuild the pipeline for every variant, we run [tidyfinance]{.pkg} across all defensible combinations and publish the results as a precomputed factor library. The case for systematic enumeration over construction choices, in preference to any single canonical specification, is made by @walter.2024 and @gruber.2023.
+When every construction choice is configurable, no single combination is canonical. Rather than ship one default series and force users to rebuild the pipeline for every variant, we run [tidyfinance]{.pkg} across all defensible combinations and publish the results as a precomputed factor library. The case for systematic enumeration over construction choices, in preference to any single canonical specification, is made by @walter.2024 and @gruber.2025.
 
 @tbl-sorting-decisions lists the preprocessing choices that vary across the library. Italic values mark the default for each choice; non-italic values are the alternatives we run.
 
