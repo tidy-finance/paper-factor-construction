@@ -1499,7 +1499,9 @@ download_data(
 )
 ```
 
-For finer control, [tidyfinance]{.pkg} exposes lower-level helpers that sit beneath the `download_data()` interface. `get_available_huggingface_files()` returns all available files for a given Hugging Face repository as a tibble; `download_factor_library_returns_ids()` retrieves returns for a specific vector of precomputed specification IDs. Researchers who want to iterate over a custom subset of specifications rather than filter by parameter value will prefer this route.
+For finer control, [tidyfinance]{.pkg} exposes lower-level helpers that sit beneath the `download_data()` interface. `get_available_huggingface_files()` returns all available files for a given Hugging Face repository as a tibble; `download_factor_library_returns_ids()` retrieves returns for a specific vector of precomputed specification IDs. Researchers who want a custom subset of specifications, defined by an arbitrary filter on the grid rather than by a single argument to `download_data()`, will prefer this route.
+
+As an example, suppose we want to compare every sorting variable holding the construction choices fixed. We pull the full grid, filter it to a single specification path, and pass the resulting `id` vector to the download helper:
 
 ```{r}
 #| eval: false
@@ -1511,8 +1513,25 @@ full_grid <- get_available_huggingface_files(
   dplyr::pull(.data$url) |>
   arrow::read_parquet()
 
-tidyfinance:::download_factor_library_ids(123)
+selected_ids <- full_grid |>
+  dplyr::filter(
+    sorting_method == "univariate",
+    sorting_variable_lag == "6m",
+    rebalancing == "monthly",
+    n_portfolios_main == 10,
+    weighting_scheme == "VW",
+    breakpoints_exchanges == "NYSE",
+    is.na(min_size_quantile),
+    !exclude_financials,
+    !exclude_utilities,
+    !exclude_negative_earnings
+  ) |>
+  dplyr::pull(id)
+
+returns_panel <- tidyfinance:::download_factor_library_ids(selected_ids)
 ```
+
+The filter collapses the grid to one row per sorting variable, so `returns_panel` returns the long-short series of every variable in the library under a single, fully documented construction path. Swapping any filter value, for example replacing `weighting_scheme == "VW"` with `weighting_scheme == "EW"`, regenerates the same panel under a different specification without recomputing anything from raw data.
 
 ### Construction-choice sensitivity {#sec-library-sensitivity}
 
