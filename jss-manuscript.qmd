@@ -1487,21 +1487,7 @@ asset_growth_returns <- download_data(
 
 The defaults passed to `dataset = "factor_library"` reflect one common construction choice but may not suit every research question. Verify that the selected combination matches the intended design before drawing conclusions.
 
-```{r}
-#| label: download-factor-library-fill-all
-#| eval: false
-download_data(
-  "tidyfinance",
-  "factor_library",
-  sorting_variable = "52w",
-  sorting_variable_lag = "6m",
-  fill_all = TRUE
-)
-```
-
-For finer control, [tidyfinance]{.pkg} exposes lower-level helpers that sit beneath the `download_data()` interface. `get_available_huggingface_files()` returns all available files for a given Hugging Face repository as a tibble; `download_factor_library_returns_ids()` retrieves returns for a specific vector of precomputed specification IDs. Researchers who want a custom subset of specifications, defined by an arbitrary filter on the grid rather than by a single argument to `download_data()`, will prefer this route.
-
-As an example, suppose we want to compare every sorting variable holding the construction choices fixed. We pull the full grid, filter it to a single specification path, and pass the resulting `id` vector to the download helper:
+For finer control, [tidyfinance]{.pkg} exposes lower-level helpers that sit beneath the `download_data()` interface. `get_available_huggingface_files()` returns all available files for a given Hugging Face repository as a tibble; `download_factor_library_ids()` retrieves returns for a specific vector of precomputed specification IDs. To retrieve a custom subset of specifications, pull the full grid, filter it to the desired construction path, and pass the resulting `id` vector to the helper. For example, to compare every sorting variable while holding the construction choices fixed:
 
 ```{r}
 #| eval: false
@@ -1510,7 +1496,7 @@ full_grid <- get_available_huggingface_files(
   "tidy-finance",
   "factor-library-grid"
 ) |>
-  dplyr::pull(.data$url) |>
+  dplyr::pull(url) |>
   arrow::read_parquet()
 
 selected_ids <- full_grid |>
@@ -1522,6 +1508,7 @@ selected_ids <- full_grid |>
     weighting_scheme == "VW",
     breakpoints_exchanges == "NYSE",
     is.na(min_size_quantile),
+    is.na(breakpoints_min_size_threshold),
     !exclude_financials,
     !exclude_utilities,
     !exclude_negative_earnings
@@ -1531,7 +1518,7 @@ selected_ids <- full_grid |>
 returns_panel <- tidyfinance:::download_factor_library_ids(selected_ids)
 ```
 
-The filter collapses the grid to one row per sorting variable, so `returns_panel` returns the long-short series of every variable in the library under a single, fully documented construction path. Swapping any filter value, for example replacing `weighting_scheme == "VW"` with `weighting_scheme == "EW"`, regenerates the same panel under a different specification without recomputing anything from raw data.
+The filter pins down every construction choice except the sorting variable, so `returns_panel` carries the long-short series of every variable in the library under one specification. Swapping any filter value — for example `weighting_scheme == "VW"` to `weighting_scheme == "EW"` — regenerates the panel under a different specification without touching raw data.
 
 ### Construction-choice sensitivity {#sec-library-sensitivity}
 
