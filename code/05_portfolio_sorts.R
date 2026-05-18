@@ -235,23 +235,3 @@ open_dataset("data/portfolio_returns/") |>
 
 fs::dir_delete("data/portfolio_returns/")
 fs::file_move(temporary_folder, "data/portfolio_returns/")
-
-# Store portfolio performance data
-
-portfolio_performance <- arrow::open_dataset("data/portfolio_returns") |>
-  select(sorting_variable, id, ret) |>
-  group_by(sorting_variable, id) |>
-  summarise(
-    sharpe_ratio = sqrt(12) * mean(ret, na.rm = TRUE) / sd(ret, na.rm = TRUE),
-    .groups = "drop"
-  ) |>
-  collect() |>
-  mutate(
-    sorting_variable = forcats::fct_reorder(
-      .f = sorting_variable,
-      .x = sharpe_ratio,
-      .fun = median
-    )
-  )
-
-portfolio_performance |> write_parquet("data/portfolio_performance.parquet")
