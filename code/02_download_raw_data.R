@@ -111,7 +111,7 @@ compustat_annual <- download_data(
     "xpp",
     "xrd"
   ),
-  only_us = TRUE
+  only_usd = TRUE
 )
 
 # Replace negative values with missing values
@@ -149,7 +149,7 @@ compustat_quarterly <- download_data(
     "txdbq",
     "txditcq"
   ),
-  only_us = TRUE
+  only_usd = TRUE
 ) |>
   select(-curcdq)
 
