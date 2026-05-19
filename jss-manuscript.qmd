@@ -78,8 +78,10 @@ format_pretty_date <- function(d) {
 sorting_variable_information <- arrow::read_parquet(
   "data/sorting_variable_information.parquet"
 )
-portfolio_sort_grid <- arrow::read_parquet("data/portfolio_sort_grid.parquet")
-n_indexes <- nrow(tidyfinance::list_supported_indexes())
+portfolio_sort_grid <- tidyfinance::download_data(
+  "tidyfinance",
+  "factor_library_grid"
+)
 ```
 
 ## Introduction {#sec-intro}
@@ -88,7 +90,7 @@ Factor returns are essential inputs to empirical asset pricing tests, optimal po
 
 No widely adopted tool covers this upstream workflow. The most popular factor sources publish *series* without the code that produced them: Ken French's Data Library [@fama.2023] supplies the Fama-French three- and five-factor returns and dozens of sorted portfolios. Other projects do release code: the Open Source Bond Asset Pricing project [@dickerson.2023, [openbondassetpricing.com](https://openbondassetpricing.com/)] covers fixed income, the Open Source Cross-Sectional Asset Pricing repository [@chen.2022] reproduces 212 published anomalies, and @jensen.2023 release a global factor library spanning hundreds of long-short signals across many countries. None of these sources, however, exposes the preprocessing pipeline as configurable code that researchers can inspect or modify. Many individual authors also host their own published factors, with transparency about construction choices varying widely. Existing [R]{.proglang} packages for quantitative finance work downstream of factor construction, on price and return panels the user must already have. Between raw data and standard asset pricing tests sits an opaque layer, where construction choices accumulate silently.
 
-This paper introduces [tidyfinance]{.pkg}, an [R]{.proglang} package on CRAN that fills this gap. The package addresses each stage with a dedicated interface. A unified `download_data()` function cleans, aligns, and harmonizes panels from WRDS (CRSP, Compustat, TRACE, FISD), Ken French's Data Library, the Hou-Xue-Zhang Q5 factors, the Open Source Asset Pricing repository, FRED, the Goyal-Welch macroeconomic predictors, Yahoo Finance, and current constituents for `{r} n_indexes` major equity indexes. Composable helpers then automate fiscal-year lagging, breakpoint computation, and portfolio aggregation. Every construction choice appears as a function argument with a default that follows established convention (NYSE breakpoints, value weights, July rebalancing, the Fama-French fiscal-year lag). A default call reproduces standard practice; overriding any default takes one argument.
+This paper introduces [tidyfinance]{.pkg}, an [R]{.proglang} package on CRAN that fills this gap. The package addresses each stage with a dedicated interface. A unified `download_data()` function cleans, aligns, and harmonizes panels from WRDS (CRSP, Compustat, TRACE, FISD), Ken French's Data Library, the Hou-Xue-Zhang Q5 factors, the Open Source Asset Pricing repository, FRED, the Goyal-Welch macroeconomic predictors, Yahoo Finance, and current constituents for `{r} nrow(tidyfinance::list_supported_indexes())` major equity indexes. Composable helpers then automate fiscal-year lagging, breakpoint computation, and portfolio aggregation. Every construction choice appears as a function argument with a default that follows established convention (NYSE breakpoints, value weights, July rebalancing, the Fama-French fiscal-year lag). A default call reproduces standard practice; overriding any default takes one argument.
 
 We illustrate the package by reproducing the asset growth factor of @cooper.2008 end-to-end from raw CRSP and Compustat data, then varying any construction choice with a single-argument change. To spare researchers the work of rebuilding the pipeline, we run [tidyfinance]{.pkg} across all defensible combinations and publish the results as a factor library of `{r} nrow(sorting_variable_information)` sorting variables across `{r} nrow(portfolio_sort_grid)` specifications. The library is available through a single `download_data()` call or an interactive dashboard at [factors.tidy-finance.org](https://factors.tidy-finance.org). Users who prefer [Python]{.proglang} access the same interface through the companion package [py-tidyfinance]{.pkg}. The package complements the open-access textbooks @scheuch.2023 and @scheuch.2024, which embed the workflow in pedagogical material for [R]{.proglang} and [Python]{.proglang}.
 
@@ -145,7 +147,7 @@ flowchart LR
 
 ### Data access {#sec-data-access}
 
-[tidyfinance]{.pkg} provides a single interface, `download_data()`, to `{r} nrow(tidyfinance::list_supported_types())` dataset types: equity returns, fixed-income transactions, macroeconomic predictors, index constituents, and more. @tbl-data-sources lists all available sources. `list_supported_types()` returns the full catalogue programmatically. The companion [Python]{.proglang} package [py-tidyfinance]{.pkg} exposes the same `download_data()` interface, with identical signatures and dataset identifiers, so analyses can be ported between the two languages without changes to the data layer.
+[tidyfinance]{.pkg} provides a single interface, `download_data()`, to `{r} nrow(tidyfinance::list_supported_datasets())` datasets: equity returns, fixed-income transactions, macroeconomic predictors, index constituents, and more. @tbl-data-sources lists all available sources. `list_supported_datasets()` returns the full catalogue programmatically. The companion [Python]{.proglang} package [py-tidyfinance]{.pkg} exposes the same `download_data()` interface, with identical signatures and dataset identifiers, so analyses can be ported between the two languages without changes to the data layer.
 
 ```{=latex}
 \begingroup
@@ -1527,16 +1529,11 @@ ag_data <- download_data(
 
 The call returns `{r} nrow(ag_data)` rows, covering `{r} nrow(ag_data|>count(id))` combinations of the choices in @tbl-sorting-decisions that match the supplied filters. The `id` column encodes the construction choices for each specification; the `date` and `ret_excess_vw` columns give the monthly factor returns for that specification.
 
-For finer control, [tidyfinance]{.pkg} exposes lower-level helpers that sit beneath the `download_data()` interface. `get_available_huggingface_files()` returns all available files for a given Hugging Face repository as a data frame; `download_factor_library_ids()` retrieves returns for a specific vector of precomputed specification IDs. Researchers who want to iterate over a custom subset of specifications rather than filter by parameter value will prefer this route.
+For finer control, [tidyfinance]{.pkg} exposes lower-level helpers that sit beneath the `download_data()` interface. `download_data("tidyfinance", "factor_library_grid")` returns the entire available data frame of factor construction specifications from our Hugging Face repository; `download_data("tidyfinance", "factor_library", ids = selected_ids)` retrieves returns for a specific vector `selected_ids` of precomputed specification IDs. Researchers who want to iterate over a custom subset of specifications rather than filter by parameter value will prefer this route.
 
 ```{r}
 #| label: download-factor-library-ids
-full_grid <- get_available_huggingface_files(
-  "tidy-finance",
-  "factor-library-grid"
-) |>
-  pull(.data$url) |>
-  arrow::read_parquet()
+full_grid <- download_data("tidyfinance", "factor_library_grid")
 
 selected_ids <- full_grid |>
   filter(
@@ -1554,7 +1551,11 @@ selected_ids <- full_grid |>
   ) |>
   pull(id)
 
-return_data <- download_factor_library_ids(selected_ids)
+return_data <- download_data(
+  "tidyfinance",
+  "factor_library",
+  ids = selected_ids
+)
 ```
 
 ### Construction-choice sensitivity {#sec-library-sensitivity}
