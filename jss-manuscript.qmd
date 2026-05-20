@@ -13,11 +13,17 @@ author:
     email: christoph@tidy-intelligence.com
     orcid: 0009-0004-0423-6819
   - name: Stefan Voigt
-    affiliation: University of Copenhagen
     orcid: 0000-0001-5619-3161
     email: stefan.voigt@econ.ku.dk
+    affiliations:
+      - name: University of Copenhagen
+        department: Department of Economics
+        address: Øster Farimagsgade 5
+        city: 1353 Copenhagen K
+        country: Denmark
+      - name: Danish Finance Institute
   - name: Patrick Weiss
-    affiliation: Reykjavík University 
+    affiliation: Reykjavík University
     orcid: 0000-0002-9282-5872
     email: patrickw@ru.is
 
@@ -1568,6 +1574,7 @@ Setting `fill_all = TRUE` overrides the default values for all unspecified prepr
 
 ```{r}
 #| label: download-factor-library-fill-all
+#| cache: false
 ag_data <- download_data(
   domain = "tidyfinance",
   dataset = "factor_library",
