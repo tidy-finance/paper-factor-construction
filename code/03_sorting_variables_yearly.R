@@ -1,8 +1,8 @@
-library(dplyr)
-library(tidyr)
-library(lubridate)
-library(tidyfinance)
-library(arrow)
+library("dplyr")
+library("tidyr")
+library("lubridate")
+library("tidyfinance")
+library("arrow")
 
 compustat_annual <- open_dataset("data/compustat_annual.parquet")
 

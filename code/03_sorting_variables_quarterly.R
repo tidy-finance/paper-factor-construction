@@ -1,7 +1,7 @@
-library(dplyr)
-library(lubridate)
-library(arrow)
-library(tidyfinance)
+library("dplyr")
+library("lubridate")
+library("arrow")
+library("tidyfinance")
 
 # Quarterly Compustat data quality is insufficient before 1972 to compute revenue surprise and standardized unexpected earnings
 min_analysis_date <- as.Date("1972-01-01")

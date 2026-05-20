@@ -1,7 +1,7 @@
-library(dplyr)
-library(tidyr)
-library(tidyfinance)
-library(arrow)
+library("dplyr")
+library("tidyr")
+library("tidyfinance")
+library("arrow")
 
 date_start <- as.Date("1960-01-01")
 date_end <- as.Date("2024-12-31")

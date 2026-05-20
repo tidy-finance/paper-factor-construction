@@ -28,8 +28,11 @@ keywords-formatted: [financial risk factors, reproducible research, asset pricin
 bibliography: bibliography.bib
 
 execute:
-  fig-width: 6.5
   cache: true
+
+knitr:
+  opts_chunk:
+    prompt: true
 ---
 
 ```{r setup}
@@ -37,10 +40,10 @@ execute:
 #| echo: false
 #| message: false
 #| cache: false
-library(ggforce)
-library(ggplot2)
-library(scales)
-library(patchwork)
+library("ggforce")
+library("ggplot2")
+library("scales")
+library("patchwork")
 
 tf_yellow <- "#EBCC2AFF"
 tf_dark_blue <- "#3B9AB2FF"
@@ -86,11 +89,11 @@ portfolio_sort_grid <- tidyfinance::download_data(
 
 ## Introduction {#sec-intro}
 
-Factor returns are essential inputs to empirical asset pricing tests, optimal portfolio allocation, and risk management decisions. Producing them is a three-stage pipeline: data acquisition (downloading and cleaning raw accounting and return data from CRSP, Compustat, and similar providers); variable construction (lagging variables to avoid look-ahead bias); and portfolio sorting (assigning securities to portfolios by characteristic). Each stage embeds construction choices: where to set breakpoints, whether to equal- or value-weight portfolios, how to handle delistings, and which fiscal-year lag to apply. Few pipelines are standardised, and fewer still ship with executable code. Anyone who reproduces or extends a factor series therefore reconstructs the pipeline from scratch, with no way to verify a match to the original.
+Factor returns are essential inputs to empirical asset pricing tests, optimal portfolio allocation, and risk management decisions. Producing them is a three-stage pipeline: data acquisition (downloading and cleaning raw accounting and return data from CRSP, Compustat, and similar providers); variable construction (lagging variables to avoid look-ahead bias); and portfolio sorting (assigning securities to portfolios by characteristic). Each stage embeds construction choices: where to set breakpoints, whether to equal- or value-weight portfolios, how to handle delistings, and which fiscal-year lag to apply. Few pipelines are standardized, and fewer still ship with executable code. Anyone who reproduces or extends a factor series therefore reconstructs the pipeline from scratch, with no way to verify a match to the original.
 
-No widely adopted tool covers this upstream workflow. The most popular factor sources publish *series* without the code that produced them: Ken French's Data Library [@fama.2023] supplies the Fama-French three- and five-factor returns and dozens of sorted portfolios. Other projects do release code: the Open Source Bond Asset Pricing project [@dickerson.2023, [openbondassetpricing.com](https://openbondassetpricing.com/)] covers fixed income, the Open Source Cross-Sectional Asset Pricing repository [@chen.2022] reproduces 213+ published anomalies, and @jensen.2023 release a global factor library spanning hundreds of long-short signals across many countries. None of these sources, however, exposes the preprocessing pipeline as configurable code that researchers can inspect or modify. Many individual authors also host their own published factors, with transparency about construction choices varying widely. Existing [R]{.proglang} packages for quantitative finance work downstream of factor construction, on price and return panels the user must already have. Between raw data and standard asset pricing tests sits an opaque layer, where construction choices accumulate silently.
+No widely adopted tool covers this upstream workflow. The most popular factor sources publish *series* without the code that produced them: Ken French's Data Library [@fama.2023] supplies the Fama-French three- and five-factor returns and dozens of sorted portfolios. Other projects do release code: the Open Source Bond Asset Pricing project [@dickerson.2023], available at [openbondassetpricing.com](https://openbondassetpricing.com/), covers fixed income; the Open Source Cross-Sectional Asset Pricing repository [@chen.2022] reproduces 213+ published anomalies, and @jensen.2023 release a global factor library spanning hundreds of long-short signals across many countries. None of these sources, however, exposes the preprocessing pipeline as configurable code that researchers can inspect or modify. Many individual authors also host their own published factors, with transparency about construction choices varying widely. Existing [R]{.proglang} packages for quantitative finance work downstream of factor construction, on price and return panels the user must already have. Between raw data and standard asset pricing tests sits an opaque layer, where construction choices accumulate silently.
 
-This paper introduces [tidyfinance]{.pkg}, an [R]{.proglang} package on CRAN that fills this gap. The package addresses each stage with a dedicated interface. A unified `download_data()` function cleans, aligns, and harmonises panels from WRDS (Wharton Research Data Services: CRSP, Compustat, TRACE, FISD), Ken French's Data Library, the Q5 factors of @hou.2021, the Open Source Asset Pricing repository, FRED, the Goyal-Welch macroeconomic predictors, Yahoo Finance, and current constituents for `{r} format(nrow(tidyfinance::list_supported_indexes()), big.mark = ",")` major equity indexes. Composable helpers then automate fiscal-year lagging, breakpoint computation, and portfolio aggregation. Every construction choice appears as a function argument with a default that follows established convention (NYSE breakpoints, value-weights, July rebalancing, and the Fama-French fiscal-year lag). A default call reproduces standard practice; overriding any default takes one argument.
+This paper introduces [tidyfinance]{.pkg}, an [R]{.proglang} package on CRAN that fills this gap. The package addresses each stage with a dedicated interface. A unified `download_data()` function cleans, aligns, and harmonizes panels from WRDS (Wharton Research Data Services: CRSP, Compustat, TRACE, FISD), Ken French's Data Library, the Q5 factors of @hou.2021, the Open Source Asset Pricing repository, FRED, the Goyal-Welch macroeconomic predictors, Yahoo Finance, and current constituents for `{r} format(nrow(tidyfinance::list_supported_indexes()), big.mark = ",")` major equity indexes. Composable helpers then automate fiscal-year lagging, breakpoint computation, and portfolio aggregation. Every construction choice appears as a function argument with a default that follows established convention (NYSE breakpoints, value-weights, July rebalancing, and the Fama-French fiscal-year lag). A default call reproduces standard practice; overriding any default takes one argument.
 
 We illustrate the package by reproducing the asset growth factor of @cooper.2008 end-to-end from raw CRSP and Compustat data, then varying any construction choice with a single-argument change. To spare researchers the work of rebuilding the pipeline, we run [tidyfinance]{.pkg} across all defensible combinations and publish the results as a factor library of `{r} format(nrow(sorting_variable_information), big.mark = ",")` sorting variables across `{r} format(nrow(portfolio_sort_grid), big.mark = ",")` specifications. The library is available through a single `download_data()` call or an interactive dashboard at [factors.tidy-finance.org](https://factors.tidy-finance.org). Users who prefer [Python]{.proglang} access the same interface through the companion package [tidyfinance]{.pkg} for [Python]{.proglang}. The package complements the open-access textbooks @scheuch.2023 and @scheuch.2024, which embed the workflow in pedagogical material for [R]{.proglang} and [Python]{.proglang}.
 
@@ -102,7 +105,7 @@ The [R]{.proglang} ecosystem for empirical finance spans three layers, each with
 
 **Data acquisition.** Several packages retrieve specific sources commonly used in empirical asset pricing. [frenchdata]{.pkg} [@frenchdata.2021] downloads the Ken French data library. [quantmod]{.pkg} [@ryan.2025] and [tidyquant]{.pkg} [@dancho.2026] interface with Yahoo Finance, FRED, and other public price sources. [Rblpapi]{.pkg} [@armstrong.Rblpapi] provides Bloomberg API access for subscribers. [highfrequency]{.pkg} [@boudt.highfrequency] handles intraday trade and quote data. None of these cover the WRDS-CRSP-Compustat panel that anchors most factor construction, nor do they implement the cleaning, alignment, and survivorship conventions the asset pricing literature requires.
 
-**Asset pricing tests and portfolio construction.** Once a clean panel of returns is in hand, several packages support downstream analysis. [PerformanceAnalytics]{.pkg} [@peterson.2026] computes performance and risk metrics for return series. Portfolio optimisation is covered by [fPortfolio]{.pkg} [@wuertz.fPortfolio]. [RQuantLib]{.pkg} [@eddelbuettel.RQuantLib] interfaces with QuantLib for derivative pricing. Each of these tools assumes that the panel of returns and factors is already constructed.
+**Asset pricing tests and portfolio construction.** Once a clean panel of returns is in hand, several packages support downstream analysis. [PerformanceAnalytics]{.pkg} [@peterson.2026] computes performance and risk metrics for return series. Portfolio optimization is covered by [fPortfolio]{.pkg} [@wuertz.fPortfolio]. [RQuantLib]{.pkg} [@eddelbuettel.RQuantLib] interfaces with QuantLib for derivative pricing. Each of these tools assumes that the panel of returns and factors is already constructed.
 
 **Factor libraries.** Recent work targets the upstream factor-construction step directly. @hou.2020 replicate 452 cross-sectional anomalies and document that most fail out-of-sample, attributing failures in part to undocumented construction variation across studies. @chen.2022 respond by publishing code for 213+ anomaly portfolios, but their library targets a fixed, documented set rather than a reconfigurable pipeline. @jensen.2023 provide a global factor database without an open construction workflow. None of the three exposes the preprocessing pipeline as configurable code that researchers can inspect or modify.
 
@@ -132,7 +135,7 @@ pak::pak("tidy-finance/r-tidyfinance")
 Once installed, load the package with: 
 ```{r}
 #| label: load-tidyfinance-initial
-library(tidyfinance)
+library("tidyfinance")
 ```
 
 ### Design and workflow {#sec-design}
@@ -159,7 +162,7 @@ flowchart LR
 
 ### Data acquisition {#sec-data-access}
 
-[tidyfinance]{.pkg} provides a single interface, `download_data()`, to `{r} format(nrow(tidyfinance::list_supported_datasets()), big.mark = ",")` datasets: equity returns, fixed-income transactions, macroeconomic predictors, index constituents, and more. @tbl-data-sources lists all available sources. `list_supported_datasets()` returns the full catalogue programmatically. The companion [Python]{.proglang} package [tidyfinance]{.pkg} exposes the same `download_data()` interface, with identical signatures and dataset identifiers, so analyses can be ported between the two languages without changes to the data layer.
+[tidyfinance]{.pkg} provides a single interface, `download_data()`, to `{r} format(nrow(tidyfinance::list_supported_datasets()), big.mark = ",")` datasets: equity returns, fixed-income transactions, macroeconomic predictors, index constituents, and more. @tbl-data-sources lists all available sources. `list_supported_datasets()` returns the full catalog programmatically. The companion [Python]{.proglang} package [tidyfinance]{.pkg} exposes the same `download_data()` interface, with identical signatures and dataset identifiers, so analyses can be ported between the two languages without changes to the data layer.
 
 ```{=latex}
 \begingroup
@@ -298,7 +301,6 @@ dow_constituents <- download_data(
   domain = "constituents",
   index = "Dow Jones Industrial Average"
 )
-
 download_data(
   domain = "stock_prices",
   symbols = dow_constituents$symbol,
@@ -322,13 +324,13 @@ Public data still require non-trivial cleaning. The Goyal-Welch [@goyal.2008] ma
 
 For empirical asset pricing work, WRDS is the gold-standard source of return and accounting panels. WRDS data are proprietary, so an institutional subscription and credentials are required. [tidyfinance]{.pkg} handles this once: `set_wrds_credentials()` prompts for the username and password and stores them in a project-specific or global `.Renviron` file and additionally asks the user to add it to `.gitignore` to prevent credential leakage. Subsequent `download_data()` calls open the database connection automatically.
 
-`download_data()` applies standard cleaning conventions following @scheuch.2023 automatically. For CRSP monthly data, the function restricts the universe to common equity securities traded on NYSE, AMEX (now NYSE American), or NASDAQ. It computes market capitalisation as shares outstanding times price, constructs a one-month lag for portfolio weights, and maps exchange codes and SIC codes to readable labels. Excess returns are raw returns minus the Fama-French risk-free rate (the 1-month US T-bill); observations with missing returns or market capitalisation are dropped. Delisting returns are incorporated directly, eliminating the need for a separate adjustment.
+`download_data()` applies standard cleaning conventions following @scheuch.2023 automatically. For CRSP monthly data, the function restricts the universe to common equity securities traded on NYSE, AMEX (now NYSE American), or NASDAQ. It computes market capitalization as shares outstanding times price, constructs a one-month lag for portfolio weights, and maps exchange codes and SIC codes to readable labels. Excess returns are raw returns minus the Fama-French risk-free rate (the 1-month US T-bill); observations with missing returns or market capitalization are dropped. Delisting returns are incorporated directly, eliminating the need for a separate adjustment.
 
 For Compustat annual data, `download_data()` restricts to industrial-format consolidated statements and retains only the most recent observation per firm-year. It constructs book equity in priority order: stockholders' equity when available, else common equity plus preferred stock, else total assets minus total liabilities. The function adds back deferred taxes and investment tax credits, and subtracts the book value of preferred stock.
 
 For TRACE corporate bond transactions, `download_data()` applies the Dick-Nielsen cleaning protocol [@dicknielsen.2009] to remove cancellations, corrections, and reversals before returning the trade panel.
 
-All datasets returned by `download_data()` use a single `date` column that follows the same rules across frequencies. Daily observations return the trading date. Monthly observations are dated to the last calendar day of the reference month, regardless of whether that day was a trading day. Quarterly and annual observations take the fiscal period-end date as reported by the original source; for Compustat, this is the firm's fiscal year-end (`datadate`), which is typically December of the fiscal year, but might differ across firms and within firms across years. Macroeconomic series from FRED keep their original release dates. A simple equality join on `date` therefore aligns observations of the same frequency, while cross-frequency joins, such as merging monthly returns with annual fundamentals, require the lagging logic described in the next subsection.
+All datasets returned by `download_data()` use a single `date` column that follows the same rules across frequencies. Daily observations return the trading date. Monthly observations are dated to the last calendar day of the reference month, regardless of whether that day was a trading day. Quarterly and annual observations take the fiscal period-end date as reported by the original source; for Compustat, this is the firm's fiscal year-end (`datadate`), which is typically December of the fiscal year, but might differ across firms and within firms across years. Macroeconomic series from FRED keep their original release dates. A simple equality join on `date` therefore aligns observations of the same frequency, while cross-frequency joins, such as merging monthly returns with annual fundamentals, require the lagging logic described in @sec-variable-construction.
 
 ### Variable construction {#sec-variable-construction}
 
@@ -345,8 +347,6 @@ The second mode, enabled by `ff_adjustment = TRUE` and shown in Panel B of @fig-
 #| fig-height: 4.5
 #| out-width: "100%"
 #| echo: false
-library(ggforce)
-
 ts <- 0.94
 corner <- unit(4, "pt")
 
@@ -795,7 +795,7 @@ A handful of additional helpers cover routine operations that recur across empir
 
 ### Portfolio sorting {#sec-portfolio-sorting}
 
-A portfolio sort groups stocks each period into ordered portfolios according to the level of a sorting variable. The boundaries between portfolios are called *breakpoints*: numeric cutoffs of the sorting variable that determine which portfolio a stock joins. A quintile sort on size, for instance, has four breakpoints at the 20th, 40th, 60th, and 80th percentiles of the cross-sectional market-capitalisation distribution. Common sorting variables include size, beta, book-to-market, and momentum. The long-short return between the extreme portfolios is interpreted as a factor-mimicking strategy and serves as the basis for tests of whether the sorting variable forecasts future returns. Portfolio sorts are among the most widely used tools in empirical asset pricing [@bali.2016]. We expose the procedure through four composable functions.
+A portfolio sort groups stocks each period into ordered portfolios according to the level of a sorting variable. The boundaries between portfolios are called *breakpoints*: numeric cutoffs of the sorting variable that determine which portfolio a stock joins. A quintile sort on size, for instance, has four breakpoints at the 20th, 40th, 60th, and 80th percentiles of the cross-sectional market-capitalization distribution. Common sorting variables include size, beta, book-to-market, and momentum. The long-short return between the extreme portfolios is interpreted as a factor-mimicking strategy and serves as the basis for tests of whether the sorting variable forecasts future returns. Portfolio sorts are among the most widely used tools in empirical asset pricing [@bali.2016]. We expose the procedure through four composable functions.
 
 `compute_breakpoints()` takes a cross-section and a sorting variable and returns the numeric cutoffs that define the portfolio boundaries. The user supplies either a number of portfolios (for example, five for quintiles) or an explicit vector of percentiles, but not both. A `breakpoints_exchanges` argument restricts the universe used to compute breakpoints. The standard convention is NYSE-only, which prevents the large cross-section of small NASDAQ firms from dominating the lower bins. A related `breakpoints_min_size_threshold` argument excludes stocks below a market-cap quantile from the breakpoint computation, which is useful for size-related sorts where microcaps would otherwise distort the cutoffs. A `smooth_bunching` flag handles cases where the sorting variable clusters at the edges by pinning extreme values to the boundary portfolios and recomputing breakpoints on the remainder.
 
@@ -884,7 +884,7 @@ portfolios_dependent <- cross_section |>
 ```{r}
 #| label: fig-illustrate-portfolio-helper
 #| echo: false
-#| fig-cap: !expr 'paste0("Portfolio sort approaches illustrated on a simulated cross-section. Each panel plots simulated observations assigned to ", n_portfolio, " × ", n_portfolio, " portfolios based on asset growth rank (x-axis) and size rank (y-axis), both expressed as percentiles. Colours indicate portfolio cell assignment. The univariate sort (left) assigns portfolios on asset growth alone; the independent bivariate sort (centre) assigns each dimension independently; the dependent bivariate sort (right) sorts on size first, then on asset growth within size groups.")'
+#| fig-cap: !expr 'paste0("Portfolio sort approaches illustrated on a simulated cross-section. Each panel plots simulated observations assigned to ", n_portfolio, " × ", n_portfolio, " portfolios based on asset growth rank (x-axis) and size rank (y-axis), both expressed as percentiles. Colors indicate portfolio cell assignment. The univariate sort (left) assigns portfolios on asset growth alone; the independent bivariate sort (center) assigns each dimension independently; the dependent bivariate sort (right) sorts on size first, then on asset growth within size groups.")'
 #| fig-width: 6.5
 #| out-width: "100%"
 common_theme <- list(
@@ -954,10 +954,10 @@ Once installed, load [tidyfinance]{.pkg} together with a minimal set of supporti
 #| label: load-package
 #| message: false
 #| cache: false
-library(tidyfinance)
-library(dplyr)
-library(tidyr)
-library(lubridate)
+library("tidyfinance")
+library("dplyr")
+library("tidyr")
+library("lubridate")
 ```
 
 ### Data download {#sec-data-download}
@@ -1039,7 +1039,7 @@ The call relies on two silent defaults: `max_lag` falls back to `lag` (here one 
 pooled_stats <- sorting_variable_data |>
   drop_na(asset_growth) |>
   mutate(asset_growth = winsorize(asset_growth, 0.01)) |>
-  summarise(
+  summarize(
     N = n(),
     Mean = mean(asset_growth),
     SD = sd(asset_growth),
@@ -1058,7 +1058,7 @@ yearly_stats <- sorting_variable_data |>
     p99 = quantile(asset_growth, 0.99),
     asset_growth = pmax(pmin(asset_growth, p99), p01)
   ) |>
-  summarise(
+  summarize(
     N = n(),
     Mean = mean(asset_growth),
     SD = sd(asset_growth),
@@ -1076,7 +1076,7 @@ yearly_stats <- sorting_variable_data |>
 
 ```{r}
 #| label: tbl-ag-summary
-#| tbl-cap: "Cross-sectional summary statistics for asset growth (winsorised at the 1st and 99th percentiles). The 'Pooled' column reports the statistic computed on the entire firm-year sample. The 'Yearly' columns summarise the time series of statistic values computed cross-sectionally year by year, taking the average, minimum, and maximum across calendar years. N is the count of firm-year observations (pooled) or per-year observations (yearly columns)."
+#| tbl-cap: "Cross-sectional summary statistics for asset growth (winsorized at the 1st and 99th percentiles). The 'Pooled' column reports the statistic computed on the entire firm-year sample. The 'Yearly' columns summarize the time series of statistic values computed cross-sectionally year by year, taking the average, minimum, and maximum across calendar years. N is the count of firm-year observations (pooled) or per-year observations (yearly columns)."
 #| echo: false
 stat_names <- c("N", "Mean", "SD", "P10", "P25", "Median", "P75", "P90")
 fmt_val <- function(stat, x) {
@@ -1148,7 +1148,7 @@ sorting_data <- sorting_data |>
   filter(date > date_start + months(12) + months(18))
 ```
 
-The filter removes the initial year used to compute the growth rate plus an additional 18 months to avoid mechanically introduced gaps from the lagging step, leaving a panel of stock-month observations with excess returns, exchange membership, lagged market capitalisation, the lagged sorting variable. The auxiliary columns `siccd` and `ib` support the sample-construction filters in @sec-customised-sorts.
+The filter removes the initial year used to compute the growth rate plus an additional 18 months to avoid mechanically introduced gaps from the lagging step, leaving a panel of stock-month observations with excess returns, exchange membership, lagged market capitalization, the lagged sorting variable. The auxiliary columns `siccd` and `ib` support the sample-construction filters in @sec-customized-sorts.
 
 ```{r}
 #| label: fig-ag-percentiles
@@ -1159,7 +1159,7 @@ The filter removes the initial year used to compute the growth rate plus an addi
 plot_data <- sorting_data |>
   drop_na() |>
   group_by(date) |>
-  summarise(
+  summarize(
     "33%" = quantile(asset_growth, 0.33),
     "Median" = quantile(asset_growth, 0.50),
     "66%" = quantile(asset_growth, 0.66),
@@ -1227,7 +1227,7 @@ portfolio_returns <- implement_portfolio_sort(
 )
 ```
 
-Apart from setting `rebalancing_month = 7`, every other choice point falls back to the package default: no smooth bunching, no minimum portfolio size, and a cap-weight cutoff at the 80th percentile of market capitalisation for the capped value-weighted return. The standard CRSP/Compustat column names (`permno`, `date`, `ret_excess`, `mktcap_lag`, `exchange`) are picked up automatically through the default `data_options()`. Setting `rebalancing_month = 7` reforms the portfolios each July and holds them for the following twelve months, the standard Fama-French rebalancing convention. This pairs with `ff_adjustment = TRUE` in `join_lagged_values()`: the signal is locked in at the June/July boundary, so July is the first month in which a fresh fiscal-year update is available.
+Apart from setting `rebalancing_month = 7`, every other choice point falls back to the package default: no smooth bunching, no minimum portfolio size, and a cap-weight cutoff at the 80th percentile of market capitalization for the capped value-weighted return. The standard CRSP/Compustat column names (`permno`, `date`, `ret_excess`, `mktcap_lag`, `exchange`) are picked up automatically through the default `data_options()`. Setting `rebalancing_month = 7` reforms the portfolios each July and holds them for the following twelve months, the standard Fama-French rebalancing convention. This pairs with `ff_adjustment = TRUE` in `join_lagged_values()`: the signal is locked in at the June/July boundary, so July is the first month in which a fresh fiscal-year update is available.
 
 `compute_portfolio_returns()`, called internally, returns a long tibble with one row per portfolio-month and the three weighting columns introduced in @sec-portfolio-sorting (`ret_excess_vw` for value-weighted returns (VW), `ret_excess_ew` for equal-weighted returns (EW), and `ret_excess_vw_capped` for capped value-weighted returns (VWC)). Piping the result through `compute_long_short_returns()` gives the hedge portfolio. The `direction = "bottom_minus_top"` argument means the factor is long low-AG stocks and short high-AG stocks, in line with the negative premium documented by @cooper.2008.
 
@@ -1237,14 +1237,14 @@ factor_returns_ag <- portfolio_returns |>
   compute_long_short_returns(direction = "bottom_minus_top")
 ```
 
-@tbl-univariate-sort-ag summarises the time series of each quintile across all three weighting schemes, with the long-short portfolio appended as the final row.
+@tbl-univariate-sort-ag summarizes the time series of each quintile across all three weighting schemes, with the long-short portfolio appended as the final row.
 
 ```{r}
 #| label: univariate-sort-ag-stats
 quintile_stats <- portfolio_returns |>
   drop_na() |>
   group_by(portfolio) |>
-  summarise(
+  summarize(
     vw_mean = mean(ret_excess_vw) * 12,
     vw_tstat = mean(ret_excess_vw) / (sd(ret_excess_vw) / sqrt(n())),
     ew_mean = mean(ret_excess_ew) * 12,
@@ -1258,7 +1258,7 @@ quintile_stats <- portfolio_returns |>
 
 ls_row <- factor_returns_ag |>
   drop_na() |>
-  summarise(
+  summarize(
     portfolio = "L/S",
     vw_mean = mean(ret_excess_vw) * 12,
     vw_tstat = mean(ret_excess_vw) / (sd(ret_excess_vw) / sqrt(n())),
@@ -1274,7 +1274,7 @@ univariate_sort_table <- bind_rows(quintile_stats, ls_row)
 
 ```{r}
 #| label: tbl-univariate-sort-ag
-#| tbl-cap: "Time-series averages of annualised monthly excess returns for asset growth quintile portfolios. Portfolios are formed annually in July using NYSE breakpoints. Means are annualised (multiplied by 12). The $t$-statistic tests whether the mean monthly excess return differs from zero. VW denotes value-weighted, EW equal-weighted, and VWC capped value-weighted (weights above the 80th percentile pulled back to that cap). The L/S row is the long-short portfolio (bottom minus top quintile)."
+#| tbl-cap: "Time-series averages of annualized monthly excess returns for asset growth quintile portfolios. Portfolios are formed annually in July using NYSE breakpoints. Means are annualized (multiplied by 12). The $t$~statistic tests whether the mean monthly excess return differs from zero. VW denotes value-weighted, EW equal-weighted, and VWC capped value-weighted (weights above the 80th percentile pulled back to that cap). The L/S row is the long-short portfolio (bottom minus top quintile)."
 #| echo: false
 univariate_sort_table |>
   knitr::kable(
@@ -1295,19 +1295,19 @@ univariate_sort_table |>
   )
 ```
 
-The value-weighted long-short portfolio earns `{r} round(mean(factor_returns_ag$ret_excess_vw, na.rm = TRUE) * 12 * 100, 1)`% per year ($t$-statistic of `{r} round(mean(factor_returns_ag$ret_excess_vw, na.rm = TRUE) / (sd(factor_returns_ag$ret_excess_vw, na.rm = TRUE) / sqrt(sum(!is.na(factor_returns_ag$ret_excess_vw)))), 2)`), consistent with the negative premium documented by @cooper.2008. The equal-weighted spread is larger, as expected for characteristics that correlate with size. The monotone decline of value-weighted means across quintiles confirms that `tidyfinance` reproduces the literature result from raw WRDS data with a single function call.
+The value-weighted long-short portfolio earns `{r} round(mean(factor_returns_ag$ret_excess_vw, na.rm = TRUE) * 12 * 100, 1)`% per year ($t$~statistic of `{r} round(mean(factor_returns_ag$ret_excess_vw, na.rm = TRUE) / (sd(factor_returns_ag$ret_excess_vw, na.rm = TRUE) / sqrt(sum(!is.na(factor_returns_ag$ret_excess_vw)))), 2)`), consistent with the negative premium documented by @cooper.2008. The equal-weighted spread is larger, as expected for characteristics that correlate with size. The monotone decline of value-weighted means across quintiles confirms that `tidyfinance` reproduces the literature result from raw WRDS data with a single function call.
 
-#### Customised specification (bivariate sorts) {#sec-customised-sorts}
+#### Customized specification (bivariate sorts) {#sec-customized-sorts}
 
-The baseline specification above takes (almost) every package default and runs a univariate sort to form long-short portfolios. The customised specification below changes both: it overrides several of those defaults through `portfolio_sort_options` and moves from sorting on one variable to sorting on two.
+The baseline specification above takes (almost) every package default and runs a univariate sort to form long-short portfolios. The customized specification below changes both: it overrides several of those defaults through `portfolio_sort_options` and moves from sorting on one variable to sorting on two.
 
 We adopt a specification that combines, in a single call to `implement_portfolio_sort()`, the universe restrictions and breakpoint conventions used in many empirical studies: exclude financials and utilities, exclude firms with non-positive earnings, ignore the smallest 20% of NYSE-sized firms when computing breakpoints, form quintiles on AG within size buckets, use NYSE-only breakpoints, rebalance annually in July, and require at least ten constituents per portfolio.
 
 Bivariate (double) sorts control for a second variable, typically firm size (`mktcap_lag`), when forming portfolios on the main characteristic. We use the dependent variant introduced in @sec-portfolio-sorting and illustrated in @fig-illustrate-portfolio-helper: stocks are first split into size buckets, then sorted into asset growth portfolios within each bucket, with returns averaged across the size dimension.
 
 ```{r}
-#| label: customised-options
-options_customised <- portfolio_sort_options(
+#| label: customized-options
+options_customized <- portfolio_sort_options(
   filter_options = filter_options(
     exclude_financials = TRUE,
     exclude_utilities = TRUE,
@@ -1326,24 +1326,24 @@ options_customised <- portfolio_sort_options(
 ```
 
 ```{r}
-#| label: customised-sort
-portfolio_returns_customised <- implement_portfolio_sort(
+#| label: customized-sort
+portfolio_returns_customized <- implement_portfolio_sort(
   data = sorting_data,
   sorting_variables = c("asset_growth", "mktcap_lag"),
   sorting_method = "bivariate-dependent",
   rebalancing_month = 7,
-  portfolio_sort_options = options_customised,
+  portfolio_sort_options = options_customized,
   min_portfolio_size = 10,
   quiet = TRUE
 )
 
-factor_returns_customised <- portfolio_returns_customised |>
+factor_returns_customized <- portfolio_returns_customized |>
   compute_long_short_returns(direction = "bottom_minus_top")
 ```
 
-A single object-construction call (`options_customised`) bundles every methodological choice that distinguishes this specification from the baseline; nothing in the surrounding pipeline changes. Switching from a univariate to a size-controlled dependent double sort is a one-word change in `sorting_method`, and the secondary breakpoint object is supplied alongside the primary one without any additional work. Setting `quiet = TRUE` suppresses the diagnostic messages that `filter_sorting_data()` emits reporting how many observations each filter drops; setting `quiet = FALSE` (the default) is useful when iterating to track sample-construction effects.
+A single object-construction call (`options_customized`) bundles every methodological choice that distinguishes this specification from the baseline; nothing in the surrounding pipeline changes. Switching from a univariate to a size-controlled dependent double sort is a one-word change in `sorting_method`, and the secondary breakpoint object is supplied alongside the primary one without any additional work. Setting `quiet = TRUE` suppresses the diagnostic messages that `filter_sorting_data()` emits reporting how many observations each filter drops; setting `quiet = FALSE` (the default) is useful when iterating to track sample-construction effects.
 
-For comparison, we also include a bivariate-dependent sort that uses the default filters and breakpoint conventions, so the only difference from the baseline is the addition of size control. The long-short returns from that specification are appended to the customised one in @tbl-customised-comparison.
+For comparison, we also include a bivariate-dependent sort that uses the default filters and breakpoint conventions, so the only difference from the baseline is the addition of size control. The long-short returns from that specification are appended to the customized one in @tbl-customized-comparison.
 
 ```{r}
 #| label: bivariate-only-sort
@@ -1370,29 +1370,29 @@ factor_returns_bivariate <- portfolio_returns_bivariate |>
   compute_long_short_returns(direction = "bottom_minus_top")
 ```
 
-@tbl-customised-comparison decomposes the customised premium into two layers. Adding the size-controlled double sort alone (the bivariate-only row) lifts the annualised premium from `{r} round(mean(factor_returns_ag$ret_excess_vw, na.rm = TRUE) * 12 * 100, 1)`% to `{r} round(mean(factor_returns_bivariate$ret_excess_vw, na.rm = TRUE) * 12 * 100, 1)`%, with the $t$-statistic moving from borderline to clearly significant. Controlling for size therefore reveals that most of the AG signal in the cross-section was masked by size dispersion in the univariate sort. Layering the filter set and the 20% breakpoint threshold on top trims the magnitude back to `{r} round(mean(factor_returns_customised$ret_excess_vw, na.rm = TRUE) * 12 * 100, 1)`%, where the spread remains significant at conventional levels: removing financials, utilities, and loss-making firms strips out some of the firms that were contributing to the raw spread. Across all three specifications, the spread is positive and reflects the negative AG premium of @cooper.2008.
+@tbl-customized-comparison decomposes the customized premium into two layers. Adding the size-controlled double sort alone (the bivariate-only row) lifts the annualized premium from `{r} round(mean(factor_returns_ag$ret_excess_vw, na.rm = TRUE) * 12 * 100, 1)`% to `{r} round(mean(factor_returns_bivariate$ret_excess_vw, na.rm = TRUE) * 12 * 100, 1)`%, with the $t$~statistic moving from borderline to clearly significant. Controlling for size therefore reveals that most of the AG signal in the cross-section was masked by size dispersion in the univariate sort. Layering the filter set and the 20% breakpoint threshold on top trims the magnitude back to `{r} round(mean(factor_returns_customized$ret_excess_vw, na.rm = TRUE) * 12 * 100, 1)`%, where the spread remains significant at conventional levels: removing financials, utilities, and loss-making firms strips out some of the firms that were contributing to the raw spread. Across all three specifications, the spread is positive and reflects the negative AG premium of @cooper.2008.
 
 ```{r}
-#| label: customised-comparison-stats
-customised_comparison_table <- bind_rows(
+#| label: customized-comparison-stats
+customized_comparison_table <- bind_rows(
   factor_returns_ag |>
     drop_na() |>
-    summarise(
+    summarize(
       Specification = "Baseline (univariate, no filters)",
       `VW Mean` = mean(ret_excess_vw) * 12,
       `VW $t$` = mean(ret_excess_vw) / (sd(ret_excess_vw) / sqrt(n()))
     ),
   factor_returns_bivariate |>
     drop_na() |>
-    summarise(
+    summarize(
       Specification = "Bivariate only (size-controlled, no filters)",
       `VW Mean` = mean(ret_excess_vw) * 12,
       `VW $t$` = mean(ret_excess_vw) / (sd(ret_excess_vw) / sqrt(n()))
     ),
-  factor_returns_customised |>
+  factor_returns_customized |>
     drop_na() |>
-    summarise(
-      Specification = "Customised (size-controlled, filtered)",
+    summarize(
+      Specification = "Customized (size-controlled, filtered)",
       `VW Mean` = mean(ret_excess_vw) * 12,
       `VW $t$` = mean(ret_excess_vw) / (sd(ret_excess_vw) / sqrt(n()))
     )
@@ -1400,10 +1400,10 @@ customised_comparison_table <- bind_rows(
 ```
 
 ```{r}
-#| label: tbl-customised-comparison
-#| tbl-cap: "Comparison of long-short asset growth returns across three specifications. The baseline is a univariate sort with NYSE breakpoints and no filters. The bivariate-only specification adds a dependent double sort on size to the baseline but otherwise keeps the same universe and breakpoints. The customised specification adds the filter set (financials, utilities, non-positive earnings) and a 20\\% size threshold on the breakpoints. All rows use annual July rebalancing; means are annualised value-weighted excess returns."
+#| label: tbl-customized-comparison
+#| tbl-cap: "Comparison of long-short asset growth returns across three specifications. The baseline is a univariate sort with NYSE breakpoints and no filters. The bivariate-only specification adds a dependent double sort on size to the baseline but otherwise keeps the same universe and breakpoints. The customized specification adds the filter set (financials, utilities, non-positive earnings) and a 20\\% size threshold on the breakpoints. All rows use annual July rebalancing; means are annualized value-weighted excess returns."
 #| echo: false
-customised_comparison_table |>
+customized_comparison_table |>
   knitr::kable(
     digits = 3,
     escape = FALSE,
@@ -1419,7 +1419,7 @@ For researchers who want even finer control, the package exposes the lower-level
  
 A long-short return is one summary of whether asset growth predicts the cross-section of returns. A complementary view comes from Fama-MacBeth regressions [@fama.1973], which estimate the average risk premium attached to a characteristic after running cross-sectional regressions period by period. `tidyfinance` implements the standard procedure in `estimate_fama_macbeth()`, which takes a panel and a model formula, fits one cross-sectional OLS regression per period, and aggregates the period-level coefficients into average risk premia with Newey-West [@newey.1987] standard errors with automatic lag selection.
 
-Here, we winsorise the AG signal at the 1st and 99th percentiles to keep extreme observations from dominating the cross-sectional regressions and pair it with log market capitalisation as a size control.
+Here, we winsorize the AG signal at the 1st and 99th percentiles to keep extreme observations from dominating the cross-sectional regressions and pair it with log market capitalization as a size control.
  
 ```{r}
 #| label: fama-macbeth-data
@@ -1443,7 +1443,7 @@ fm_results <- estimate_fama_macbeth(
  
 ```{r}
 #| label: tbl-fama-macbeth
-#| tbl-cap: "Fama-MacBeth regression of monthly excess returns on lagged asset growth and lagged log market capitalisation. Coefficients are time-series averages of monthly cross-sectional OLS estimates; standard errors are Newey-West [@newey.1987] with automatic lag selection. The intercept and slopes on the right-hand-side variables are reported on the monthly scale."
+#| tbl-cap: "Fama-MacBeth regression of monthly excess returns on lagged asset growth and lagged log market capitalization. Coefficients are time-series averages of monthly cross-sectional OLS estimates; standard errors are Newey-West [@newey.1987] with automatic lag selection. The intercept and slopes on the right-hand-side variables are reported on the monthly scale."
 #| echo: false
 fm_results |>
   mutate(
@@ -1458,7 +1458,7 @@ fm_results |>
     Variable = factor,
     `Risk premium` = risk_premium,
     SE = standard_error,
-    `$t$-stat` = t_statistic,
+    `$t$~stat` = t_statistic,
     `N (months)` = n
   ) |>
   knitr::kable(
@@ -1470,7 +1470,7 @@ fm_results |>
   )
 ```
  
-The negative slope on `asset_growth` lines up with the long-short evidence in @tbl-univariate-sort-ag and @tbl-customised-comparison: high-AG firms earn lower subsequent returns, conditional on size. Switching to `vcov = "iid"` or supplying `vcov_options = list(lag = 6, prewhite = FALSE)` would change the standard-error treatment without altering the rest of the call, and adding additional regressors (a beta estimate from `estimate_betas()`, a profitability measure, an idiosyncratic-volatility control) is a one-line extension to the model formula. The same function therefore covers the standard cross-sectional asset-pricing test that complements the portfolio-sort evidence used throughout the rest of the paper.
+The negative slope on `asset_growth` lines up with the long-short evidence in @tbl-univariate-sort-ag and @tbl-customized-comparison: high-AG firms earn lower subsequent returns, conditional on size. Switching to `vcov = "iid"` or supplying `vcov_options = list(lag = 6, prewhite = FALSE)` would change the standard-error treatment without altering the rest of the call, and adding additional regressors (a beta estimate from `estimate_betas()`, a profitability measure, an idiosyncratic-volatility control) is a one-line extension to the model formula. The same function therefore covers the standard cross-sectional asset-pricing test that complements the portfolio-sort evidence used throughout the rest of the paper.
 
 
 ## A transparent risk factor library {#sec-library}
@@ -1568,7 +1568,6 @@ Setting `fill_all = TRUE` overrides the default values for all unspecified prepr
 
 ```{r}
 #| label: download-factor-library-fill-all
-#| cache: false
 ag_data <- download_data(
   domain = "tidyfinance",
   dataset = "factor_library",
@@ -1818,7 +1817,7 @@ $$
 RER_{t} = \frac{FATB_{t} + FATL_{t}}{PPEGT_{t}}
 $$
 
-Subsequently, we winsorise the real-estate ratios in each fiscal year at the first and 99$\text{th}$ percentile.
+Subsequently, we winsorize the real-estate ratios in each fiscal year at the first and 99$\text{th}$ percentile.
 The industry-adjusted real-estate ratio is obtained by subtracting the industry average real-estate ratio from each stock-specific real-estate ratio.
 We use 2-digit SIC codes to assign stocks to industries.
 We always require at least five observations to calculate the industry average each year.
@@ -1970,7 +1969,7 @@ $$
 UES_{q} = \frac{EPSPXQ_{q}}{AJEXQ_{q}} - \frac{EPSPXQ_{q-4}}{AJEXQ_{q-4}}
 $$
 
-Then, standardised unexpected earnings are defined as unexpected earnings per share divided by the standard deviation of unexpected earnings per share over the previous eight quarters.
+Then, standardized unexpected earnings are defined as unexpected earnings per share divided by the standard deviation of unexpected earnings per share over the previous eight quarters.
 We require at least six quarterly observations for this rolling standard deviation.
 Finally, the earnings announcement date has to be after the fiscal quarter end date.^[We follow the convention of @hou.2020 and do not estimate a random walk model with drift to compute the surprise.]
 
@@ -2023,7 +2022,7 @@ O_{t} = &- 1.32 - 0.407 \cdot \log(AT_{t}) + 6.03 \cdot \frac{DLC_{t} + DLTT_{t}
 \end{align*}
 
 where AT corresponds to total assets, DLC to short-term debt, DLTT to long-term debt, ACT to current assets, LCT to current liabilities, LT to total liabilities, PI to pretax income, DP to depreciation and amortization, and NI to net income.
-We winsorise all variables except for dummy variables at the first and 99$^\text{th}$ percentile of their respective distribution.
+We winsorize all variables except for dummy variables at the first and 99$^\text{th}$ percentile of their respective distribution.
 
 **OPE - Operating Profits to Book Equity**
 

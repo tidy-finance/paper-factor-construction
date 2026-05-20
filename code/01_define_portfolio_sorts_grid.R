@@ -1,7 +1,7 @@
-library(dplyr)
-library(tidyr)
-library(tibble)
-library(arrow)
+library("dplyr")
+library("tidyr")
+library("tibble")
+library("arrow")
 
 sorting_variable_information <- tribble(
   ~sorting_variable , ~full_name                                , ~direction         , ~citation                         ,
