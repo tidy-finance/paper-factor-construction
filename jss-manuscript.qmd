@@ -98,9 +98,15 @@ The remainder of the paper proceeds as follows. @sec-background places [tidyfina
 
 ## Background and related work {#sec-background}
 
-@hou.2020 replicate 452 cross-sectional anomalies and find that most fail to survive out-of-sample, attributing failures in part to undocumented construction variation across studies. @chen.2022 respond by publishing code for 213+ anomaly portfolios, but their library targets a fixed, documented set rather than a reconfigurable pipeline. @jensen.2023 provide a global factor database without an open construction workflow. [tidyfinance]{.pkg} fills the gap all three leave open: every construction decision is explicit, configurable, and version-controlled, so researchers can trace and vary any assumption systematically.
+The [R]{.proglang} ecosystem for empirical finance spans three layers, each with established package support but a missing piece between them.
 
-Among [R]{.proglang} packages for quantitative finance, [tidyquant]{.pkg} [@dancho.2026], [PerformanceAnalytics]{.pkg} [@peterson.2026], and [quantmod]{.pkg} [@ryan.2025] support time-series retrieval and portfolio performance analytics. None begins at raw accounting and return data, applies the cleaning and lagging conventions factor construction requires, or exposes construction choices as configurable parameters. [tidyfinance]{.pkg} provides this upstream pipeline with a consistent API and enables researchers to access standardised factor series without rebuilding data workflows in each environment.
+**Data acquisition.** Several packages retrieve specific sources commonly used in empirical asset pricing. [frenchdata]{.pkg} [@frenchdata.2021] downloads the Ken French data library. [quantmod]{.pkg} [@ryan.2025] and [tidyquant]{.pkg} [@dancho.2026] interface with Yahoo Finance, FRED, and other public price sources. [Rblpapi]{.pkg} [@armstrong.Rblpapi] provides Bloomberg API access for subscribers. [highfrequency]{.pkg} [@boudt.highfrequency] handles intraday trade and quote data. None of these cover the WRDS-CRSP-Compustat panel that anchors most factor construction, nor do they implement the cleaning, alignment, and survivorship conventions the asset pricing literature requires.
+
+**Asset pricing tests and portfolio construction.** Once a clean panel of returns is in hand, several packages support downstream analysis. [PerformanceAnalytics]{.pkg} [@peterson.2026] computes performance and risk metrics for return series. Portfolio optimisation is covered by [fPortfolio]{.pkg} [@wuertz.fPortfolio]. [RQuantLib]{.pkg} [@eddelbuettel.RQuantLib] interfaces with QuantLib for derivative pricing. Each of these tools assumes that the panel of returns and factors is already constructed.
+
+**Factor libraries.** Recent work targets the upstream factor-construction step directly. @hou.2020 replicate 452 cross-sectional anomalies and document that most fail out-of-sample, attributing failures in part to undocumented construction variation across studies. @chen.2022 respond by publishing code for 213+ anomaly portfolios, but their library targets a fixed, documented set rather than a reconfigurable pipeline. @jensen.2023 provide a global factor database without an open construction workflow. None of the three exposes the preprocessing pipeline as configurable code that researchers can inspect or modify.
+
+**Tidy finance: transparency and modularity.** [tidyfinance]{.pkg} sits between the data-acquisition layer and the downstream analysis packages, building on the workflow developed in *Tidy Finance with R* [@scheuch.2023] and *Tidy Finance with Python* [@scheuch.2024]. The companion books embed the package in pedagogical material; this paper documents the package's design principles around factor construction, where the gap above is sharpest. Two pillars guide the package. *Transparency*: every construction decision is exposed as a configurable parameter with a documented default, following the *tidy data* discipline of @wickham.2014. *Modularity*: each construction step is a small composable function, so researchers can adopt the full pipeline by chaining functions or call individual pieces inside their own workflows. The current paper focuses on factor construction; the package itself covers further functionality for asset pricing tests and optimal portfolio choice that we defer to dedicated treatments.
 
 ## Package overview {#sec-overview}
 
@@ -131,7 +137,7 @@ library(tidyfinance)
 
 ### Design and workflow {#sec-design}
 
-[tidyfinance]{.pkg} reflects three design principles, building on the *tidy data* discipline of @wickham.2014 and the broader tidy-finance workflow of @scheuch.2023, where each construction step is a small, documented function that composes via the pipe. *First*, the empirical asset pricing workflow decomposes into three stages: data acquisition, variable construction, and portfolio sorting. Each stage involves dozens of small decisions: universe filters, cleaning rules, rebalancing conventions, breakpoint definitions. @fig-workflow-diagram shows the pipeline and the core package functions at each stage. We discuss data acquisition, variable construction, and portfolio sorting in the following sections. *Second*, every construction decision is exposed as a configurable parameter with a documented default. Defaults follow established convention, so a default call reproduces standard practice. *Third*, the functions are composable. Researchers adopt the full pipeline by chaining them, or call individual pieces inside their own workflows.
+The empirical asset pricing workflow decomposes into three stages: data acquisition, variable construction, and portfolio sorting. Each stage involves dozens of small decisions: universe filters, cleaning rules, rebalancing conventions, breakpoint definitions. @fig-workflow-diagram shows the pipeline and the core package functions at each stage. We discuss data acquisition, variable construction, and portfolio sorting in the following sections.
 
 ```{mermaid}
 %%| label: fig-workflow-diagram
@@ -697,15 +703,6 @@ ggplot() +
   ) +
   # Outer label spanning both panels
   annotate(
-    "segment",
-    x = x_ff,
-    xend = x_std,
-    y = -0.55,
-    yend = -0.55,
-    color = "grey30",
-    linewidth = 0.4
-  ) +
-  annotate(
     "text",
     x = (x_std + x_ff) / 2,
     y = -0.8,
@@ -1016,7 +1013,7 @@ $$
 
 where $AT_t$ is total assets in year $t$ (Compustat field `at`).
 
-The `add_lagged_columns()` function from [tidyfinance]{.pkg} handles temporal alignment by creating a lagged version of total assets grouped by firm identifier (`gvkey`) with a one-year lag. Non-finite values (arising when lagged total assets are zero or missing) become `NA`.^[For the sake of simplicity we do not show every step of the data cleaning process in the paper. For instance, we apply an earnings filter to exclude firms with negative or zero income before extraordinary items (`ib`), which is a common practice in the literature to mitigate the influence of financial distress on asset growth portfolios. This filter is applied in the code but not shown in the paper for brevity. We also apply an age filter to exclude firms younger than two years, which is common in the literature to ensure that the sorting variable is based on stable financial information. This filter is also applied in the code but not shown in the paper for brevity. The factor library API provides preprocessed panels with all these filters applied, so users can access the final sorting variables without having to repeat these steps themselves.] 
+The `add_lagged_columns()` function from [tidyfinance]{.pkg} handles temporal alignment by creating a lagged version of total assets grouped by firm identifier (`gvkey`) with a one-year lag. Non-finite values (arising when lagged total assets are zero or missing) become `NA`.
 
 ```{r}
 #| label: compute-sorting-variables
@@ -1113,7 +1110,12 @@ tibble::tibble(
     character(1)
   )
 ) |>
-  knitr::kable(align = "lrrrr")
+  knitr::kable(
+    align = "lrrrr",
+    format = "latex",
+    booktabs = TRUE,
+    linesep = ""
+  )
 ```
 
 The next step merges annual sorting variables onto the monthly CRSP stock panel using `join_lagged_values()`. The function aligns fiscal-year-end data with monthly observations through a configurable lag window. Setting `ff_adjustment = TRUE` implements the Fama-French convention [@fama.1993], aligning fiscal-year data from year $t$ with portfolio formation in July of year $t+1$ through a 12-to-18-month look-back window. The same lagging process generalises to all sorting variables in the full factor library, and the factor library API provides precomputed lagged panels for all of them. Specifically, we implement three- and six-month lags with maximum look-back periods of 15 and 18 months, respectively.
@@ -1238,9 +1240,7 @@ factor_returns_ag <- portfolio_returns |>
 @tbl-univariate-sort-ag summarises the time series of each quintile across all three weighting schemes, with the long-short portfolio appended as the final row.
 
 ```{r}
-#| label: tbl-univariate-sort-ag
-#| tbl-cap: "Time-series averages of annualised monthly excess returns for asset growth quintile portfolios. Portfolios are formed annually in July using NYSE breakpoints. Means are annualised (multiplied by 12). The $t$-statistic tests whether the mean monthly excess return differs from zero. VW denotes value-weighted, EW equal-weighted, and VWC capped value-weighted (weights above the 80th percentile pulled back to that cap). The L/S row is the long-short portfolio (bottom minus top quintile)."
-#| echo: false
+#| label: univariate-sort-ag-stats
 quintile_stats <- portfolio_returns |>
   drop_na() |>
   group_by(portfolio) |>
@@ -1269,10 +1269,20 @@ ls_row <- factor_returns_ag |>
       (sd(ret_excess_vw_capped) / sqrt(n()))
   )
 
-bind_rows(quintile_stats, ls_row) |>
+univariate_sort_table <- bind_rows(quintile_stats, ls_row)
+```
+
+```{r}
+#| label: tbl-univariate-sort-ag
+#| tbl-cap: "Time-series averages of annualised monthly excess returns for asset growth quintile portfolios. Portfolios are formed annually in July using NYSE breakpoints. Means are annualised (multiplied by 12). The $t$-statistic tests whether the mean monthly excess return differs from zero. VW denotes value-weighted, EW equal-weighted, and VWC capped value-weighted (weights above the 80th percentile pulled back to that cap). The L/S row is the long-short portfolio (bottom minus top quintile)."
+#| echo: false
+univariate_sort_table |>
   knitr::kable(
     digits = 3,
     escape = FALSE,
+    format = "latex",
+    booktabs = TRUE,
+    linesep = "",
     col.names = c(
       "Portfolio",
       "VW Mean",
@@ -1363,10 +1373,8 @@ factor_returns_bivariate <- portfolio_returns_bivariate |>
 @tbl-customised-comparison decomposes the customised premium into two layers. Adding the size-controlled double sort alone (the bivariate-only row) lifts the annualised premium from `{r} round(mean(factor_returns_ag$ret_excess_vw, na.rm = TRUE) * 12 * 100, 1)`% to `{r} round(mean(factor_returns_bivariate$ret_excess_vw, na.rm = TRUE) * 12 * 100, 1)`%, with the $t$-statistic moving from borderline to clearly significant. Controlling for size therefore reveals that most of the AG signal in the cross-section was masked by size dispersion in the univariate sort. Layering the filter set and the 20% breakpoint threshold on top trims the magnitude back to `{r} round(mean(factor_returns_customised$ret_excess_vw, na.rm = TRUE) * 12 * 100, 1)`%, where the spread remains significant at conventional levels: removing financials, utilities, and loss-making firms strips out some of the firms that were contributing to the raw spread. Across all three specifications, the spread is positive and reflects the negative AG premium of @cooper.2008.
 
 ```{r}
-#| label: tbl-customised-comparison
-#| tbl-cap: "Comparison of long-short asset growth returns across three specifications. The baseline is a univariate sort with NYSE breakpoints and no filters. The bivariate-only specification adds a dependent double sort on size to the baseline but otherwise keeps the same universe and breakpoints. The customised specification adds the filter set (financials, utilities, non-positive earnings) and a 20\\% size threshold on the breakpoints. All rows use annual July rebalancing; means are annualised value-weighted excess returns."
-#| echo: false
-bind_rows(
+#| label: customised-comparison-stats
+customised_comparison_table <- bind_rows(
   factor_returns_ag |>
     drop_na() |>
     summarise(
@@ -1388,7 +1396,14 @@ bind_rows(
       `VW Mean` = mean(ret_excess_vw) * 12,
       `VW $t$` = mean(ret_excess_vw) / (sd(ret_excess_vw) / sqrt(n()))
     )
-) |>
+)
+```
+
+```{r}
+#| label: tbl-customised-comparison
+#| tbl-cap: "Comparison of long-short asset growth returns across three specifications. The baseline is a univariate sort with NYSE breakpoints and no filters. The bivariate-only specification adds a dependent double sort on size to the baseline but otherwise keeps the same universe and breakpoints. The customised specification adds the filter set (financials, utilities, non-positive earnings) and a 20\\% size threshold on the breakpoints. All rows use annual July rebalancing; means are annualised value-weighted excess returns."
+#| echo: false
+customised_comparison_table |>
   knitr::kable(
     digits = 3,
     escape = FALSE,
@@ -1446,7 +1461,13 @@ fm_results |>
     `$t$-stat` = t_statistic,
     `N (months)` = n
   ) |>
-  knitr::kable(digits = 4, escape = FALSE)
+  knitr::kable(
+    digits = 4,
+    escape = FALSE,
+    format = "latex",
+    booktabs = TRUE,
+    linesep = ""
+  )
 ```
  
 The negative slope on `asset_growth` lines up with the long-short evidence in @tbl-univariate-sort-ag and @tbl-customised-comparison: high-AG firms earn lower subsequent returns, conditional on size. Switching to `vcov = "iid"` or supplying `vcov_options = list(lag = 6, prewhite = FALSE)` would change the standard-error treatment without altering the rest of the call, and adding additional regressors (a beta estimate from `estimate_betas()`, a profitability measure, an idiosyncratic-volatility control) is a one-line extension to the model formula. The same function therefore covers the standard cross-sectional asset-pricing test that complements the portfolio-sort evidence used throughout the rest of the paper.
@@ -1457,6 +1478,8 @@ The negative slope on `asset_growth` lines up with the long-short evidence in @t
 ### Specification grid {#sec-specification-grid}
 
 When every construction choice is configurable, no single combination is canonical. Rather than ship one default series and force users to rebuild the pipeline for every variant, we run [tidyfinance]{.pkg} across all defensible combinations and publish the results as a precomputed factor library. @walter.2024 and @gruber.2025, among others, argue for systematic enumeration over construction choices in preference to any single canonical specification.
+
+The library is constructed by running each combination of the choices in @tbl-sorting-decisions on the same underlying CRSP-Compustat universe. Beyond the variation @tbl-sorting-decisions makes explicit, two universe filters apply across all specifications. An *earnings filter* drops firms with non-positive income before extraordinary items (`ib`), which is standard in the literature to mitigate the influence of financial distress on the resulting portfolios. An *age filter* drops firms younger than two years, which ensures the sorting variable is based on stable financial information. Both filters are exposed as parameters of `download_data()`; users who want to switch them off can override the default.
 
 @tbl-sorting-decisions lists the preprocessing choices that vary across the library. Italic values mark the default for each choice; non-italic values are the alternatives we run.
 
@@ -1486,10 +1509,10 @@ tibble::tribble(
     escape = FALSE,
     linesep = "",
     align = c(
+      ">{\\raggedright\\arraybackslash}p{2.4cm}",
+      ">{\\raggedright\\arraybackslash}p{3.2cm}",
       ">{\\raggedright\\arraybackslash}p{2.8cm}",
-      ">{\\raggedright\\arraybackslash}p{3.8cm}",
-      ">{\\raggedright\\arraybackslash}p{3.6cm}",
-      ">{\\raggedright\\arraybackslash}p{4.6cm}"
+      ">{\\raggedright\\arraybackslash}p{3.8cm}"
     ),
     col.names = c("Preprocessing choice", "Argument", "Options", "Description")
   )
@@ -1519,7 +1542,7 @@ tab <- sorting_variable_information |>
     col.names = c("Variable", "Name", "", "Main reference")
   )
 
-tab[1] <- sub("llll", "lp{5cm}ll", tab[1], fixed = TRUE)
+tab[1] <- sub("llll", "lp{4.5cm}lp{5cm}", tab[1], fixed = TRUE)
 tab
 ```
 
@@ -1595,10 +1618,7 @@ $$
 by ordinary least squares, where $r_{i,t}$ is the long-short return of specification $i$ in month $t$. We report the intercept $\alpha_i$ as the abnormal return that the three-factor model leaves unexplained. @fig-ag-alpha plots the histogram of these alphas across all `{r} format(ag_data|>count(id)|>nrow(), big.mark = ",")` specifications.
 
 ```{r}
-#| label: fig-ag-alpha
-#| fig-cap: !expr 'paste0("Distribution of asset-growth Fama-French three-factor alphas across construction choices. The histogram shows monthly alphas from regressing each of the ", format(ag_data|>count(id)|>nrow(), big.mark = ","), " long-short specifications of the asset-growth factor on the market, size, and value factors, estimated by OLS. The dashed vertical line marks zero. Specifications vary as listed in @tbl-sorting-decisions.")'
-#| fig-width: 6.5
-#| out-width: "100%"
+#| label: ag-alpha-preparation
 ag_alpha <- ag_data |>
   left_join(ff_factors, join_by(date)) |>
   group_by(id) |>
@@ -1607,9 +1627,14 @@ ag_alpha <- ag_data |>
     model = "ret ~ mkt_excess + hml + smb"
   )) |>
   select(id, alpha = intercept)
+```
 
+```{r}
+#| label: fig-ag-alpha
+#| fig-cap: !expr 'paste0("Distribution of asset-growth Fama-French three-factor alphas across construction choices. The histogram shows monthly alphas from regressing each of the ", format(ag_data|>count(id)|>nrow(), big.mark = ","), " long-short specifications of the asset-growth factor on the market, size, and value factors, estimated by OLS. The dashed vertical line marks zero. Specifications vary as listed in @tbl-sorting-decisions.")'
+#| fig-width: 6.5
+#| out-width: "100%"
 n_specs <- nrow(ag_alpha)
-
 ag_alpha |>
   ggplot(aes(x = alpha)) +
   geom_histogram(binwidth = 0.001) +
