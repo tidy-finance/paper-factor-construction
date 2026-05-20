@@ -1,7 +1,7 @@
-library(dplyr)
-library(lubridate)
-library(arrow)
-library(tidyfinance)
+library("dplyr")
+library("lubridate")
+library("arrow")
+library("tidyfinance")
 
 sorting_variables_yearly <- read_parquet(
   "data/sorting_variables_yearly.parquet"
