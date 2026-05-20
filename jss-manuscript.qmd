@@ -28,7 +28,6 @@ keywords-formatted: [financial risk factors, reproducible research, asset pricin
 bibliography: bibliography.bib
 
 execute:
-  fig-width: 6.5
   cache: true
 
 knitr:
@@ -302,7 +301,6 @@ dow_constituents <- download_data(
   domain = "constituents",
   index = "Dow Jones Industrial Average"
 )
-
 download_data(
   domain = "stock_prices",
   symbols = dow_constituents$symbol,
@@ -349,8 +347,6 @@ The second mode, enabled by `ff_adjustment = TRUE` and shown in Panel B of @fig-
 #| fig-height: 4.5
 #| out-width: "100%"
 #| echo: false
-library("ggforce")
-
 ts <- 0.94
 corner <- unit(4, "pt")
 
@@ -1572,7 +1568,6 @@ Setting `fill_all = TRUE` overrides the default values for all unspecified prepr
 
 ```{r}
 #| label: download-factor-library-fill-all
-#| cache: false
 ag_data <- download_data(
   domain = "tidyfinance",
   dataset = "factor_library",
