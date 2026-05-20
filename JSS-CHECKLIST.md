@@ -2,13 +2,14 @@
 
 A working checklist for getting this repository (manuscript + replication code) into compliance with the *Journal of Statistical Software* (JSS) submission guide, style guide, BibTeX guide, and replication-material policy.
 
-Source documents distilled below:
+Source documents distilled below (verbatim text used; jstatsoft.org is not directly reachable from the build environment):
 
 - Submission Guide — https://www.jstatsoft.org/guides/submission
+- Style Guide (incl. FAQ and Miscellaneous section) — https://www.jstatsoft.org/style
 - Information for Authors — https://www.jstatsoft.org/authors
-- Style Guide — https://www.jstatsoft.org/style
 - About / Submissions — https://www.jstatsoft.org/about/submissions
 - JSS Quarto template (canonical example) — https://github.com/quarto-journals/jss
+- Style manual: `jss.pdf` (the full normative reference for everything below)
 
 Legend: `[x]` already satisfied, `[ ]` open, `[~]` partially satisfied / needs verification.
 
@@ -107,41 +108,60 @@ JSS-specific inline markup, used in body **and titles and references**:
 
 ## 6. Typography & terminology (Style Guide)
 
-- [ ] **6.1** **Always** write `$p$~value`, `$t$~statistic`, `$F$~test`, etc. — no hyphen, with a tied non-breaking space (`~`). Current manuscript uses hyphen at e.g. `jss-manuscript.qmd:1277` (`$t$-statistic`). Fix all occurrences:
+- [ ] **6.1** **Always** write `$p$~value`, `$t$~statistic`, `$F$~test`, etc. — no hyphen, with a tied non-breaking space (`~`). Three current violations: `jss-manuscript.qmd:1277`, `:1298`, `:1373` (`$t$-statistic`). Fix all occurrences:
   ```
   grep -nE '\$[ptFz]\$-(value|statistic|test|score)' jss-manuscript.qmd
   ```
 - [ ] **6.2** **Never** call a subsection "Subsection x.y" — always "Section x.y". Line `jss-manuscript.qmd:331` says *"described in the next subsection"* — rewrite to *"described in Section 3.2"* (or `@sec-variable-construction`).
-- [ ] **6.3** Abbreviations: introduce on first use with expansion (lowercase expansion), thereafter use the acronym only. Examples: GLM, ML, IWLS, OLS, EW, VW, VWC, L/S, BIC, FF — verify each is expanded on first use.
+- [ ] **6.3** Abbreviations: introduce on first use with expansion (lowercase expansion), thereafter use the acronym only. Examples: GLM, ML, IWLS, OLS, EW, VW, VWC, L/S, BIC, FF — verify each is expanded on first use. JSS form is *support vector machine (SVM)* or *MCMC (Markov chain Monte Carlo)*; no italics/small caps/periods on the acronym.
 - [ ] **6.4** American English throughout, including "Acknowledgments" (no "e"). Current manuscript spells correctly. Watch for "harmonise/standardise" → JSS prefers AE "harmonize/standardize". Sweep:
   ```
   grep -nE 'harmonise|standardise|capitalis(e|ed)|recognise|colour' jss-manuscript.qmd
   ```
 - [ ] **6.5** No brackets-within-brackets in citations: never `(\cite{foo})`. Quarto's `[@foo]` is fine; watch hand-written cases like `[@dickerson.2023, [openbondassetpricing.com](...)]` at `:91` — the nested `[]` may render badly in JSS LaTeX.
-- [ ] **6.6** Captions in **sentence style**, end with a period, no `\emph`/`\bf`/`\it`. Most current `fig-cap` / `tbl-cap` look fine; verify the periods.
+- [ ] **6.6** Captions in **sentence style**, end with a period, no `\emph`/`\bf`/`\it`. No footnote-style annotations inside tables — push them into the caption. Most current `fig-cap` / `tbl-cap` look fine; verify the periods.
+- [ ] **6.7** **`e.g.,` and `i.e.,`** — always followed by a comma (and in LaTeX always written with the trailing comma so LaTeX doesn't treat the period as end-of-sentence). Manuscript currently passes the sweep — keep it that way.
+- [ ] **6.8** Transpose symbol is **`\top`** (not `'` or `^T`). Sweep equations.
+- [ ] **6.9** Equation references use **`Equation~\ref{...}`** (preferred when few) or **`(\ref{...})`** — never just "(1)" inline. In Quarto, `@eq-foo` produces "Equation X" automatically; spot-check.
+- [ ] **6.10** Book editions written **"2nd", "3rd"**, etc. (not "second", not "II"). Check the bib.
+- [ ] **6.11** **Software naming canon** — use the exact JSS spelling:
+  - **Fortran** (not FORTRAN)
+  - **Java** (not JAVA, java)
+  - **MATLAB** (not Matlab, matlab)
+  - **S-PLUS** (not Splus, S-Plus)
+  Sweep for any of the wrong forms across the manuscript and bib.
 
 ## 7. Code chunks in the manuscript
 
-- [ ] **7.1** Add `#| prompt: true` to every executable R chunk that shows input — produces JSS's required `R> ` prompt with `+  ` continuation. Currently no chunk sets this.
-- [ ] **7.2** Spaces around operators: write `y = a + b * x`, never `y=a+b*x`. Sweep code chunks.
+- [ ] **7.1** Add `#| prompt: true` to every executable R chunk that shows input — produces JSS's required `R> ` prompt with `+  ` continuation. Currently no chunk sets this. (The Quarto JSS extension sets the prompt *characters* via `R.options` in `_extension.yml:12-16`, but does **not** enable knitr's `prompt = TRUE` chunk option — you still have to opt in.) Set it globally in YAML:
+  ```yaml
+  execute:
+    prompt: true
+  ```
+  and opt out (`#| prompt: false`) on hidden setup chunks if needed.
+- [ ] **7.2** Spaces around operators: write `y = a + b * x`, never `y=a+b*x`. Spaces also after commas (unless syntactical). Sweep code chunks.
 - [ ] **7.3** **First argument of `library()` and `data()` must be quoted** (style guide R-specific rule): `library("dplyr")`, `data("quine", package = "MASS")`. **All seven** `code/*.R` scripts currently use unquoted `library(dplyr)` etc. Fix:
   ```
   grep -nE 'library\([a-zA-Z]' code/*.R jss-manuscript.qmd
   ```
 - [ ] **7.4** No empty line directly before or after a code chunk.
-- [ ] **7.5** Avoid comments inside code chunks shown in the paper — move explanation to the LaTeX text (this rule is for in-paper chunks, not external replication scripts).
+- [ ] **7.5** **No comments inside the verbatim code shown in the paper** — move them into the LaTeX/Quarto text instead (Style Guide is explicit). This rule applies to in-paper chunks, not external replication scripts.
 - [ ] **7.6** Continuation lines indented by exactly two spaces.
-- [ ] **7.7** Keep lines short enough that printed code does not overrun the JSS column (~ 75 chars). Run the rendered PDF check.
+- [ ] **7.7** **Code input *and* output must fit within the JSS textwidth.** Input requires manual line breaks; output should be generated at a suitable width (`options(width = 70)`) or post-edited. Check the rendered PDF for lines bleeding over the right margin.
+- [ ] **7.8** Use the JSS code environments where appropriate: inline code with backticks (renders as `\code{}`), verbatim chunks via `{Code}` or `{CodeInput}`/`{CodeOutput}` (Sweave's `Sinput`/`Soutput` are equivalent). Quarto/knitr produces these correctly when the JSS extension is active.
 
 ## 8. Tables and figures
 
 - [x] All tables/figures referenced via `@tbl-` / `@fig-` (Quarto crossrefs).
-- [ ] **8.1** Captions placed *below* table/figure (JSS style). Quarto puts table captions below by default; manually confirm in PDF.
+- [ ] **8.1** Captions placed *below* table/figure (JSS style). Quarto puts table captions below by default (the extension sets `tbl-cap-location: bottom`); manually confirm in PDF.
 - [ ] **8.2** No vertical lines in tables. Spot the LaTeX-raw blocks for vertical rules.
 - [ ] **8.3** Column headers in sentence style.
-- [ ] **8.4** Tables floated to the top of the page (`[t!]`); Quarto-generated tables generally do this, verify.
-- [ ] **8.5** Graphics should be vector (PDF) where possible; PNG only for raster content (Style Guide FAQ "Graphics formatting"). Mermaid diagram at `:144` renders to SVG/PDF via Quarto — confirm.
-- [ ] **8.6** Cross-references say "Figure 3" / "Table 2" — never "Fig." or "Tab." abbreviations.
+- [ ] **8.4** No footnote-style annotations *inside* the table; merge any into the caption.
+- [ ] **8.5** Tables floated to the top of the page (`[t!]`); Quarto-generated tables generally do this, verify.
+- [ ] **8.6** Graphics should be vector (PDF) where possible; PNG only for raster content. **Large vector graphics (more than a few hundred KB)** should be re-rendered as PNG (`png(..., units = "in", res = 144)` or higher) and the raster version substituted. Mermaid diagram at `:144` renders to SVG/PDF via Quarto — verify size.
+- [ ] **8.7** **Pen-to-paper ratio**: graphics annotation should be roughly the size of the caption font, or a little smaller. Big titles and oversized point markers will get flagged in copy-editing.
+- [ ] **8.8** Cross-references say "Figure 3" / "Table 2" — never "Fig." or "Tab." abbreviations.
+- [ ] **8.9** Markup in section titles: if a heading contains `[pkg]{.pkg}` or similar, the LaTeX bookmark must be the plain-text version. The Quarto JSS filter handles this; if compilation fails at `\begin{document}` or in the bookmarks, the cause is almost always missing `Plainauthor`/`Plaintitle`/`Plainkeywords` (the JSS class needs a markup-free version of each).
 
 ## 9. Bibliography (`bibliography.bib`)
 
@@ -158,13 +178,31 @@ Required JSS BibTeX conventions (Style Guide §3 and template `template.qmd:222-
   title = {\pkg{dplyr}: A Grammar of Data Manipulation},
   title = {Dates and Times Made Easy with \pkg{lubridate}},
   ```
-- [ ] **9.4** Journal titles **fully spelled out, not abbreviated**, and in title case. Current entries look full ("Journal of Financial Economics", "The Review of Financial Studies"). Verify no "JFE" / "RFS" / "J. Finance".
-- [ ] **9.5** **DOIs included where available**. Only ~10/120 entries have a DOI. Most journal articles since 2000 have DOIs on Crossref — bulk-add.
-- [ ] **9.6** No URLs in entries where a DOI exists (DOI replaces the URL).
-- [ ] **9.7** Author lists complete; no "et al." or `{others}`.
-- [ ] **9.8** Years are four digits; book entries have publisher and location.
-- [ ] **9.9** Consistent key style (`author.year` — already followed).
-- [ ] **9.10** SSRN-only entries ("Available at SSRN") — replace with the published version where it has since appeared in a journal.
+- [ ] **9.4** Journal titles **fully spelled out, not abbreviated**, and in title case. JSS has named-canon journal titles — fix any deviation:
+  - **The American Statistician** (not "American Statistician")
+  - **The Annals of Statistics** (not "Annals of Statistics") — `bibliography.bib:1049` is currently correct.
+  - **Journal of the Royal Statistical Society B** (not "Journal of the Royal Statistical Society. Series B (Methodological)") — fix `bibliography.bib:474`.
+- [ ] **9.5** Publisher naming canon:
+  - **Springer-Verlag** (not "Springer") — fix `bibliography.bib:641`.
+  - **John Wiley & Sons** (not "Wiley", "Wiley Online Library", "John Wiley & Sons Inc.", "John Wiley & Sons, Ltd") — fix `bibliography.bib:123, 187, 239, 376, 417, 498, 549, 673, 766, 900, 918, 1014` (many entries currently say "Wiley Online Library" or variants).
+- [ ] **9.6** **DOIs included where available**. Only ~10/120 entries have a DOI. Most journal articles since 2000 have DOIs on Crossref — bulk-add.
+- [ ] **9.7** No URLs in entries where a DOI exists (DOI replaces the URL).
+- [ ] **9.8** Author lists complete; no "et al." or `{others}`.
+- [ ] **9.9** Years are four digits; book entries have publisher and location.
+- [ ] **9.10** Book editions formatted as **"2nd", "3rd"**, etc.
+- [ ] **9.11** Consistent key style (`author.year` — already followed).
+- [ ] **9.12** SSRN-only entries ("Available at SSRN") — replace with the published version where it has since appeared in a journal.
+- [ ] **9.13** Software citation pattern (from Style Guide) — for manual entries, follow this shape:
+  ```bibtex
+  @Manual{rJava,
+    title  = {\pkg{rJava}: Low-Level \proglang{R} to \proglang{Java} Interface},
+    author = {Simon Urbanek},
+    year   = {2009},
+    note   = {\proglang{R}~package version~0.8-1},
+    url    = {https://CRAN.R-project.org/package=rJava},
+  }
+  ```
+  Or, if the software ships a recommended citation, use it (e.g., `citation("foo")` in R).
 
 ## 10. Replication materials (Submission Guide)
 
@@ -197,7 +235,17 @@ JSS's R/S/Stata-style guidance: *"For software environments with package/library
 
 - [x] **11b.1** `tidyfinance` is on CRAN — standard repository requirement met.
 - [x] **11b.2** Formatted help files: package documentation builds via roxygen / Rd; confirm `?download_data` etc. exist in the released CRAN version.
-- [ ] **11b.3** Decide whether to ship the JSS manuscript as a **CRAN vignette** of `tidyfinance` (encouraged for R packages).
+- [ ] **11b.3** Decide whether to ship the JSS manuscript as a **CRAN vignette** of `tidyfinance` (encouraged for R packages). If yes, the Style Guide requires:
+  - Use `\documentclass[nojss]{jss}` (turns off the JSS header/footer in the vignette).
+  - Cite the JSS paper in the vignette (abstract or intro).
+  - Add an `inst/CITATION` file (JSS editors supply one when the manuscript is ready).
+  - Reference the JSS paper in the `\references{}` section of relevant `.Rd` pages.
+  - Add this options chunk at the top of the vignette:
+    ```r
+    options(prompt = "R> ", continue = "+  ",
+            width = 70, useFancyQuotes = FALSE)
+    ```
+  - Do **not** ship the JSS LaTeX style files inside the package — they are bundled with R.
 - [ ] **11b.4** If any non-R code is used (C++, Java, etc.), package it with build instructions; JSS notes non-mainstream languages incur longer review times.
 
 ## 12. Data
@@ -246,3 +294,8 @@ The items below were observed in the current tree and are the most actionable fi
 | K | Any RNG-dependent chunk | No visible `set.seed()` | Audit chunks; add seeds for simulation/bootstrap/parallel RNG |
 | L | Manuscript packaging | Not bundled as a `tidyfinance` CRAN vignette | Consider shipping as `vignettes/jss-manuscript.qmd` in the CRAN package |
 | M | Submission ZIP | 50 MB cap | Verify final submission bundle size; host large supplements externally if needed |
+| N | `bibliography.bib:474` | "Journal of the Royal Statistical Society. Series B (Methodological)" | "Journal of the Royal Statistical Society B" |
+| O | `bibliography.bib:123,239,376,417,498,549,673,766,900,918` | `publisher = {Wiley Online Library}` | `publisher = {John Wiley \& Sons}` |
+| P | `bibliography.bib:1014` | `publisher = {John Wiley \& Sons, Ltd}` | `publisher = {John Wiley \& Sons}` |
+| Q | `bibliography.bib:641` | `publisher = {Springer}` | `publisher = {Springer-Verlag}` |
+| R | `jss-manuscript.qmd:1298, :1373` (in addition to `:1277`) | More `$t$-statistic` hyphens | `$t$~statistic` everywhere |
