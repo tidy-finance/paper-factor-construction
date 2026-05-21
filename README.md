@@ -23,7 +23,8 @@ This repository contains all code and the Quarto manuscript for a JSS paper intr
 │   ├── 05_portfolio_sorts.R               # Run portfolio sorts across all specs
 │   └── 06_analyze_diagnostics.R           # Compute diagnostics and Sharpe ratios
 ├── data/                     # Parquet files (not tracked in git; see Data below)
-├── renv.lock                 # Locked R package versions
+├── renv.lock                 # Locked R package versions (full analysis pipeline)
+├── renv/profiles/render/renv.lock  # Render-only lockfile (manuscript without code/)
 └── LICENSE                   # MIT License
 ```
 
@@ -78,6 +79,31 @@ With the data in place, render the PDF from the project root:
 
 ```bash
 quarto render jss-manuscript.qmd
+```
+
+### Rendering the manuscript only (lightweight setup)
+
+The main `renv.lock` covers the full analysis pipeline. If you only want to rebuild the PDF and skip the WRDS/Compustat tooling and parallel-computing stack, restore the `render` profile instead:
+
+```bash
+R -e 'install.packages("renv")'                # if renv is not yet installed
+RENV_PROFILE=render R -e 'renv::restore()'
+RENV_PROFILE=render quarto render jss-manuscript.qmd
+```
+
+The render profile drops `RcppParallel`, `Rcpp`, `future`, `future.apply`, `multidplyr`, `moments`, `qs2`, and related packages used only by `code/`. Package versions are aligned with the main lockfile.
+
+**Maintainer note.** The render lockfile at `renv/profiles/render/renv.lock` is derived from the seed list in the script that generated it. If `jss-manuscript.qmd` starts using a new package, regenerate from a clean R session:
+
+```r
+renv::activate(profile = "render")
+renv::install(c(
+  "arrow", "dplyr", "ggforce", "ggplot2", "glue", "jsonlite",
+  "knitr", "lubridate", "patchwork", "scales", "tibble",
+  "tidyfinance", "tidyr",
+  "rmarkdown", "tinytex"
+))
+renv::snapshot()
 ```
 
 ## Related resources

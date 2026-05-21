@@ -5,3 +5,6 @@ lock/
 python/
 sandbox/
 staging/
+profiles/*/renv/library/
+profiles/*/renv/staging/
+profiles/*/renv/sandbox/
