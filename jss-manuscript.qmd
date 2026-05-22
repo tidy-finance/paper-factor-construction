@@ -28,7 +28,7 @@ author:
     email: patrickw@ru.is
 
 abstract: |
-  The [R]{.proglang} package [tidyfinance]{.pkg} provides research infrastructure for the empirical asset pricing data workflow. This workflow turns raw accounting and return data into factor portfolios for asset pricing tests, optimal portfolio allocation, and the design of trading strategies. [tidyfinance]{.pkg} exposes every construction decision as a configurable parameter with a documented default. A unified `download_data()` interface covers WRDS (CRSP, Compustat), Ken French's Data Library, FRED, and other sources, and applies the cleaning, alignment, and delisting and survivorship corrections each provider requires. Modular functions then automate fiscal-year lagging, breakpoint computation, and portfolio aggregation. We illustrate the package by reproducing the asset growth factor end-to-end from raw data. Researchers who want precomputed series instead of rebuilding the pipeline can download a factor library of `{r} format(arrow::read_parquet("data/sorting_variable_information.parquet") |> nrow(), big.mark = ",")` sorting variables across `{r} format(arrow::read_parquet("data/portfolio_sort_grid.parquet") |> nrow(), big.mark = ",")` specifications with a single `download_data()` call or browse it at [factors.tidy-finance.org](https://factors.tidy-finance.org).
+  The [R]{.proglang} package [tidyfinance]{.pkg} provides research infrastructure for the empirical asset pricing data workflow. This workflow turns raw accounting and return data into factor portfolios for asset pricing tests, optimal portfolio allocation, and the design of trading strategies. [tidyfinance]{.pkg} exposes every construction decision as a configurable parameter with a documented default. A unified `download_data()` interface covers WRDS (CRSP, Compustat), Ken French's Data Library, FRED, and other sources, and applies the cleaning, alignment, and delisting and survivorship corrections each provider requires. Modular functions then automate fiscal-year lagging, breakpoint computation, and portfolio aggregation. We illustrate the package by reproducing the asset growth factor end-to-end from raw data. Researchers who want precomputed series instead of rebuilding the pipeline can download a factor library of `{r} format(dplyr::n_distinct(tidyfinance::download_data("tidyfinance", "factor_library_grid")$sorting_variable), big.mark = ",")` sorting variables across `{r} format(tidyfinance::download_data("tidyfinance", "factor_library_grid") |> nrow(), big.mark = ",")` specifications with a single `download_data()` call or browse it at [factors.tidy-finance.org](https://factors.tidy-finance.org).
 keywords: [financial risk factors, reproducible research, asset pricing, R]
 keywords-formatted: [financial risk factors, reproducible research, asset pricing, "[R]{.proglang}"]
 bibliography: bibliography.bib
@@ -84,8 +84,58 @@ format_pretty_date <- function(d) {
 ```{r}
 #| label: read-in-summary-information
 #| echo: false
-sorting_variable_information <- arrow::read_parquet(
-  "data/sorting_variable_information.parquet"
+sorting_variable_information <- tibble::tribble(
+  ~sorting_variable , ~full_name                                , ~direction         , ~citation                         ,
+  "mom"             , "Momentum"                                , "top_minus_bottom" , "\\cite{fama.1996}"               ,
+  "rmom"            , "Residual Momentum"                       , "top_minus_bottom" , "\\cite{blitz.2011}"              ,
+  "rs"              , "Relative Strength"                       , "top_minus_bottom" , "\\cite{jegadeesh.2006}"          ,
+  "sue"             , "Standardized Unexpected Earnings"        , "top_minus_bottom" , "\\cite{foster.1984}"             ,
+  "52w"             , "52-Week High"                            , "top_minus_bottom" , "\\cite{george.2004}"             ,
+  "me"              , "Market Equity"                           , "bottom_minus_top" , "\\cite{banz.1981}"               ,
+  "cbop"            , "Cash-Based Operating Profitability"      , "top_minus_bottom" , "\\cite{ball.2016}"               ,
+  "gpa"             , "Gross Profits to Assets"                 , "top_minus_bottom" , "\\cite{novy-marx.2013}"          ,
+  "o"               , "O-Score"                                 , "bottom_minus_top" , "\\cite{ohlson.1980,dichev.1998}" ,
+  "ope"             , "Operating Efficiency"                    , "top_minus_bottom" , "\\cite{fama.2015}"               ,
+  "roa"             , "Return on Assets"                        , "top_minus_bottom" , "\\cite{balakrishnan.2010}"       ,
+  "roe"             , "Return on Equity"                        , "top_minus_bottom" , "\\cite{hou.2014}"                ,
+  "tbi"             , "Taxable Income to Book Income"           , "bottom_minus_top" , "\\cite{lev.2004}"                ,
+  "bm"              , "Book-to-Market"                          , "top_minus_bottom" , "\\cite{daniel.2006}"             ,
+  "cfm"             , "Cash Flow to Market"                     , "top_minus_bottom" , "\\cite{lakonishok.1994}"         ,
+  "dm"              , "Debt to Market"                          , "top_minus_bottom" , "\\cite{bhandari.1988}"           ,
+  "ebm"             , "Enterprise Book to Market"               , "top_minus_bottom" , "\\cite{penman.2007}"             ,
+  "em"              , "Earnings to Market"                      , "top_minus_bottom" , "\\cite{basu.1983}"               ,
+  "ndm"             , "Net Debt to Market"                      , "bottom_minus_top" , "\\cite{penman.2007}"             ,
+  "npy"             , "Net Payout Yield"                        , "top_minus_bottom" , "\\cite{boudoukh.2007}"           ,
+  "ocm"             , "Operating Cash Flow to Market"           , "top_minus_bottom" , "\\cite{desai.2004}"              ,
+  "rev"             , "Long-Term Reversal"                      , "bottom_minus_top" , "\\cite{debondt.1985}"            ,
+  "sm"              , "Sales to Market"                         , "top_minus_bottom" , "\\cite{barbee.1996}"             ,
+  "aci"             , "Abnormal Corporate Investment"           , "bottom_minus_top" , "\\cite{titman.2004}"             ,
+  "ag"              , "Asset Growth"                            , "bottom_minus_top" , "\\cite{cooper.2008}"             ,
+  "dinv"            , "Inventory Changes"                       , "bottom_minus_top" , "\\cite{thomas.2002}"             ,
+  "dnoa"            , "Change in Net Operating Assets"          , "bottom_minus_top" , "\\cite{hirshleifer.2004}"        ,
+  "dpia"            , "Change in PPE and Intangibles"           , "bottom_minus_top" , "\\cite{lyandres.2008}"           ,
+  "dwc"             , "Change in Working Capital"               , "bottom_minus_top" , "\\cite{richardson.2005}"         ,
+  "ig"              , "Investment Growth"                       , "bottom_minus_top" , "\\cite{xing.2008}"               ,
+  "noa"             , "Net Operating Assets"                    , "bottom_minus_top" , "\\cite{hirshleifer.2004}"        ,
+  "oa"              , "Operating Accruals"                      , "bottom_minus_top" , "\\cite{sloan.1996}"              ,
+  "cdi"             , "Composite Debt Issuance"                 , "bottom_minus_top" , "\\cite{lyandres.2008}"           ,
+  "csi"             , "Composite Share Issuance"                , "bottom_minus_top" , "\\cite{daniel.2006}"             ,
+  "dbe"             , "Change in Common Equity"                 , "bottom_minus_top" , "\\cite{richardson.2005}"         ,
+  "dcol"            , "Change in Current Operating Liabilities" , "bottom_minus_top" , "\\cite{richardson.2005}"         ,
+  "dfnl"            , "Change in Financial Liabilities"         , "bottom_minus_top" , "\\cite{richardson.2005}"         ,
+  "ndf"             , "Net Debt Financing"                      , "bottom_minus_top" , "\\cite{baker.2006}"              ,
+  "nef"             , "Net Equity Financing"                    , "bottom_minus_top" , "\\cite{baker.2006}"              ,
+  "nxf"             , "Net External Financing"                  , "bottom_minus_top" , "\\cite{baker.2006}"              ,
+  "hr"              , "Hiring Rate"                             , "bottom_minus_top" , "\\cite{belo.2014}"               ,
+  "ol"              , "Operating Leverage"                      , "top_minus_bottom" , "\\cite{novy-marx.2011}"          ,
+  "rer"             , "Real-Estate Ratio"                       , "top_minus_bottom" , "\\cite{titman.2004}"             ,
+  "ami"             , "Amihud Illiquidity"                      , "top_minus_bottom" , "\\cite{amihud.2002}"             ,
+  "beta"            , "Beta"                                    , "top_minus_bottom" , "\\cite{fama.1973}"               ,
+  "dtv"             , "Dollar Trading Volume"                   , "bottom_minus_top" , "\\cite{brennan.1998}"            ,
+  "iskew"           , "Idiosyncratic Skewness"                  , "bottom_minus_top" , "\\cite{bali.2016}"               ,
+  "ivol"            , "Idiosyncratic Volatility"                , "bottom_minus_top" , "\\cite{ang.2006}"                ,
+  "mdr"             , "Maximum Daily Return"                    , "bottom_minus_top" , "\\cite{bali.2011}"               ,
+  "tur"             , "Share Turnover"                          , "bottom_minus_top" , "\\cite{datar.1998}"
 )
 portfolio_sort_grid <- tidyfinance::download_data(
   "tidyfinance",
@@ -330,13 +380,13 @@ Public data still require non-trivial cleaning. The Goyal-Welch [@goyal.2008] ma
 
 For empirical asset pricing work, WRDS is the gold-standard source of return and accounting panels. WRDS data are proprietary, so an institutional subscription and credentials are required. [tidyfinance]{.pkg} handles this once: `set_wrds_credentials()` prompts for the username and password and stores them in a project-specific or global `.Renviron` file and additionally asks the user to add it to `.gitignore` to prevent credential leakage. Subsequent `download_data()` calls open the database connection automatically.
 
-`download_data()` applies standard cleaning conventions following @scheuch.2023 automatically. For CRSP monthly data, the function restricts the universe to common equity securities traded on NYSE, AMEX (now NYSE American), or NASDAQ. It computes market capitalization as shares outstanding times price, constructs a one-month lag for portfolio weights, and maps exchange codes and SIC codes to readable labels. Excess returns are raw returns minus the Fama-French risk-free rate (the 1-month US T-bill); observations with missing returns or market capitalization are dropped. Delisting returns are incorporated directly, eliminating the need for a separate adjustment.
+`download_data()` applies standard cleaning conventions following @scheuch.2023 automatically. For CRSP monthly data, the function restricts the universe to common equity securities traded on NYSE, AMEX (now NYSE American), or NASDAQ. It computes market capitalization as shares outstanding times price, constructs a one-month lag for portfolio weights, and maps exchange codes and SIC codes to readable labels. Excess returns are raw returns minus the Fama-French risk-free rate (the 1-month US T-bill); observations with missing returns or market capitalization are dropped. Delisting returns are incorporated directly, eliminating the need for a separate adjustment. The function defaults to the CRSP 2.0 layout introduced in February 2024; passing `version = "v1"` returns the legacy layout for replication of studies built on the earlier release.
 
 For Compustat annual data, `download_data()` restricts to industrial-format consolidated statements and retains only the most recent observation per firm-year. It constructs book equity in priority order: stockholders' equity when available, else common equity plus preferred stock, else total assets minus total liabilities. The function adds back deferred taxes and investment tax credits, and subtracts the book value of preferred stock.
 
 For TRACE corporate bond transactions, `download_data()` applies the Dick-Nielsen cleaning protocol [@dicknielsen.2009] to remove cancellations, corrections, and reversals before returning the trade panel.
 
-All datasets returned by `download_data()` use a single `date` column that follows the same rules across frequencies. Daily observations return the trading date. Monthly observations are dated to the last calendar day of the reference month, regardless of whether that day was a trading day. Quarterly and annual observations take the fiscal period-end date as reported by the original source; for Compustat, this is the firm's fiscal year-end (`datadate`), which is typically December of the fiscal year, but might differ across firms and within firms across years. Macroeconomic series from FRED keep their original release dates. A simple equality join on `date` therefore aligns observations of the same frequency, while cross-frequency joins, such as merging monthly returns with annual fundamentals, require the lagging logic described in @sec-variable-construction.
+A deliberate design choice across `download_data()` is to expose a single `date` column of `<date>` type in every returned panel, regardless of source. Joining observations from different providers therefore reduces to an equality join on `date` without manual format conversion. The convention is the same across frequencies: daily observations return the trading date, monthly observations the last calendar day of the reference month (regardless of whether it was a trading day), and quarterly and annual observations the fiscal period-end date as reported by the original source. For Compustat, the latter is the firm's fiscal year-end (`datadate`), which is typically December of the fiscal year but can differ across firms and within firms across years. Macroeconomic series from FRED keep their original release dates. Where the underlying source uses an internal date that differs from this convention, [tidyfinance]{.pkg} preserves it as an auxiliary column: CRSP 2.0 monthly returns, for example, retain the trading-date `mthcaldt` as `calculation_date` alongside the harmonised `date`. Cross-frequency joins, such as merging monthly returns with annual fundamentals, require the lagging logic described in @sec-variable-construction.
 
 ### Variable construction {#sec-variable-construction}
 
@@ -972,7 +1022,7 @@ Constructing the asset growth factor requires two WRDS panels: annual accounting
 
 ```{r}
 #| label: set-date-range
-date_start <- as.Date("1960-01-01")
+date_start <- as.Date("1972-01-01")
 date_end <- as.Date("2024-12-31")
 ```
 
@@ -1038,23 +1088,14 @@ sorting_variable_data <- compustat_annual |>
 
 The call relies on two silent defaults: `max_lag` falls back to `lag` (here one year), so only the single observation exactly one year before each row is eligible; `ff_adjustment = FALSE`, so the look-back is the plain calendar window rather than the Fama-French June/July rebalancing convention introduced in @sec-variable-construction.
 
-`sorting_variable_data` contains one observation per firm-year, the natural unit for cross-sectional analysis of annual accounting variables. Asset growth is heavily right-skewed: a small number of firms with dramatic balance-sheet expansions generate extreme positive values. @tbl-ag-summary reports the pooled cross-sectional summary alongside the time-series average, minimum, and maximum of the corresponding statistic computed cross-sectionally each year.
+`sorting_variable_data` contains one observation per firm-year, the natural unit for cross-sectional analysis of annual accounting variables. Asset growth is heavily right-skewed: a small number of firms with dramatic balance-sheet expansions generate extreme positive values. @tbl-ag-summary reports the pooled cross-sectional summary alongside the time-series average, minimum, and maximum of the corresponding statistic computed cross-sectionally each year. We obtain both views with `create_summary_statistics()`, a [tidyfinance]{.pkg} helper that returns the standard set of cross-sectional summary statistics for a variable in a single call: applied to the pooled (winsorized) sample for the first column and grouped by calendar year for the next three.
 
 ```{r}
 #| label: ag-summary-prep
 pooled_stats <- sorting_variable_data |>
   drop_na(asset_growth) |>
   mutate(asset_growth = winsorize(asset_growth, 0.01)) |>
-  summarize(
-    N = n(),
-    Mean = mean(asset_growth),
-    SD = sd(asset_growth),
-    P10 = quantile(asset_growth, 0.10),
-    P25 = quantile(asset_growth, 0.25),
-    Median = median(asset_growth),
-    P75 = quantile(asset_growth, 0.75),
-    P90 = quantile(asset_growth, 0.90)
-  )
+  create_summary_statistics(asset_growth, detail = TRUE)
 
 yearly_stats <- sorting_variable_data |>
   drop_na(asset_growth) |>
@@ -1064,18 +1105,8 @@ yearly_stats <- sorting_variable_data |>
     p99 = quantile(asset_growth, 0.99),
     asset_growth = pmax(pmin(asset_growth, p99), p01)
   ) |>
-  summarize(
-    N = n(),
-    Mean = mean(asset_growth),
-    SD = sd(asset_growth),
-    P10 = quantile(asset_growth, 0.10),
-    P25 = quantile(asset_growth, 0.25),
-    Median = median(asset_growth),
-    P75 = quantile(asset_growth, 0.75),
-    P90 = quantile(asset_growth, 0.90),
-    .groups = "drop"
-  ) |>
-  select(-year)
+  ungroup() |>
+  create_summary_statistics(asset_growth, by = year, detail = TRUE)
 ```
 
 @tbl-ag-summary assembles the two computations side by side.
@@ -1084,9 +1115,10 @@ yearly_stats <- sorting_variable_data |>
 #| label: tbl-ag-summary
 #| tbl-cap: "Cross-sectional summary statistics for asset growth (winsorized at the 1st and 99th percentiles). The 'Pooled' column reports the statistic computed on the entire firm-year sample. The 'Yearly' columns summarize the time series of statistic values computed cross-sectionally year by year, taking the average, minimum, and maximum across calendar years. N is the count of firm-year observations (pooled) or per-year observations (yearly columns)."
 #| echo: false
-stat_names <- c("N", "Mean", "SD", "P10", "P25", "Median", "P75", "P90")
-fmt_val <- function(stat, x) {
-  if (stat == "N") {
+stat_cols <- c("n", "mean", "sd", "q10", "q25", "q50", "q75", "q90")
+stat_labels <- c("N", "Mean", "SD", "P10", "P25", "Median", "P75", "P90")
+fmt_val <- function(col, x) {
+  if (col == "n") {
     formatC(round(x), format = "d", big.mark = ",")
   } else {
     formatC(x, format = "f", digits = 3)
@@ -1094,24 +1126,24 @@ fmt_val <- function(stat, x) {
 }
 
 tibble::tibble(
-  Statistic = stat_names,
+  Statistic = stat_labels,
   Pooled = vapply(
-    stat_names,
+    stat_cols,
     function(s) fmt_val(s, pooled_stats[[s]]),
     character(1)
   ),
   `Yearly avg` = vapply(
-    stat_names,
+    stat_cols,
     function(s) fmt_val(s, mean(yearly_stats[[s]])),
     character(1)
   ),
   `Yearly min` = vapply(
-    stat_names,
+    stat_cols,
     function(s) fmt_val(s, min(yearly_stats[[s]])),
     character(1)
   ),
   `Yearly max` = vapply(
-    stat_names,
+    stat_cols,
     function(s) fmt_val(s, max(yearly_stats[[s]])),
     character(1)
   )
@@ -1683,10 +1715,19 @@ Reproducing this paper takes about 15 minutes on a regular workstation. Recomput
 We publish all code, data workflows, and documentation at [https://github.com/tidy-finance/jss-multilingual-factor-library](https://github.com/tidy-finance/jss-multilingual-factor-library). The code is released under the MIT License, which is compatible with the GNU General Public License (GPL).
 
 ```{r}
-#| label: session-info
-#| echo: true
+#| label: session-info-set-width
+#| include: false
 old_width <- options(width = 65)
-print(sessionInfo())
+```
+
+```{r}
+#| label: session-info
+sessionInfo()
+```
+
+```{r}
+#| label: session-info-restore-width
+#| include: false
 options(old_width)
 ```
 
