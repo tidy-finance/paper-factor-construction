@@ -3433,7 +3433,7 @@
     },
     "tidyfinance": {
       "Package": "tidyfinance",
-      "Version": "0.5.0.9002",
+      "Version": "0.5.0.9004",
       "Source": "GitHub",
       "Type": "Package",
       "Title": "Tidy Finance Helper Functions",
@@ -3468,12 +3468,10 @@
         "sandwich (>= 3.1-0)"
       ],
       "Suggests": [
-        "knitr",
-        "rmarkdown",
         "furrr (>= 0.3.1)",
-        "testthat (>= 3.2.0)"
+        "testthat (>= 3.2.0)",
+        "withr"
       ],
-      "VignetteBuilder": "knitr",
       "Config/testthat/edition": "3",
       "Encoding": "UTF-8",
       "LazyData": "true",
@@ -3482,11 +3480,11 @@
       "Author": "Christoph Scheuch [aut, cre, cph] (ORCID: <https://orcid.org/0009-0004-0423-6819>), Stefan Voigt [aut, cph] (ORCID: <https://orcid.org/0000-0001-5619-3161>), Patrick Weiss [aut, cph] (ORCID: <https://orcid.org/0000-0002-9282-5872>), Maximilian Mücke [ctb] (ORCID: <https://orcid.org/0009-0000-9432-9795>)",
       "Maintainer": "Christoph Scheuch <christoph@tidy-intelligence.com>",
       "RemoteType": "github",
+      "RemoteHost": "api.github.com",
       "RemoteUsername": "tidy-finance",
       "RemoteRepo": "r-tidyfinance",
-      "RemoteRef": "HEAD",
-      "RemoteSha": "40f61b65ba2f561b4a31d52f9c679126086aba3a",
-      "RemoteHost": "api.github.com"
+      "RemoteRef": "pseudo-domain",
+      "RemoteSha": "1d52b345f2c13c86fc46213798505bce5335d8f6"
     },
     "tidyr": {
       "Package": "tidyr",

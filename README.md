@@ -32,7 +32,7 @@ This repository contains all code and the Quarto manuscript for a JSS paper intr
 ### Requirements
 
 - R (version specified in `renv.lock`)
-- A WRDS subscription for access to CRSP and Compustat data
+- A WRDS subscription for access to CRSP and Compustat data. Readers without WRDS access can still render the manuscript against synthetic data; see "Rendering without WRDS" below.
 
 ### Setup
 
@@ -79,6 +79,22 @@ With the data in place, render the PDF from the project root:
 ```bash
 quarto render jss-manuscript.qmd
 ```
+
+### Rendering without WRDS
+
+Readers without a WRDS subscription can render the manuscript against synthetic data of identical schema. Open `jss-manuscript.qmd`, find the `set-data-domain` chunk at the top of Section 4, and change
+
+```r
+data_domain <- "wrds"
+```
+
+to
+
+```r
+data_domain <- "pseudo"
+```
+
+Every chunk that downloads CRSP or Compustat then dispatches to the `domain = "pseudo"` path in `tidyfinance`, which generates schema-compatible synthetic data on demand. The workflow reproduces; the quantitative results do not (values are simulated). The `seed` and `n_assets` arguments to `download_data()` control the synthetic draws.
 
 ## Related resources
 

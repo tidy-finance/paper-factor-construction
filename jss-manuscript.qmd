@@ -1020,6 +1020,13 @@ library("lubridate")
 
 Constructing the asset growth factor requires two WRDS panels: annual accounting data from Compustat to compute the asset growth signal and monthly stock returns from CRSP to translate the signal into portfolio returns. Before the first WRDS download, call `set_wrds_credentials()` to store WRDS credentials securely in `.Renviron`; subsequent `download_data()` calls establish the database connection automatically.
 
+CRSP and Compustat are proprietary and require a WRDS subscription. All numbers, tables, and figures in this paper are computed from the real WRDS data with `data_domain <- "wrds"`. Readers without a WRDS subscription can render the entire manuscript against synthetic data of identical schema by setting `data_domain <- "pseudo"` below. The synthetic data preserves variable names, dtypes, and approximate scales but not economic relationships; only the workflow reproduces, not the quantitative results. The synthetic generator is part of the [tidyfinance]{.pkg} package; the seed and number of assets can be controlled via the `seed` and `n_assets` arguments to `download_data()`.
+
+```{r}
+#| label: set-data-domain
+data_domain <- "wrds"
+```
+
 ```{r}
 #| label: set-date-range
 date_start <- as.Date("1972-01-01")
@@ -1031,7 +1038,7 @@ First, we download monthly stock returns from CRSP. Setting `add_ccm_links = TRU
 ```{r}
 #| label: download-crsp
 crsp_monthly <- download_data(
-  domain = "wrds",
+  domain = data_domain,
   dataset = "crsp_monthly",
   version = "v2",
   start_date = date_start,
@@ -1047,7 +1054,7 @@ Next, we download annual financial statements from Compustat.
 ```{r}
 #| label: download-compustat
 compustat_annual <- download_data(
-  domain = "wrds",
+  domain = data_domain,
   dataset = "compustat_annual",
   start_date = date_start,
   end_date = date_end,
@@ -1708,7 +1715,7 @@ pkg_version <- function(pkg) renv_lock$Packages[[pkg]]$Version
 r_version <- renv_lock$R$Version
 ```
 
-We obtained the results in this paper using [R]{.proglang} `{r} r_version` with the following packages: [tidyfinance]{.pkg} `{r} pkg_version("tidyfinance")`, [dplyr]{.pkg} `{r} pkg_version("dplyr")`, [tidyr]{.pkg} `{r} pkg_version("tidyr")`, [ggplot2]{.pkg} `{r} pkg_version("ggplot2")`, [lubridate]{.pkg} `{r} pkg_version("lubridate")`, [arrow]{.pkg} `{r} pkg_version("arrow")`, and [knitr]{.pkg} `{r} pkg_version("knitr")`. CRAN hosts [R]{.proglang} and all packages at [https://CRAN.R-project.org/](https://CRAN.R-project.org/). [renv]{.pkg} `{r} pkg_version("renv")` ensures full reproducibility of the computational environment. Reproducing the factor return data requires an institutional subscription to WRDS, as the underlying CRSP and Compustat data are proprietary and cannot be redistributed.
+We obtained the results in this paper using [R]{.proglang} `{r} r_version` with the following packages: [tidyfinance]{.pkg} `{r} pkg_version("tidyfinance")`, [dplyr]{.pkg} `{r} pkg_version("dplyr")`, [tidyr]{.pkg} `{r} pkg_version("tidyr")`, [ggplot2]{.pkg} `{r} pkg_version("ggplot2")`, [lubridate]{.pkg} `{r} pkg_version("lubridate")`, [arrow]{.pkg} `{r} pkg_version("arrow")`, and [knitr]{.pkg} `{r} pkg_version("knitr")`. CRAN hosts [R]{.proglang} and all packages at [https://CRAN.R-project.org/](https://CRAN.R-project.org/). [renv]{.pkg} `{r} pkg_version("renv")` ensures full reproducibility of the computational environment. Reproducing the factor return data requires an institutional subscription to WRDS, as the underlying CRSP and Compustat data are proprietary and cannot be redistributed. A synthetic-data path with identical schema is available via `download_data(domain = "pseudo", ...)` for readers without WRDS access; see @sec-data-download.
 
 Reproducing this paper takes about 15 minutes on a regular workstation. Recomputing the full factor library from raw WRDS data across all `{r} format(nrow(portfolio_sort_grid), big.mark = ",")` specifications takes about 3 hours on a 64-core machine.
 
