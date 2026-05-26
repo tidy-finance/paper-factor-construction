@@ -4,6 +4,7 @@ title-plain: "tidyfinance: Transparent Factor Construction for Empirical Asset P
 format:
     jss-pdf:
         keep-tex: false
+        fig-pos: 'H'
 author:
   - name: Christoph Frey
     orcid: 0000-0002-9937-0903
@@ -1544,7 +1545,7 @@ customized_comparison_table |>
 \endgroup
 ```
 
-Researchers who want finer-grained control can call the lower-level building blocks `filter_sorting_data()`, `compute_breakpoints()`, `assign_portfolio()`, and `compute_portfolio_returns()` directly. They share signatures and semantics with `implement_portfolio_sort()`, so an analysis prototyped against the wrapper can be unrolled into its components without rewriting the pipeline. This separation matters when custom logic must be applied at one stage only, for example computing breakpoints separately within each industry, or from a trailing window of past data rather than the contemporaneous cross-section.
+Researchers who want finer-grained control can call the lower-level portfolio-sorting functions in @tbl-functions directly. They share signatures and semantics with `implement_portfolio_sort()`, so an analysis prototyped against the wrapper can be unrolled into its components without rewriting the pipeline. This separation matters when custom logic must be applied at one stage only, for example computing breakpoints separately within each industry, or from a trailing window of past data rather than the contemporaneous cross-section.
 
 #### Asset pricing tests {#sec-fama-macbeth}
  
