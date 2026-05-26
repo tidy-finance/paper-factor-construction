@@ -209,57 +209,59 @@ library("tidyfinance")
 
 The empirical asset pricing workflow decomposes into three stages: data acquisition, variable construction, and portfolio sorting. Each stage involves dozens of small decisions: universe filters, cleaning rules, rebalancing conventions, breakpoint definitions. @tbl-functions catalogs the user-facing functions exported by [tidyfinance]{.pkg}, grouped by workflow stage. The remainder of this section walks through them in narrative order.
 
-+--------------------------------+-------------------------------------------------------------------------------+
-| Function                       | Purpose                                                                       |
-+================================+===============================================================================+
++------------------------------------------+---------------------------------------------------------------------+
+| Function                                 | Purpose                                                             |
++==========================================+=====================================================================+
 | *Data acquisition*                                                                                             |
-+--------------------------------+-------------------------------------------------------------------------------+
-| `download_data()`              | Retrieves and cleans a panel from supported data providers.                   |
-+--------------------------------+-------------------------------------------------------------------------------+
-| `set_wrds_credentials()`       | Stores WRDS username and password in `.Renviron` for subsequent calls.        |
-+--------------------------------+-------------------------------------------------------------------------------+
++------------------------------------------+---------------------------------------------------------------------+
+| `download_data()`                        | Retrieves and cleans a panel from supported data providers.         |
++------------------------------------------+---------------------------------------------------------------------+
+| `set_wrds_credentials()`                 | Stores WRDS username and password in `.Renviron` for subsequent     |
+|                                          | calls.                                                              |
++------------------------------------------+---------------------------------------------------------------------+
 | *Variable construction*                                                                                        |
-+--------------------------------+-------------------------------------------------------------------------------+
-| `add_lagged_columns()`         | Attaches the most recent observed value within a configurable look-back       |
-|                                | window, with optional Fama-French timing.                                     |
-+--------------------------------+-------------------------------------------------------------------------------+
-| `join_lagged_values()`         | Merges lagged values from a source panel into a target panel using the        |
-|                                | same windowing logic.                                                         |
-+--------------------------------+-------------------------------------------------------------------------------+
-| `winsorize()`                  | Replaces values outside the $q$th and $(1-q)$th percentiles with the          |
-|                                | corresponding quantile.                                                       |
-+--------------------------------+-------------------------------------------------------------------------------+
-| `trim()`                       | Sets values outside the $q$th and $(1-q)$th percentiles to `NA`.              |
-+--------------------------------+-------------------------------------------------------------------------------+
-| `compute_rolling_value()`      | Applies an aggregation function over a calendar-time rolling window.          |
-+--------------------------------+-------------------------------------------------------------------------------+
++------------------------------------------+---------------------------------------------------------------------+
+| `add_lagged_columns()`                   | Attaches the most recent observed value within a configurable       |
+|                                          | look-back window, with optional Fama-French timing.                 |
++------------------------------------------+---------------------------------------------------------------------+
+| `join_lagged_values()`                   | Merges lagged values from a source panel into a target panel using  |
+|                                          | the same windowing logic.                                           |
++------------------------------------------+---------------------------------------------------------------------+
+| `winsorize()`                            | Replaces values outside the $q$th and $(1-q)$th percentiles with    |
+|                                          | the corresponding quantile.                                         |
++------------------------------------------+---------------------------------------------------------------------+
+| `trim()`                                 | Sets values outside the $q$th and $(1-q)$th percentiles to `NA`.    |
++------------------------------------------+---------------------------------------------------------------------+
+| `compute_rolling_value()`                | Applies an aggregation function over a calendar-time rolling        |
+|                                          | window.                                                             |
++------------------------------------------+---------------------------------------------------------------------+
 | *Portfolio sorting*                                                                                            |
-+--------------------------------+-------------------------------------------------------------------------------+
-| `compute_breakpoints()`        | Computes quantile cutoffs from a cross-section, optionally restricted by      |
-|                                | exchange or by minimum market-cap quantile.                                   |
-+--------------------------------+-------------------------------------------------------------------------------+
-| `assign_portfolio()`           | Maps each observation to a portfolio integer using supplied or computed       |
-|                                | breakpoints.                                                                  |
-+--------------------------------+-------------------------------------------------------------------------------+
-| `compute_portfolio_returns()`  | Forms portfolios period by period and returns equal-, value-, and             |
-|                                | capped-value-weighted return panels.                                          |
-+--------------------------------+-------------------------------------------------------------------------------+
-| `compute_long_short_returns()` | Computes the top-minus-bottom (or bottom-minus-top) spread from the           |
-|                                | output of `compute_portfolio_returns()`.                                      |
-+--------------------------------+-------------------------------------------------------------------------------+
-| `implement_portfolio_sort()`   | Wraps filtering, breakpoint computation, assignment, and aggregation into a   |
-|                                | single call for univariate and bivariate sorts.                               |
-+--------------------------------+-------------------------------------------------------------------------------+
++------------------------------------------+---------------------------------------------------------------------+
+| `compute_breakpoints()`                  | Computes quantile cutoffs from a cross-section, optionally          |
+|                                          | restricted by exchange or by minimum market-cap quantile.           |
++------------------------------------------+---------------------------------------------------------------------+
+| `assign_portfolio()`                     | Maps each observation to a portfolio integer using supplied or      |
+|                                          | computed breakpoints.                                               |
++------------------------------------------+---------------------------------------------------------------------+
+| `compute_portfolio_returns()`            | Forms portfolios period by period and returns equal-, value-, and   |
+|                                          | capped-value-weighted return panels.                                |
++------------------------------------------+---------------------------------------------------------------------+
+| `compute_long_short_returns()`           | Computes the top-minus-bottom (or bottom-minus-top) spread from     |
+|                                          | the output of `compute_portfolio_returns()`.                        |
++------------------------------------------+---------------------------------------------------------------------+
+| `implement_portfolio_sort()`             | Wraps filtering, breakpoint computation, assignment, and            |
+|                                          | aggregation into a single call for univariate and bivariate sorts.  |
++------------------------------------------+---------------------------------------------------------------------+
 | *Asset pricing tests*                                                                                          |
-+--------------------------------+-------------------------------------------------------------------------------+
-| `estimate_fama_macbeth()`      | Runs cross-sectional OLS each period and aggregates into average risk         |
-|                                | premia with Newey-West standard errors.                                       |
-+--------------------------------+-------------------------------------------------------------------------------+
-| `estimate_betas()`             | Estimates rolling-window market betas for each asset.                         |
-+--------------------------------+-------------------------------------------------------------------------------+
-| `estimate_model()`             | Fits a linear model from a formula string and returns the coefficients as a   |
-|                                | tidy one-row data frame.                                                      |
-+--------------------------------+-------------------------------------------------------------------------------+
++------------------------------------------+---------------------------------------------------------------------+
+| `estimate_fama_macbeth()`                | Runs cross-sectional OLS each period and aggregates into average    |
+|                                          | risk premia with Newey-West standard errors.                        |
++------------------------------------------+---------------------------------------------------------------------+
+| `estimate_betas()`                       | Estimates rolling-window market betas for each asset.               |
++------------------------------------------+---------------------------------------------------------------------+
+| `estimate_model()`                       | Fits a linear model from a formula string and returns the           |
+|                                          | coefficients as a tidy one-row data frame.                          |
++------------------------------------------+---------------------------------------------------------------------+
 
 : User-facing functions in [tidyfinance]{.pkg}, grouped by workflow stage. Functions whose first argument is a panel chain naturally via the native pipe `|>`; `breakpoint_options()`, `filter_options()`, `portfolio_sort_options()`, and `data_options()` (explained in detail below) bundle the configurable arguments for the sorting helpers. {#tbl-functions}
 
@@ -1160,11 +1162,7 @@ pooled_stats <- sorting_variable_data |>
 yearly_stats <- sorting_variable_data |>
   drop_na(asset_growth) |>
   group_by(year = year(date)) |>
-  mutate(
-    p01 = quantile(asset_growth, 0.01),
-    p99 = quantile(asset_growth, 0.99),
-    asset_growth = pmax(pmin(asset_growth, p99), p01)
-  ) |>
+  mutate(asset_growth = winsorize(asset_growth, 0.01)) |>
   ungroup() |>
   create_summary_statistics(asset_growth, by = year, detail = TRUE)
 ```
@@ -1338,35 +1336,29 @@ factor_returns_ag <- portfolio_returns |>
 
 ```{r}
 #| label: univariate-sort-ag-stats
-quintile_stats <- portfolio_returns |>
-  drop_na() |>
-  group_by(portfolio) |>
-  summarize(
-    vw_mean = mean(ret_excess_vw) * 12,
-    vw_tstat = mean(ret_excess_vw) / (sd(ret_excess_vw) / sqrt(n())),
-    ew_mean = mean(ret_excess_ew) * 12,
-    ew_tstat = mean(ret_excess_ew) / (sd(ret_excess_ew) / sqrt(n())),
-    vwc_mean = mean(ret_excess_vw_capped) * 12,
-    vwc_tstat = mean(ret_excess_vw_capped) /
-      (sd(ret_excess_vw_capped) / sqrt(n())),
-    .groups = "drop"
-  ) |>
-  mutate(portfolio = as.character(portfolio))
-
-ls_row <- factor_returns_ag |>
-  drop_na() |>
-  summarize(
-    portfolio = "L/S",
-    vw_mean = mean(ret_excess_vw) * 12,
-    vw_tstat = mean(ret_excess_vw) / (sd(ret_excess_vw) / sqrt(n())),
-    ew_mean = mean(ret_excess_ew) * 12,
-    ew_tstat = mean(ret_excess_ew) / (sd(ret_excess_ew) / sqrt(n())),
-    vwc_mean = mean(ret_excess_vw_capped) * 12,
-    vwc_tstat = mean(ret_excess_vw_capped) /
-      (sd(ret_excess_vw_capped) / sqrt(n()))
-  )
-
-univariate_sort_table <- bind_rows(quintile_stats, ls_row)
+return_summary <- function(data) {
+  data |>
+    drop_na() |>
+    summarize(
+      vw_mean = mean(ret_excess_vw) * 12,
+      vw_tstat = mean(ret_excess_vw) / (sd(ret_excess_vw) / sqrt(n())),
+      ew_mean = mean(ret_excess_ew) * 12,
+      ew_tstat = mean(ret_excess_ew) / (sd(ret_excess_ew) / sqrt(n())),
+      vwc_mean = mean(ret_excess_vw_capped) * 12,
+      vwc_tstat = mean(ret_excess_vw_capped) /
+        (sd(ret_excess_vw_capped) / sqrt(n())),
+      .groups = "drop"
+    )
+}
+univariate_sort_table <- bind_rows(
+  portfolio_returns |>
+    group_by(portfolio) |>
+    return_summary() |>
+    mutate(portfolio = as.character(portfolio)),
+  factor_returns_ag |>
+    return_summary() |>
+    mutate(portfolio = "L/S")
+)
 ```
 
 ```{=latex}
@@ -1376,9 +1368,16 @@ univariate_sort_table <- bind_rows(quintile_stats, ls_row)
 
 ```{r}
 #| label: tbl-univariate-sort-ag
-#| tbl-cap: !expr 'paste0("Time-series averages of annualized monthly excess returns for asset growth quintile portfolios. Portfolios are formed annually in July using NYSE breakpoints. Means are annualized (multiplied by 12). The $t$~statistic tests whether the mean monthly excess return differs from zero. VW denotes value-weighted, EW equal-weighted, and VWC capped value-weighted (weights above the 80th percentile pulled back to that cap). The L/S row is the long-short portfolio (bottom minus top quintile). Sample: ", year(date_start), "--", year(date_end), ".")'
+#| tbl-cap: !expr 'paste0("Time-series averages of annualized monthly excess returns for asset growth quintile portfolios. Portfolios are formed annually in July using NYSE breakpoints. Means are annualized (multiplied by 12). The $t$~statistic tests whether the mean monthly excess return differs from zero. Capped value-weighted pulls weights above the 80th percentile back to that cap. The L/S row is the long-short portfolio (bottom minus top quintile). Sample: ", year(date_start), "--", year(date_end), ".")'
 #| echo: false
-univariate_sort_table |>
+group_header <- paste0(
+  " & \\multicolumn{2}{c}{Value-weighted} & ",
+  "\\multicolumn{2}{c}{Equal-weighted} & ",
+  "\\multicolumn{2}{c}{Capped value-weighted} \\\\\n",
+  "\\cmidrule(lr){2-3} \\cmidrule(lr){4-5} \\cmidrule(lr){6-7}\n"
+)
+
+raw_table <- univariate_sort_table |>
   knitr::kable(
     digits = 3,
     escape = FALSE,
@@ -1387,14 +1386,25 @@ univariate_sort_table |>
     linesep = "",
     col.names = c(
       "Portfolio",
-      "VW mean",
-      "VW $t$~statistic",
-      "EW mean",
-      "EW $t$~statistic",
-      "VWC mean",
-      "VWC $t$~statistic"
+      "Mean",
+      "$t$~statistic",
+      "Mean",
+      "$t$~statistic",
+      "Mean",
+      "$t$~statistic"
     )
   )
+
+structure(
+  sub(
+    "\\toprule\n",
+    paste0("\\toprule\n", group_header),
+    raw_table,
+    fixed = TRUE
+  ),
+  format = attr(raw_table, "format"),
+  class = class(raw_table)
+)
 ```
 
 ```{=latex}
@@ -1442,7 +1452,6 @@ portfolio_returns_customized <- implement_portfolio_sort(
   min_portfolio_size = 10,
   quiet = TRUE
 )
-
 factor_returns_customized <- portfolio_returns_customized |>
   compute_long_short_returns(direction = "bottom_minus_top")
 ```
@@ -1474,7 +1483,9 @@ factor_returns_bivariate <- portfolio_returns_bivariate |>
   compute_long_short_returns(direction = "bottom_minus_top")
 ```
 
-@tbl-customized-comparison decomposes the customized premium into two layers. Adding the size-controlled double sort alone (the bivariate-only row) lifts the annualized premium from `{r} round(mean(factor_returns_ag$ret_excess_vw, na.rm = TRUE) * 12 * 100, 1)`% to `{r} round(mean(factor_returns_bivariate$ret_excess_vw, na.rm = TRUE) * 12 * 100, 1)`%, with the $t$~statistic moving from borderline to significant at conventional levels. Controlling for size therefore reveals that most of the AG signal in the cross-section was masked by size dispersion in the univariate sort. Layering the filter set and the 20% breakpoint threshold on top trims the magnitude back to `{r} round(mean(factor_returns_customized$ret_excess_vw, na.rm = TRUE) * 12 * 100, 1)`%, where the spread remains significant at conventional levels: removing financials, utilities, and loss-making firms strips out some of the firms that were contributing to the raw spread. Across all three specifications, the spread is positive and reflects the negative AG premium of @cooper.2008.
+@tbl-customized-comparison decomposes the customized premium into two layers. Adding the size-controlled double sort alone (the bivariate-only row) lifts the annualized premium from `{r} round(mean(factor_returns_ag$ret_excess_vw, na.rm = TRUE) * 12 * 100, 1)`% to `{r} round(mean(factor_returns_bivariate$ret_excess_vw, na.rm = TRUE) * 12 * 100, 1)`%, with the $t$~statistic moving from borderline to significant at conventional levels. Controlling for size therefore reveals that most of the AG signal in the cross-section was masked by size dispersion in the univariate sort. Layering the filter set and the 20% breakpoint threshold on top trims the magnitude back to `{r} round(mean(factor_returns_customized$ret_excess_vw, na.rm = TRUE) * 12 * 100, 1)`%, where the spread remains significant at conventional levels: removing financials, utilities, and loss-making firms strips out some of the firms that were contributing to the raw spread. Across all three specifications, the spread is positive and reflects the negative AG premium reported in @cooper.2008, who finds an annual value-weighted long-short premium of about 12.6% over July 1968 to June 2003.[^cooper-deciles]
+
+[^cooper-deciles]: @cooper.2008 sorts into deciles and reports raw rather than excess returns.
 
 ```{r}
 #| label: customized-comparison-stats
@@ -1584,7 +1595,9 @@ fm_results |>
   )
 ```
  
-The negative slope on `asset_growth` lines up with the long-short evidence in @tbl-univariate-sort-ag and @tbl-customized-comparison: high-AG firms earn lower subsequent returns, conditional on size. Switching to `vcov = "iid"` or supplying `vcov_options = list(lag = 6, prewhite = FALSE)` would change the standard-error treatment without altering the rest of the call, and adding additional regressors (a beta estimate from `estimate_betas()`, a profitability measure, an idiosyncratic-volatility control) is a one-line extension to the model formula. The same function therefore covers the standard cross-sectional asset-pricing test that complements the portfolio-sort evidence used throughout the rest of the paper.
+The negative slope on `asset_growth` lines up with the long-short evidence in @tbl-univariate-sort-ag and @tbl-customized-comparison: high-AG firms earn lower subsequent returns, conditional on size. As an external benchmark, @cooper.2008 [Table III, Panel A, Model 1] reports a Fama-MacBeth slope on annual ASSETG of −0.0922 ($t$~statistic of −6.52). Converted to a monthly basis and sign-flipped, this is approximately 0.0077, directly comparable to the magnitude of the AG coefficient in our table.[^cooper-fm-controls] Switching to `vcov = "iid"` or supplying `vcov_options = list(lag = 6, prewhite = FALSE)` would change the standard-error treatment without altering the rest of the call, and adding additional regressors (a beta estimate from `estimate_betas()`, a profitability measure, an idiosyncratic-volatility control) is a one-line extension to the model formula. The same function therefore covers the standard cross-sectional asset-pricing test that complements the portfolio-sort evidence used throughout the rest of the paper.
+
+[^cooper-fm-controls]: @cooper.2008 additionally controls for book-to-market and 6- and 36-month past returns, both negatively correlated with AG.
 
 
 ## A transparent risk factor library {#sec-library}
@@ -1752,15 +1765,33 @@ ag_alpha <- ag_data |>
 
 ```{r}
 #| label: fig-ag-alpha
-#| fig-cap: !expr 'paste0("Distribution of asset-growth Fama-French three-factor alphas across construction choices. The histogram shows annualized alphas (monthly intercepts multiplied by 12, expressed in percent on the x-axis) from regressing each of the ", format(ag_data|>count(id)|>nrow(), big.mark = ","), " long-short specifications of the asset-growth factor on the market, size, and value factors, estimated by OLS. The dashed vertical line marks zero. Specifications vary as listed in @tbl-sorting-decisions. Sample: ", year(date_start), "--", year(date_end), ".")'
+#| fig-cap: !expr 'paste0("Distribution of asset-growth Fama-French three-factor alphas across construction choices. The histogram shows annualized alphas (monthly intercepts multiplied by 12, expressed in percent on the x-axis) from regressing each of the ", format(ag_data|>count(id)|>nrow(), big.mark = ","), " long-short specifications of the asset-growth factor on the market, size, and value factors, estimated by OLS. The dashed vertical line marks zero. The dotted vertical line marks the value-weighted decile FF3 alpha reported in @cooper.2008 [Table II, Panel C, All Firms], sign-flipped to the bottom-minus-top convention: 8.4\\% per year over July 1968 to June 2003. Specifications vary as listed in @tbl-sorting-decisions. Sample: ", year(date_start), "--", year(date_end), ".")'
 #| fig-width: 6.5
 #| echo: false
 #| out-width: "100%"
 n_specs <- nrow(ag_alpha)
+cooper_vw_alpha <- 0.084
+
 ag_alpha |>
   ggplot(aes(x = alpha)) +
   geom_histogram(binwidth = 0.012) +
   geom_vline(xintercept = 0, linetype = "dashed") +
+  geom_vline(
+    xintercept = cooper_vw_alpha,
+    linetype = "dotted",
+    color = "darkred"
+  ) +
+  annotate(
+    "text",
+    x = cooper_vw_alpha,
+    y = Inf,
+    label = "Cooper (2008) VW",
+    angle = 90,
+    hjust = 1.05,
+    vjust = -0.4,
+    color = "darkred",
+    size = 3
+  ) +
   scale_x_continuous(labels = scales::percent) +
   scale_y_continuous(labels = label_comma()) +
   labs(
@@ -1774,6 +1805,8 @@ ag_alpha |>
     subtitle = "Fama-French three-factor alpha, annualized"
   )
 ```
+
+The dispersion in @fig-ag-alpha shows that construction choices materially shape the estimated premium. Across the `{r} format(nrow(ag_alpha), big.mark = ",")` specifications, annualized alphas average `{r} round(mean(ag_alpha$alpha) * 100, 2)`%, with a median of `{r} round(median(ag_alpha$alpha) * 100, 2)`%, a cross-specification standard deviation of `{r} round(sd(ag_alpha$alpha) * 100, 2)`%, and a range from `{r} round(min(ag_alpha$alpha) * 100, 2)`% to `{r} round(max(ag_alpha$alpha) * 100, 2)`%. Differences of this magnitude across defensible defaults echo the non-standard-errors evidence in @menkveld.2024: where the breakpoint is placed, when the portfolio rebalances, and which universe filters apply can move the headline number by more than conventional sampling uncertainty would suggest.
 
 ## Summary and discussion {#sec-summary}
 
