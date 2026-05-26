@@ -1,0 +1,232 @@
+---
+title: "JSS submission checklist"
+subtitle: "Conformity checklist for the JSS Submission Guide and Style Guide"
+format:
+  html:
+    toc: true
+    number-sections: true
+---
+
+A working checklist for verifying that the manuscript and replication
+materials in this repository comply with the *Journal of Statistical Software*
+(JSS) **Submission Guide** and **Style Guide**.
+
+This file is intentionally faithful to the two source documents only. Every
+item below is traceable to one of:
+
+- **SG** = JSS Submission Guide
+- **STY** = JSS Style Guide (including FAQ and "Miscellaneous" section)
+
+Items that depend on other JSS documents (e.g., the full `jss.pdf` style
+manual, the BibTeX guide, the author registration page) are deliberately
+omitted. If we want to cover those later, add a new section per source.
+
+Legend: `[ ]` open, `[x]` satisfied, `[~]` partial / needs verification.
+
+---
+
+# Submission mechanics (SG)
+
+- [ ] **1.1** Manuscript submitted as a **PDF**. Only PDF files are accepted. *(SG, Manuscript Preparation.)*
+- [ ] **1.2** Submission category selected from JSS's list of original contributions: *(SG, Types of Papers.)*
+    1. Scholarly article describing statistical software (peer-reviewed).
+    2. Code snippet (smaller code project, peer-reviewed).
+    3. Special issue contribution (by invitation, peer-reviewed).
+    4. Book review (by invitation).
+    5. Review or comparison of closed-source statistical software (by invitation).
+
+    For this paper: scholarly article.
+- [ ] **1.3** Three deliverables provided at submission: *(SG, Requirements.)*
+    1. PDF manuscript in JSS style.
+    2. Source code for the software.
+    3. Replication materials for all results from the manuscript, preferably as a standalone replication script.
+- [ ] **1.4** Each uploaded file is **at most 50 MB**. If a supplementary file is larger, include a file with download instructions pointing to an external source. If no external server is available, contact `editor@jstatsoft.org`. *(SG, Software Preparation.)*
+- [ ] **1.5** No author or subscription fees. *(SG, Abstract.)* Informational only.
+
+# Software preparation (SG)
+
+- [ ] **2.1** Source code is submitted as **ASCII** files. *(SG, Software Preparation.)*
+- [ ] **2.2** Code is **readable** and contains **comments**. *(SG, Software Preparation.)*
+- [ ] **2.3** For environments with a package/library system (R, S, Stata, etc.), the code ships with **formatted help files** and is **packaged for easy installation**. *(SG, Software Preparation.)*
+- [ ] **2.4** If at all possible, the software is **available from a standard repository**. *(SG, Software Preparation.)* `tidyfinance` is on CRAN.
+- [ ] **2.5** Code language is one JSS can review efficiently. The majority of published software is in **R, MATLAB, Python, SAS/IML, C++, or Java**; other languages may incur longer review times. *(SG, Software Preparation.)*
+- [ ] **2.6** Source code includes the **GNU GPL (version 2 or 3) or a GPL-compatible license**. *(SG, Software Preparation.)*
+- [ ] **2.7** For R packages: consider shipping the JSS submission as a **CRAN package vignette**. *(SG, Software Preparation.)*
+
+# Manuscript preparation (SG)
+
+- [ ] **3.1** Manuscript is written in **English**. *(SG, Manuscript Preparation.)*
+- [ ] **3.2** Manuscript is typeset with **LaTeX**, following the JSS Style Guide. *(SG, Manuscript Preparation.)*
+- [ ] **3.3** Manuscript length is monitored: there is no hard page limit, but **manuscripts longer than 30 pages typically incur much longer review times**. *(SG, Manuscript Preparation.)*
+- [ ] **3.4** Every figure, table, and other output presented in the manuscript is **fully and exactly reproducible on at least one platform**. Cross-platform reproducibility is the ideal. *(SG, Manuscript Preparation.)*
+- [ ] **3.5** Any **platform dependency** is indicated with the submission. *(SG, Manuscript Preparation.)*
+- [ ] **3.6** Pseudo-random number generators are **initialized** wherever results rely on simulation. *(SG, Manuscript Preparation.)*
+- [ ] **3.7** Reproducibility is demonstrated by a **standalone replication script** that someone with sufficient technical background can run within reasonable time. *(SG, Manuscript Preparation.)*
+
+# Style: the JSS quick checklist (STY)
+
+These are the items the Style Guide lists explicitly under "What are the most
+important style guidelines in JSS?".
+
+- [ ] **4.1** The manuscript **compiles with pdfLaTeX**. *(STY, FAQ.)*
+- [ ] **4.2** `\proglang`, `\pkg`, and `\code` are used for highlighting **throughout the paper, including titles and references**, except where explicitly escaped. *(STY, FAQ.)*
+- [ ] **4.3** References are provided in a `.bib` BibTeX database and included in the text via `\cite`, `\citep`, `\citet`, etc. *(STY, FAQ.)*
+- [ ] **4.4** Titles and headers follow JSS capitalization rules: *(STY, FAQ + capitalization rules.)*
+    - `\title` in **title style**.
+    - **All titles in the BibTeX file** in title style.
+    - `\section`, `\subsection`, etc. in **sentence style**.
+    - Annotations of figures and tables, including captions, in **sentence style**.
+- [ ] **4.5** Figures, tables, and equations are marked with `\label` and referred to via `\ref`, e.g., `Figure~\ref{...}`. *(STY, FAQ.)*
+- [ ] **4.6** Software packages are cited properly with `\cite{}`. *(STY, FAQ.)*
+
+# Capitalization (STY)
+
+- [ ] **5.1** `\title` is in **title style**: all principal words capitalized (nouns, pronouns, adjectives, verbs, adverbs, subordinating conjunctions). Articles (a, an, the), coordinating conjunctions (and, but, or, nor, for), and prepositions of any length stay lowercase, unless they are the first or last word. Capitalize the first word after a colon. Two-part hyphenated words: capitalize both parts. *(STY, FAQ.)*
+- [ ] **5.2** All `\section`, `\subsection`, etc., are in **sentence style**: only the first word capitalized, plus proper names, plus the first word after a colon or hyphen. *(STY, FAQ.)*
+- [ ] **5.3** Every BibTeX `title` field is in **title style**. *(STY, FAQ.)*
+
+# Citing software (STY)
+
+- [ ] **6.1** Each software package cited uses the **recommended citation** if one exists (a pointer on the webpage or in the manual). Otherwise cite the corresponding manual or webpage. *(STY, FAQ.)*
+- [ ] **6.2** For R packages: use the **official citation** if `citation("foo")` or the CRAN page provides one. *(STY, FAQ.)*
+- [ ] **6.3** If no official R-package citation exists, use a **CRAN-style `@Manual` entry** with `\pkg{}` / `\proglang{}` / `\code{}` markup and a title in title style. *(STY, FAQ.)* Template:
+
+    ```bibtex
+    @Manual{rJava,
+      title  = {\pkg{rJava}: Low-Level \proglang{R} to \proglang{Java} Interface},
+      author = {Simon Urbanek},
+      year   = {2009},
+      note   = {\proglang{R}~package version~0.8-1},
+      url    = {https://CRAN.R-project.org/package=rJava},
+    }
+    ```
+
+- [ ] **6.4** Software-vendor manual entries follow the same shape, e.g.: *(STY, FAQ.)*
+
+    ```bibtex
+    @Manual{SAS-STAT,
+      author  = {{\proglang{SAS} Institute Inc.}},
+      title   = {\proglang{SAS/STAT} Software, Version~9.1},
+      year    = {2003},
+      address = {Cary, NC},
+      url     = {https://www.sas.com/}
+    }
+    ```
+
+# `\cite` commands (STY)
+
+- [ ] **7.1** Use the right command for the desired output: `\cite{...}` / `\citet{...}` for "Author (Year)", `\citep{...}` for "(Author Year)". *(STY, FAQ.)*
+- [ ] **7.2** Add page references or notes via the bracket arguments, e.g., `\citet[p.~123]{...}` or `\citep[see][for further details]{...}`. *(STY, FAQ.)*
+- [ ] **7.3** **Never** use brackets-within-brackets such as `(\cite{...})`. *(STY, FAQ.)*
+
+# Abbreviations (STY)
+
+- [ ] **8.1** Abbreviations are spelled in **upper-case letters with no additional formatting**: no periods, no small caps, no italics. *(STY, FAQ.)*
+- [ ] **8.2** Every abbreviation is **introduced with its expansion** on first use. The expansion is **not capitalized** (except for proper names or sentence-initial position). *(STY, FAQ.)*
+    Examples: "support vector machine (SVM)" and "MCMC (Markov chain Monte Carlo)".
+
+# Figure and table captions (STY)
+
+- [ ] **9.1** Captions appear **below** the figure or table. *(STY, FAQ.)*
+- [ ] **9.2** Captions are in **sentence style** and **end with a period**. *(STY, FAQ.)*
+- [ ] **9.3** Captions use **no additional formatting** (`\emph`, `\bf`, `\it`). *(STY, FAQ.)*
+- [ ] **9.4** **All table row and column headers** are in sentence style. *(STY, FAQ.)*
+- [ ] **9.5** No footnote-style annotations inside tables; place them in the **caption** instead. *(STY, FAQ.)*
+
+# Code formatting (STY)
+
+- [ ] **10.1** Code in the manuscript is presented in the usual text flow, with **enough spaces to facilitate reading**: spaces before and after operators and after commas (unless spaces carry syntactic meaning). Write `y = a + b * x`, not `y=a+b*x`. Applies to inline code and to verbatim chunks. *(STY, FAQ.)*
+- [ ] **10.2** Verbatim code **does not contain comments**; place comments in the surrounding LaTeX text instead. *(STY, FAQ.)*
+- [ ] **10.3** Inline code chunks use `\code{...}`. *(STY, FAQ.)*
+- [ ] **10.4** Verbatim chunks use one of: the `{Code}` environment, the `{CodeInput}` / `{CodeOutput}` pair, or for R packages the usual Sweave environments. *(STY, FAQ.)*
+- [ ] **10.5** **Code input and output fit within the manuscript text width.** Insert manual line breaks in input. Generate output at a suitable width, or post-edit it. *(STY, FAQ.)*
+
+# Graphics (STY)
+
+- [ ] **11.1** **Pen-to-paper ratio** is appropriate: graphics annotation is about the size of the figure caption or slightly smaller. *(STY, FAQ.)*
+- [ ] **11.2** Vector graphics (e.g., `.pdf`) that exceed roughly a few hundred kilobytes and take a moment to load are **also supplied as a raster version** (`.jpg` or `.png`), with annotation that remains easy to read. In R, use `png(..., height = H, width = W, units = "in", res = 144)` (or higher). *(STY, FAQ.)*
+
+# R-package conventions if the paper is published in JSS (STY)
+
+If the R package is updated post-publication:
+
+- [ ] **12.1** Include a reference to the JSS paper in the `\references{}` section of the **relevant `.Rd` pages**. *(STY, FAQ.)*
+- [ ] **12.2** Include a `CITATION` file at `inst/CITATION`. The JSS editors supply a suitable file when the final manuscript is ready. *(STY, FAQ.)*
+- [ ] **12.3** Turn the JSS manuscript into a **package vignette**. *(STY, FAQ.)*
+
+# Turning the JSS paper into a vignette (STY)
+
+- [ ] **13.1** Use the JSS paper as the basis for the vignette, with Sweave-style code chunks for all input, output, and graphics. *(STY, FAQ.)*
+- [ ] **13.2** Turn off the JSS header and footer by switching to `\documentclass[nojss]{jss}`. *(STY, FAQ.)*
+- [ ] **13.3** Cite the JSS paper in the vignette (abstract or intro). *(STY, FAQ.)*
+- [ ] **13.4** Do not ship the JSS LaTeX style files inside the package; they are bundled with R. *(STY, FAQ.)*
+- [ ] **13.5** Set the preferred layout invisibly in a code chunk at the beginning: *(STY, FAQ.)*
+
+    ```r
+    options(prompt = "R> ", continue = "+  ",
+            width = 70, useFancyQuotes = FALSE)
+    ```
+
+# Naming canon (STY)
+
+- [ ] **14.1** **Software** names use exactly: *(STY, FAQ.)*
+    - Fortran (not FORTRAN)
+    - Java (not JAVA, java)
+    - MATLAB (not Matlab, matlab)
+    - S-PLUS (not Splus, S-Plus)
+- [ ] **14.2** **Journal** names use exactly: *(STY, FAQ.)*
+    - The American Statistician (not American Statistician)
+    - The Annals of Statistics (not Annals of Statistics)
+    - Journal of the Royal Statistical Society B (not Journal of the Royal Statistical Society, Series B)
+- [ ] **14.3** **Publisher** names use exactly: *(STY, FAQ.)*
+    - Springer-Verlag (not Springer)
+    - John Wiley & Sons (not Wiley, John Wiley & Sons Inc.)
+
+# Markup in section titles (STY)
+
+- [ ] **15.1** When using markup in section headers, escape it for PDF bookmarks by giving the plain-text bookmark explicitly: *(STY, FAQ.)*
+
+    ```latex
+    \section[Calling C++ from R]{Calling \proglang{C++} from \proglang{R}}
+    ```
+
+# Compilation errors at `\begin{document}` (STY)
+
+- [ ] **16.1** Verify that `\Plainauthor`, `\Plaintitle`, and `\Plainkeywords` are defined and **contain no markup**. *(STY, FAQ.)*
+
+# Miscellaneous (STY)
+
+- [ ] **17.1** Refer to subsections as **"Section x.y"**, never "Subsection x.y". *(STY, Miscellaneous.)*
+- [ ] **17.2** Always write **`e.g.,`** and **`i.e.,`** (with the comma) so LaTeX does not interpret the period as end-of-sentence. *(STY, Miscellaneous.)*
+- [ ] **17.3** Use **`$p$~value`**, **`$t$~statistic`**, etc., without a hyphen and with a tie. *(STY, Miscellaneous.)*
+- [ ] **17.4** Use **`\top`** for the transpose symbol, e.g., `X^\top`. *(STY, Miscellaneous.)*
+- [ ] **17.5** R-specific: the first argument of `data()` and `library()` is **always quoted**: `library("foo")`, `data("quine", package = "MASS")`. *(STY, Miscellaneous.)*
+- [ ] **17.6** Book editions are written as **"2nd", "3rd"**, etc. *(STY, Miscellaneous.)*
+- [ ] **17.7** Equation references use **`Equation~\ref{...}`** (preferred when references are few) or **`(\ref{...})`**. *(STY, Miscellaneous.)*
+
+---
+
+# Items present in the prior `JSS-CHECKLIST.md` that the two source documents do **not** support
+
+These items are not contradicted by SG/STY, but they are not stated in either
+of the two source documents I was given. They may come from `jss.pdf` (the
+full style manual), the Information-for-Authors page, the Quarto JSS
+template, or be the authors' own house additions. Flagged here for a
+separate sourcing pass.
+
+- Specific revision/conditional-accept time windows (e.g., 6/12 months).
+- Required structure of the author block (department, street, city, country, postal code, ORCID, URL, designated corresponding author).
+- Required abstract conventions beyond what STY states (e.g., "no citations", "no undefined acronyms").
+- Required keyword conventions (lower-case, comma-separated).
+- The Quarto `.proglang` / `.pkg` / `.fct` / `.class` span syntax (which is a Quarto-extension convention, not a JSS-style rule).
+- Indentation rule for continuation lines beyond what is implied by `continue = "+  "`.
+- "No vertical lines in tables" rule.
+- "Tables floated to the top of the page" rule.
+- "Fig.", "Tab." abbreviation ban in cross-references.
+- "American English throughout" rule and the "Acknowledgments without an e" rule.
+- DOI requirement in BibTeX entries; rule that DOI supersedes URL.
+- Author lists must be complete with no "et al."; year four-digit and book entries with publisher and location.
+- "Reasonable time on a regular PC" framing for replication runtime.
+- Point-by-point reply requirement at revision.
+
+When these are needed, look them up in `jss.pdf` and add a section per source.
