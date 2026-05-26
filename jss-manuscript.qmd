@@ -1018,9 +1018,11 @@ library("lubridate")
 
 ### Data download {#sec-data-download}
 
-Constructing the asset growth factor requires two WRDS panels: annual accounting data from Compustat to compute the asset growth signal and monthly stock returns from CRSP to translate the signal into portfolio returns. Before the first WRDS download, call `set_wrds_credentials()` to store WRDS credentials securely in `.Renviron`; subsequent `download_data()` calls establish the database connection automatically.
+Constructing the asset growth factor requires two WRDS panels: annual accounting data from Compustat to compute the asset growth signal and monthly stock returns from CRSP to translate the signal into portfolio returns.
 
-CRSP and Compustat are proprietary and require a WRDS subscription. All numbers, tables, and figures in this paper are computed from the real WRDS data with `data_domain <- "wrds"`. Readers without a WRDS subscription can render the entire manuscript against synthetic data of identical schema by setting `data_domain <- "pseudo"` below. The synthetic data preserves variable names, dtypes, and approximate scales but not economic relationships; only the workflow reproduces, not the quantitative results. The synthetic generator is part of the [tidyfinance]{.pkg} package; the seed and number of assets can be controlled via the `seed` and `n_assets` arguments to `download_data()`.
+CRSP and Compustat are proprietary and require a WRDS subscription. All numbers, tables, and figures in this paper are computed from the real WRDS data with `data_domain <- "wrds"`. Readers without a WRDS subscription can render the entire manuscript against synthetic data of identical schema by setting `data_domain <- "pseudo"` in the chunk below. The pseudo path covers the four WRDS-sourced datasets the case study consumes: daily and monthly CRSP returns, quarterly and annual Compustat fundamentals, and the CRSP-Compustat linking table. Every `download_data()` call for one of these datasets then routes to an in-package synthetic generator rather than to WRDS, so the document compiles end-to-end without a subscription, credentials, or network access to a paid provider. The generator preserves column names, dtypes, missingness patterns, panel structure, and approximate scales, so the cleaning, lagging, and sorting code paths exercise the same branches they would on real data, and every figure and table in this paper renders without error. What the generator does not preserve are economic relationships. Returns are independent draws around a calibrated mean, and characteristics carry no predictive content for subsequent returns; the long-short premia recovered against pseudo data are therefore noise. The workflow reproduces; the quantitative results do not. Two arguments to `download_data()` control the synthetic draws: `seed` fixes the random number generator so that two readers running the same chunk obtain bit-identical pseudo panels, and `n_assets` sets the size of the synthetic cross-section (default `1000L`), trading off compile speed against the realism of cross-sectional statistics. The practical implication is that every chunk in this paper can be inspected, edited, and re-rendered on a laptop with no proprietary data and no credentials; only the headline factor premia require WRDS to reproduce numerically.
+
+Before the first WRDS download, call `set_wrds_credentials()` to store WRDS credentials securely in `.Renviron`; subsequent `download_data()` calls establish the database connection automatically.
 
 ```{r}
 #| label: set-data-domain
@@ -1593,7 +1595,7 @@ tab
 
 ### Access {#sec-library-access}
 
-Researchers retrieve precomputed series without rebuilding the pipeline. [tidyfinance]{.pkg} hosts the library on Hugging Face and exposes it through `download_data()`. Hugging Face retains a full commit history of each repository in the same way GitHub does, so legacy versions of the factor library remain accessible by referencing earlier snapshots; users can therefore reproduce results computed against an older release of the library even after the current version has been updated. An interactive dashboard at [factors.tidy-finance.org](https://factors.tidy-finance.org) provides the same series through a browser interface. The companion [Python]{.proglang} package [tidyfinance]{.pkg} offers an identical API for users who prefer [Python]{.proglang}.
+Researchers retrieve precomputed series without rebuilding the pipeline. [tidyfinance]{.pkg} hosts the library on Hugging Face and exposes it through `download_data()`. The library is a versioned downstream artefact: the manuscript itself consumes it through the same `download_data()` calls, so reproducing this paper requires only a download rather than a rerun of the construction code. Hugging Face retains a full commit history of each repository in the same way GitHub does, so legacy versions of the factor library remain accessible by referencing earlier snapshots; users can therefore reproduce results computed against an older release of the library even after the current version has been updated. An interactive dashboard at [factors.tidy-finance.org](https://factors.tidy-finance.org) provides the same series through a browser interface. The companion [Python]{.proglang} package [tidyfinance]{.pkg} offers an identical API for users who prefer [Python]{.proglang}.
 
 A default call retrieves a single factor by name and lag:
 
@@ -1717,7 +1719,7 @@ r_version <- renv_lock$R$Version
 
 We obtained the results in this paper using [R]{.proglang} `{r} r_version` with the following packages: [tidyfinance]{.pkg} `{r} pkg_version("tidyfinance")`, [dplyr]{.pkg} `{r} pkg_version("dplyr")`, [tidyr]{.pkg} `{r} pkg_version("tidyr")`, [ggplot2]{.pkg} `{r} pkg_version("ggplot2")`, [lubridate]{.pkg} `{r} pkg_version("lubridate")`, [arrow]{.pkg} `{r} pkg_version("arrow")`, and [knitr]{.pkg} `{r} pkg_version("knitr")`. CRAN hosts [R]{.proglang} and all packages at [https://CRAN.R-project.org/](https://CRAN.R-project.org/). [renv]{.pkg} `{r} pkg_version("renv")` ensures full reproducibility of the computational environment. Reproducing the factor return data requires an institutional subscription to WRDS, as the underlying CRSP and Compustat data are proprietary and cannot be redistributed. A synthetic-data path with identical schema is available via `download_data(domain = "pseudo", ...)` for readers without WRDS access; see @sec-data-download.
 
-Reproducing this paper takes about 15 minutes on a regular workstation. Recomputing the full factor library from raw WRDS data across all `{r} format(nrow(portfolio_sort_grid), big.mark = ",")` specifications takes about 3 hours on a 64-core machine.
+Reproducing this manuscript takes about 15 minutes on a laptop: `quarto render jss-manuscript.qmd` pulls the precomputed factor library via `download_data()` and uses the WRDS subset described in @sec-data-download, or pseudo data of identical schema for readers without WRDS access.
 
 We publish all code, data workflows, and documentation at [https://github.com/tidy-finance/jss-multilingual-factor-library](https://github.com/tidy-finance/jss-multilingual-factor-library). The code is released under the MIT License, which is compatible with the GNU General Public License (GPL).
 
@@ -1751,15 +1753,15 @@ Stefan Voigt is grateful to the Danish Finance Institute for financial support.
 
 \newpage 
 \setcounter{section}{0}
-\renewcommand{\thesection}{IA-\arabic{section}}
+\renewcommand{\thesection}{A-\arabic{section}}
 \setcounter{subsection}{0}
-\renewcommand{\thesubsection}{IA-\arabic{section}.\arabic{subsection}}
+\renewcommand{\thesubsection}{A-\arabic{section}.\arabic{subsection}}
 \setcounter{table}{0}
-\renewcommand{\thetable}{IA-\arabic{table}}
+\renewcommand{\thetable}{A-\arabic{table}}
 \setcounter{figure}{0}
-\renewcommand{\thefigure}{IA-\arabic{figure}}
+\renewcommand{\thefigure}{A-\arabic{figure}}
 
-# Internet Appendix {.unnumbered}
+# Appendix {.unnumbered}
 
 ## Variable construction {#sec-variable-details}
 
