@@ -45,14 +45,31 @@ renv::restore()
 
 ### Data
 
-Raw CRSP and Compustat data are proprietary and cannot be redistributed. To download them, configure your WRDS credentials once:
+Rendering the manuscript does not require running any factor-library construction code: the precomputed library is pulled from Hugging Face via `download_data()` at render time. Raw CRSP and Compustat data are proprietary and cannot be redistributed; manuscript chunks that consume them require an institutional WRDS subscription. Configure WRDS credentials once:
 
 ```r
 library(tidyfinance)
 set_wrds_credentials()
 ```
 
-Then run the scripts in order:
+Precomputed factor returns for all specifications are available directly through the `tidyfinance` API:
+
+```r
+library(tidyfinance)
+download_data("tidyfinance", "factor_library", sorting_variable = "ag")
+```
+
+### Compiling the manuscript
+
+With the data in place, render the PDF from the project root. End-to-end render time is about 15 minutes on a laptop:
+
+```bash
+quarto render jss-manuscript.qmd
+```
+
+### Regenerating the factor library (audit path)
+
+Reviewers who want to regenerate the published factor library from raw WRDS data — rather than consume the precomputed Hugging Face artefact — can run the construction pipeline directly. This path takes about 3 hours on a 64-core machine and is **not required** to reproduce the manuscript:
 
 ```bash
 Rscript code/01_define_portfolio_sorts_grid.R
@@ -63,21 +80,6 @@ Rscript code/03_sorting_variables_yearly.R
 Rscript code/04_sorting_variables_combination_lag.R
 Rscript code/05_portfolio_sorts.R
 Rscript code/06_analyze_diagnostics.R
-```
-
-Precomputed factor returns for all specifications are also available directly via the `tidyfinance` API without running the pipeline:
-
-```r
-library(tidyfinance)
-download_data("tidyfinance", "factor_library", sorting_variable = "ag")
-```
-
-### Compiling the manuscript
-
-With the data in place, render the PDF from the project root:
-
-```bash
-quarto render jss-manuscript.qmd
 ```
 
 ### Rendering without WRDS
