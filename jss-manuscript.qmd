@@ -1,5 +1,6 @@
 ---
 title: "[tidyfinance]{.pkg}: Transparent Factor Construction for Empirical Asset Pricing"
+title-plain: "tidyfinance: Transparent Factor Construction for Empirical Asset Pricing"
 format:
     jss-pdf:
         keep-tex: false
@@ -9,9 +10,14 @@ author:
     orcid: 0000-0002-9937-0903
     email: christoph.frey@gmail.com
   - name: Christoph Scheuch
-    affiliation: Tidy Intelligence
-    email: christoph@tidy-intelligence.com
     orcid: 0009-0004-0423-6819
+    email: christoph.scheuch@hu-berlin.de
+    affiliations:
+      - name: Humboldt University of Berlin
+        department: School of Business and Economics
+        address: Dorotheenstraße 1
+        city: 10099 Berlin
+        country: Germany
   - name: Stefan Voigt
     orcid: 0000-0001-5619-3161
     email: stefan.voigt@econ.ku.dk
@@ -145,11 +151,11 @@ portfolio_sort_grid <- tidyfinance::download_data(
 
 ## Introduction {#sec-intro}
 
-Factor returns are essential inputs to empirical asset pricing tests, optimal portfolio allocation, and risk management decisions. Producing them is a three-stage pipeline: data acquisition (downloading and cleaning raw accounting and return data from CRSP, Compustat, and similar providers); variable construction (lagging variables to avoid look-ahead bias); and portfolio sorting (assigning securities to portfolios by characteristic). Each stage embeds construction choices: where to set breakpoints, whether to equal- or value-weight portfolios, how to handle delistings, and which fiscal-year lag to apply. Few pipelines are standardized, and fewer still ship with executable code. Anyone who reproduces or extends a factor series therefore reconstructs the pipeline from scratch, with no way to verify a match to the original.
+Factor returns are essential inputs to empirical asset pricing tests, optimal portfolio allocation, and risk management decisions. Producing them is a three-stage pipeline: data acquisition (downloading and cleaning raw accounting and return data from the Center for Research in Security Prices (CRSP), Compustat, and similar providers); variable construction (lagging variables to avoid look-ahead bias); and portfolio sorting (assigning securities to portfolios by characteristic). Each stage embeds construction choices: where to set breakpoints, whether to equal- or value-weight portfolios, how to handle delistings, and which fiscal-year lag to apply. Few pipelines are standardized, and fewer still ship with executable code. Anyone who reproduces or extends a factor series therefore reconstructs the pipeline from scratch, with no way to verify a match to the original.
 
 No widely adopted tool covers this upstream workflow. The most popular factor sources publish *series* without the code that produced them: Ken French's Data Library [@fama.2023] supplies the Fama-French three- and five-factor returns and dozens of sorted portfolios. Other projects do release code: the Open Source Bond Asset Pricing project [@dickerson.2023], available at [openbondassetpricing.com](https://openbondassetpricing.com/), covers fixed income; the Open Source Cross-Sectional Asset Pricing repository [@chen.2022] reproduces 213+ published anomalies, and @jensen.2023 release a global factor library spanning hundreds of long-short signals across many countries. None of these sources, however, exposes the preprocessing pipeline as configurable code that researchers can inspect or modify. Many individual authors also host their own published factors, with transparency about construction choices varying widely. Existing [R]{.proglang} packages for quantitative finance work downstream of factor construction, on price and return panels the user must already have. Between raw data and standard asset pricing tests sits an opaque layer, where construction choices accumulate silently.
 
-This paper introduces [tidyfinance]{.pkg}, an [R]{.proglang} package on CRAN that fills this gap. The package addresses each stage with a dedicated interface. A unified `download_data()` function cleans, aligns, and harmonizes panels from WRDS (Wharton Research Data Services: CRSP, Compustat, TRACE, FISD), Ken French's Data Library, the Q5 factors of @hou.2021, the Open Source Asset Pricing repository, FRED, the Goyal-Welch macroeconomic predictors, Yahoo Finance, and current constituents for `{r} format(nrow(tidyfinance::list_supported_indexes()), big.mark = ",")` major equity indexes. Composable helpers then automate fiscal-year lagging, breakpoint computation, and portfolio aggregation. Every construction choice appears as a function argument with a default that follows established convention (NYSE breakpoints, value-weights, July rebalancing, and the Fama-French fiscal-year lag). A default call reproduces standard practice; overriding any default takes one argument.
+This paper introduces [tidyfinance]{.pkg}, an [R]{.proglang} package on CRAN that fills this gap. The package addresses each stage with a dedicated interface. A unified `download_data()` function cleans, aligns, and harmonizes panels from WRDS (Wharton Research Data Services: CRSP, Compustat, the Trade Reporting and Compliance Engine (TRACE), and the Fixed Income Securities Database (FISD)), Ken French's Data Library, the Q5 factors of @hou.2021, the Open Source Asset Pricing repository, the Federal Reserve Economic Data (FRED), the Goyal-Welch macroeconomic predictors, Yahoo Finance, and current constituents for `{r} format(nrow(tidyfinance::list_supported_indexes()), big.mark = ",")` major equity indexes. Composable helpers then automate fiscal-year lagging, breakpoint computation, and portfolio aggregation. Every construction choice appears as a function argument with a default that follows established convention (NYSE breakpoints, value-weights, July rebalancing, and the Fama-French fiscal-year lag). A default call reproduces standard practice; overriding any default takes one argument.
 
 We illustrate the package by reproducing the asset growth factor of @cooper.2008 end-to-end from raw CRSP and Compustat data, then varying any construction choice with a single-argument change. To spare researchers the work of rebuilding the pipeline, we run [tidyfinance]{.pkg} across all defensible combinations and publish the results as a factor library of `{r} format(nrow(sorting_variable_information), big.mark = ",")` sorting variables across `{r} format(nrow(portfolio_sort_grid), big.mark = ",")` specifications. The library is available through a single `download_data()` call or an interactive dashboard at [factors.tidy-finance.org](https://factors.tidy-finance.org). Users who prefer [Python]{.proglang} access the same interface through the companion package [tidyfinance]{.pkg} for [Python]{.proglang}. The package complements the open-access textbooks @scheuch.2023 and @scheuch.2024, which embed the workflow in pedagogical material for [R]{.proglang} and [Python]{.proglang}.
 
@@ -159,7 +165,7 @@ The remainder of the paper proceeds as follows. @sec-background places [tidyfina
 
 The [R]{.proglang} ecosystem for empirical finance spans three layers, each with established package support but a missing piece between them.
 
-**Data acquisition.** Several packages retrieve specific sources commonly used in empirical asset pricing. [frenchdata]{.pkg} [@frenchdata.2021] downloads the Ken French data library. [quantmod]{.pkg} [@ryan.2025] and [tidyquant]{.pkg} [@dancho.2026] interface with Yahoo Finance, FRED, and other public price sources. [Rblpapi]{.pkg} [@armstrong.Rblpapi] provides Bloomberg API access for subscribers. [highfrequency]{.pkg} [@boudt.highfrequency] handles intraday trade and quote data. None of these cover the WRDS-CRSP-Compustat panel that anchors most factor construction, nor do they implement the cleaning, alignment, and survivorship conventions the asset pricing literature requires.
+**Data acquisition.** Several packages retrieve specific sources commonly used in empirical asset pricing. [frenchdata]{.pkg} [@frenchdata.2021] downloads the Ken French data library. [quantmod]{.pkg} [@ryan.2025] and [tidyquant]{.pkg} [@dancho.2026] interface with Yahoo Finance, FRED, and other public price sources. [Rblpapi]{.pkg} [@armstrong.Rblpapi] provides Bloomberg application programming interface (API) access for subscribers. [highfrequency]{.pkg} [@boudt.highfrequency] handles intraday trade and quote data. None of these cover the WRDS-CRSP-Compustat panel that anchors most factor construction, nor do they implement the cleaning, alignment, and survivorship conventions the asset pricing literature requires.
 
 **Asset pricing tests and portfolio construction.** Once a clean panel of returns is in hand, several packages support downstream analysis. [PerformanceAnalytics]{.pkg} [@peterson.2026] computes performance and risk metrics for return series. Portfolio optimization is covered by [fPortfolio]{.pkg} [@wuertz.fPortfolio]. [RQuantLib]{.pkg} [@eddelbuettel.RQuantLib] interfaces with QuantLib for derivative pricing. Each of these tools assumes that the panel of returns and factors is already constructed.
 
@@ -259,8 +265,8 @@ flowchart LR
 |                   |                                 | )                                     |
 |                   |                                 | ```                                   |
 +-------------------+---------------------------------+---------------------------------------+
-| Yahoo Finance     | Daily OHLCV with adjusted close | ```                                   |
-|                   | for any ticker                  | download_data(                        |
+| Yahoo Finance     | Historical price data with      | ```                                   |
+|                   | adjusted close for any ticker   | download_data(                        |
 |                   |                                 |   domain = "stock_prices",            |
 |                   |                                 |   symbols = "AAPL"                    |
 |                   |                                 | )                                     |
@@ -380,7 +386,7 @@ Public data still require non-trivial cleaning. The Goyal-Welch [@goyal.2008] ma
 
 For empirical asset pricing work, WRDS is the gold-standard source of return and accounting panels. WRDS data are proprietary, so an institutional subscription and credentials are required. [tidyfinance]{.pkg} handles this once: `set_wrds_credentials()` prompts for the username and password and stores them in a project-specific or global `.Renviron` file and additionally asks the user to add it to `.gitignore` to prevent credential leakage. Subsequent `download_data()` calls open the database connection automatically.
 
-`download_data()` applies standard cleaning conventions following @scheuch.2023 automatically. For CRSP monthly data, the function restricts the universe to common equity securities traded on NYSE, AMEX (now NYSE American), or NASDAQ. It computes market capitalization as shares outstanding times price, constructs a one-month lag for portfolio weights, and maps exchange codes and SIC codes to readable labels. Excess returns are raw returns minus the Fama-French risk-free rate (the 1-month US T-bill); observations with missing returns or market capitalization are dropped. Delisting returns are incorporated directly, eliminating the need for a separate adjustment. The function defaults to the CRSP 2.0 layout introduced in February 2024; passing `version = "v1"` returns the legacy layout for replication of studies built on the earlier release.
+`download_data()` applies standard cleaning conventions following @scheuch.2023 automatically. For CRSP monthly data, the function restricts the universe to common equity securities traded on NYSE, AMEX (now NYSE American), or NASDAQ. It computes market capitalization as shares outstanding times price, constructs a one-month lag for portfolio weights, and maps exchange codes and Standard Industrial Classification (SIC) codes to readable labels. Excess returns are raw returns minus the Fama-French risk-free rate (the 1-month US T-bill); observations with missing returns or market capitalization are dropped. Delisting returns are incorporated directly, eliminating the need for a separate adjustment. The function defaults to the CRSP 2.0 layout introduced in February 2024; passing `version = "v1"` returns the legacy layout for replication of studies built on the earlier release.
 
 For Compustat annual data, `download_data()` restricts to industrial-format consolidated statements and retains only the most recent observation per firm-year. It constructs book equity in priority order: stockholders' equity when available, else common equity plus preferred stock, else total assets minus total liabilities. The function adds back deferred taxes and investment tax credits, and subtracts the book value of preferred stock.
 
@@ -1319,6 +1325,11 @@ ls_row <- factor_returns_ag |>
 univariate_sort_table <- bind_rows(quintile_stats, ls_row)
 ```
 
+```{=latex}
+\begingroup
+\small
+```
+
 ```{r}
 #| label: tbl-univariate-sort-ag
 #| tbl-cap: "Time-series averages of annualized monthly excess returns for asset growth quintile portfolios. Portfolios are formed annually in July using NYSE breakpoints. Means are annualized (multiplied by 12). The $t$~statistic tests whether the mean monthly excess return differs from zero. VW denotes value-weighted, EW equal-weighted, and VWC capped value-weighted (weights above the 80th percentile pulled back to that cap). The L/S row is the long-short portfolio (bottom minus top quintile)."
@@ -1332,14 +1343,18 @@ univariate_sort_table |>
     linesep = "",
     col.names = c(
       "Portfolio",
-      "VW Mean",
-      "VW $t$",
-      "EW Mean",
-      "EW $t$",
-      "VWC Mean",
-      "VWC $t$"
+      "VW mean",
+      "VW $t$~statistic",
+      "EW mean",
+      "EW $t$~statistic",
+      "VWC mean",
+      "VWC $t$~statistic"
     )
   )
+```
+
+```{=latex}
+\endgroup
 ```
 
 The value-weighted long-short portfolio earns `{r} round(mean(factor_returns_ag$ret_excess_vw, na.rm = TRUE) * 12 * 100, 1)`% per year ($t$~statistic of `{r} round(mean(factor_returns_ag$ret_excess_vw, na.rm = TRUE) / (sd(factor_returns_ag$ret_excess_vw, na.rm = TRUE) / sqrt(sum(!is.na(factor_returns_ag$ret_excess_vw)))), 2)`), consistent with the negative premium documented by @cooper.2008. The equal-weighted spread is larger, as expected for characteristics that correlate with size. The monotone decline of value-weighted means across quintiles confirms that `tidyfinance` reproduces the literature result from raw WRDS data with a single function call.
@@ -1426,24 +1441,29 @@ customized_comparison_table <- bind_rows(
     drop_na() |>
     summarize(
       Specification = "Baseline (univariate, no filters)",
-      `VW Mean` = mean(ret_excess_vw) * 12,
-      `VW $t$` = mean(ret_excess_vw) / (sd(ret_excess_vw) / sqrt(n()))
+      `VW mean` = mean(ret_excess_vw) * 12,
+      `VW $t$~statistic` = mean(ret_excess_vw) / (sd(ret_excess_vw) / sqrt(n()))
     ),
   factor_returns_bivariate |>
     drop_na() |>
     summarize(
       Specification = "Bivariate only (size-controlled, no filters)",
-      `VW Mean` = mean(ret_excess_vw) * 12,
-      `VW $t$` = mean(ret_excess_vw) / (sd(ret_excess_vw) / sqrt(n()))
+      `VW mean` = mean(ret_excess_vw) * 12,
+      `VW $t$~statistic` = mean(ret_excess_vw) / (sd(ret_excess_vw) / sqrt(n()))
     ),
   factor_returns_customized |>
     drop_na() |>
     summarize(
       Specification = "Customized (size-controlled, filtered)",
-      `VW Mean` = mean(ret_excess_vw) * 12,
-      `VW $t$` = mean(ret_excess_vw) / (sd(ret_excess_vw) / sqrt(n()))
+      `VW mean` = mean(ret_excess_vw) * 12,
+      `VW $t$~statistic` = mean(ret_excess_vw) / (sd(ret_excess_vw) / sqrt(n()))
     )
 )
+```
+
+```{=latex}
+\begingroup
+\small
 ```
 
 ```{r}
@@ -1460,11 +1480,15 @@ customized_comparison_table |>
   )
 ```
 
+```{=latex}
+\endgroup
+```
+
 For researchers who want even finer control, the package exposes the lower-level building blocks (`filter_sorting_data()`, `compute_breakpoints()`, `assign_portfolio()`, `compute_portfolio_returns()`) as standalone functions. They share signatures and semantics with `implement_portfolio_sort()`, so an analysis that prototypes against the wrapper can be unrolled into its components without rewriting the pipeline. This separation is convenient when custom logic, for example, computing breakpoints separately within each industry, or from a trailing window of past data rather than the contemporaneous cross-section, needs to be applied at one of the stages only.
 
 #### Asset pricing tests {#sec-fama-macbeth}
  
-A long-short return is one summary of whether asset growth predicts the cross-section of returns. A complementary view comes from Fama-MacBeth regressions [@fama.1973], which estimate the average risk premium attached to a characteristic after running cross-sectional regressions period by period. `tidyfinance` implements the standard procedure in `estimate_fama_macbeth()`, which takes a panel and a model formula, fits one cross-sectional OLS regression per period, and aggregates the period-level coefficients into average risk premia with Newey-West [@newey.1987] standard errors with automatic lag selection.
+A long-short return is one summary of whether asset growth predicts the cross-section of returns. A complementary view comes from Fama-MacBeth regressions [@fama.1973], which estimate the average risk premium attached to a characteristic after running cross-sectional regressions period by period. `tidyfinance` implements the standard procedure in `estimate_fama_macbeth()`, which takes a panel and a model formula, fits one cross-sectional ordinary least squares (OLS) regression per period, and aggregates the period-level coefficients into average risk premia with Newey-West [@newey.1987] standard errors with automatic lag selection.
 
 Here, we winsorize the AG signal at the 1st and 99th percentiles to keep extreme observations from dominating the cross-sectional regressions and pair it with log market capitalization as a size control.
  
@@ -1505,7 +1529,7 @@ fm_results |>
     Variable = factor,
     `Risk premium` = risk_premium,
     SE = standard_error,
-    `$t$~stat` = t_statistic,
+    `$t$~statistic` = t_statistic,
     `N (months)` = n
   ) |>
   knitr::kable(
@@ -1662,7 +1686,7 @@ $$
 r_{i,t} = \alpha_i + \beta_i \, \text{MKT}_t^e + s_i \, \text{SMB}_t + h_i \, \text{HML}_t + \varepsilon_{i,t}
 $$
 
-by ordinary least squares, where $r_{i,t}$ is the long-short return of specification $i$ in month $t$. We report the intercept $\alpha_i$ as the abnormal return that the three-factor model leaves unexplained. @fig-ag-alpha plots the histogram of these alphas across all `{r} format(ag_data|>count(id)|>nrow(), big.mark = ",")` specifications.
+by OLS, where $r_{i,t}$ is the long-short return of specification $i$ in month $t$. We report the intercept $\alpha_i$ as the abnormal return that the three-factor model leaves unexplained. @fig-ag-alpha plots the histogram of these alphas across all `{r} format(ag_data|>count(id)|>nrow(), big.mark = ",")` specifications.
 
 ```{r}
 #| label: ag-alpha-preparation
@@ -1695,7 +1719,7 @@ ag_alpha |>
       format(n_specs, big.mark = ","),
       "specifications"
     ),
-    subtitle = "FF3 alpha"
+    subtitle = "Fama-French three-factor alpha"
   )
 ```
 
@@ -1717,7 +1741,7 @@ pkg_version <- function(pkg) renv_lock$Packages[[pkg]]$Version
 r_version <- renv_lock$R$Version
 ```
 
-We obtained the results in this paper using [R]{.proglang} `{r} r_version` with the following packages: [tidyfinance]{.pkg} `{r} pkg_version("tidyfinance")`, [dplyr]{.pkg} `{r} pkg_version("dplyr")`, [tidyr]{.pkg} `{r} pkg_version("tidyr")`, [ggplot2]{.pkg} `{r} pkg_version("ggplot2")`, [lubridate]{.pkg} `{r} pkg_version("lubridate")`, [arrow]{.pkg} `{r} pkg_version("arrow")`, and [knitr]{.pkg} `{r} pkg_version("knitr")`. CRAN hosts [R]{.proglang} and all packages at [https://CRAN.R-project.org/](https://CRAN.R-project.org/). [renv]{.pkg} `{r} pkg_version("renv")` ensures full reproducibility of the computational environment. Reproducing the factor return data requires an institutional subscription to WRDS, as the underlying CRSP and Compustat data are proprietary and cannot be redistributed. A synthetic-data path with identical schema is available via `download_data(domain = "pseudo", ...)` for readers without WRDS access; see @sec-data-download.
+We obtained the results in this paper using [R]{.proglang} `{r} r_version` with the following packages: [tidyfinance]{.pkg} `{r} pkg_version("tidyfinance")`, [dplyr]{.pkg} `{r} pkg_version("dplyr")` [@dplyr], [tidyr]{.pkg} `{r} pkg_version("tidyr")` [@tidyr], [ggplot2]{.pkg} `{r} pkg_version("ggplot2")` [@ggplot2], [lubridate]{.pkg} `{r} pkg_version("lubridate")` [@lubridate], [arrow]{.pkg} `{r} pkg_version("arrow")` [@arrow], and [knitr]{.pkg} `{r} pkg_version("knitr")` [@knitr]. We install development versions of [tidyfinance]{.pkg} with [pak]{.pkg} `{r} pkg_version("pak")` [@pak]. Figures additionally use [ggforce]{.pkg} `{r} pkg_version("ggforce")` [@ggforce], [scales]{.pkg} `{r} pkg_version("scales")` [@scales], [patchwork]{.pkg} `{r} pkg_version("patchwork")` [@patchwork], and [glue]{.pkg} `{r} pkg_version("glue")` [@glue]. CRAN hosts [R]{.proglang} and all packages at [https://CRAN.R-project.org/](https://CRAN.R-project.org/). [renv]{.pkg} `{r} pkg_version("renv")` [@renv] ensures full reproducibility of the computational environment. Reproducing the factor return data requires an institutional subscription to WRDS, as the underlying CRSP and Compustat data are proprietary and cannot be redistributed. A synthetic-data path with identical schema is available via `download_data(domain = "pseudo", ...)` for readers without WRDS access; see @sec-data-download.
 
 Reproducing this manuscript takes about 15 minutes on a laptop: `quarto render jss-manuscript.qmd` pulls the precomputed factor library via `download_data()` and uses the WRDS subset described in @sec-data-download, or pseudo data of identical schema for readers without WRDS access.
 
@@ -2079,7 +2103,7 @@ O_{t} = &- 1.32 - 0.407 \cdot \log(AT_{t}) + 6.03 \cdot \frac{DLC_{t} + DLTT_{t}
 \end{align*}
 
 where AT corresponds to total assets, DLC to short-term debt, DLTT to long-term debt, ACT to current assets, LCT to current liabilities, LT to total liabilities, PI to pretax income, DP to depreciation and amortization, and NI to net income.
-We winsorize all variables except for dummy variables at the first and 99$^\text{th}$ percentile of their respective distribution.
+We winsorize all variables except for dummy variables at the first and 99$\text{th}$ percentile of their respective distribution.
 
 **OPE - Operating Profits to Book Equity**
 
