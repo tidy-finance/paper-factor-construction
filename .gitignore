@@ -1,11 +1,2 @@
-.Rproj.user
-.Rhistory
-.RData
-.Ruserdata
-factor-library-data/
-data/
 bash.sh
 .Renviron
-.claude/settings.local.json
-.vscode/
-/jss-manuscript_*
