@@ -419,7 +419,7 @@ download_data(
 )
 ```
 
-Similarly, we can fetch the Fama-French three-factor data from Ken French's Data Library with a single call (internally, [tidyfinance]{.pkg} relies on [frenchdata]{.pkg} [@frenchdata.2021] to download and parse the published archives):
+Similarly, we can fetch the Fama-French three-factor data from Ken French's Data Library with a single call to download and parse the published archives):
 ```{r}
 #| label: example-ff-factors
 ff_factors <- download_data(
@@ -1043,7 +1043,11 @@ p1 +
   plot_annotation(
     title = "Portfolio sort approaches",
     subtitle = paste0(
-      "Simulated cross-section: ", n_portfolio, "×", n_portfolio, " portfolios"
+      "Simulated cross-section: ",
+      n_portfolio,
+      "×",
+      n_portfolio,
+      " portfolios"
     ),
     theme = theme(
       plot.title = element_text(face = "bold"),
