@@ -1877,8 +1877,6 @@ Stefan Voigt is grateful to the Danish Finance Institute for financial support.
 
 ## Variable construction {#sec-variable-details}
 
-In this section, we show the construction details for the risk factors. We group them by their underlying mechanism as shown in @tbl-sorting-variables.
-
 ### Financing
 
 **CDI - Composite Debt Issuance**
