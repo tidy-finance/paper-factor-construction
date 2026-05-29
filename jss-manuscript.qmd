@@ -1042,8 +1042,8 @@ p1 +
   plot_layout(guides = "collect", axes = "collect_y") +
   plot_annotation(
     title = "Portfolio sort approaches",
-    subtitle = glue::glue(
-      "Simulated cross-section: {n_portfolio}×{n_portfolio} portfolios"
+    subtitle = paste0(
+      "Simulated cross-section: ", n_portfolio, "×", n_portfolio, " portfolios"
     ),
     theme = theme(
       plot.title = element_text(face = "bold"),
@@ -1842,7 +1842,7 @@ pkg_version <- function(pkg) {
 r_version <- renv_lock$R$Version
 ```
 
-We obtained the results in this paper using [R]{.proglang} `{r} r_version` with the following packages: [tidyfinance]{.pkg} `{r} pkg_version("tidyfinance")`, [dplyr]{.pkg} `{r} pkg_version("dplyr")` [@dplyr], [tidyr]{.pkg} `{r} pkg_version("tidyr")` [@tidyr], [ggplot2]{.pkg} `{r} pkg_version("ggplot2")` [@ggplot2], [lubridate]{.pkg} `{r} pkg_version("lubridate")` [@lubridate], and [arrow]{.pkg} `{r} pkg_version("arrow")` [@arrow]. We install development versions of [tidyfinance]{.pkg} with [pak]{.pkg} `{r} pkg_version("pak")` [@pak]. Figures additionally use [ggforce]{.pkg} `{r} pkg_version("ggforce")` [@ggforce], [scales]{.pkg} `{r} pkg_version("scales")` [@scales], [patchwork]{.pkg} `{r} pkg_version("patchwork")` [@patchwork], and [glue]{.pkg} `{r} pkg_version("glue")` [@glue]. CRAN hosts [R]{.proglang} and all packages at [https://CRAN.R-project.org/](https://CRAN.R-project.org/). [renv]{.pkg} `{r} pkg_version("renv")` [@renv] ensures full reproducibility of the computational environment. Reproducing the factor return data requires an institutional subscription to WRDS, as the underlying CRSP and Compustat data are proprietary and cannot be redistributed. A synthetic-data path with identical schema is available via `download_data(domain = "pseudo", ...)` for readers without WRDS access; see @sec-data-download.
+We obtained the results in this paper using [R]{.proglang} `{r} r_version` with the following packages: [tidyfinance]{.pkg} `{r} pkg_version("tidyfinance")`, [dplyr]{.pkg} `{r} pkg_version("dplyr")` [@dplyr], [tidyr]{.pkg} `{r} pkg_version("tidyr")` [@tidyr], [ggplot2]{.pkg} `{r} pkg_version("ggplot2")` [@ggplot2], and [lubridate]{.pkg} `{r} pkg_version("lubridate")` [@lubridate]. We install development versions of [tidyfinance]{.pkg} with [pak]{.pkg} `{r} pkg_version("pak")` [@pak]. Figures additionally use [ggforce]{.pkg} `{r} pkg_version("ggforce")` [@ggforce], [scales]{.pkg} `{r} pkg_version("scales")` [@scales], and [patchwork]{.pkg} `{r} pkg_version("patchwork")` [@patchwork]. CRAN hosts [R]{.proglang} and all packages at [https://CRAN.R-project.org/](https://CRAN.R-project.org/). [renv]{.pkg} `{r} pkg_version("renv")` [@renv] ensures full reproducibility of the computational environment. Reproducing the factor return data requires an institutional subscription to WRDS, as the underlying CRSP and Compustat data are proprietary and cannot be redistributed. A synthetic-data path with identical schema is available via `download_data(domain = "pseudo", ...)` for readers without WRDS access; see @sec-data-download.
 
 Reproducing this manuscript takes about 15 minutes: `quarto render jss-manuscript.qmd` pulls the precomputed factor library via `download_data()` and uses the WRDS subset described in @sec-data-download, or pseudo data of identical schema for readers without WRDS access. Timings reported here are obtained on Windows 11 x64 (build 26200) with a 16-core processor running [R]{.proglang} 4.5.2; WRDS extracts are not pre-cached, so the 15-minute figure includes the time to download the underlying CRSP and Compustat panels.
 
