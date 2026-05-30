@@ -231,10 +231,10 @@ The empirical asset pricing workflow decomposes into three stages: data acquisit
 | `join_lagged_values()`                   | Merges lagged values from a source panel into a target panel using  |
 |                                          | the same windowing logic.                                           |
 +------------------------------------------+---------------------------------------------------------------------+
-| `winsorize()`                            | Replaces values outside the $q$th and $(1-q)$th percentiles with    |
+| `winsorize()`                            | Replaces values outside the $q$-th and $(1-q)$-th percentiles with  |
 |                                          | the corresponding quantile.                                         |
 +------------------------------------------+---------------------------------------------------------------------+
-| `trim()`                                 | Sets values outside the $q$th and $(1-q)$th percentiles to `NA`.    |
+| `trim()`                                 | Sets values outside the $q$-th and $(1-q)$-th percentiles to `NA`.  |
 +------------------------------------------+---------------------------------------------------------------------+
 | `compute_rolling_value()`                | Applies an aggregation function over a calendar-time rolling        |
 |                                          | window.                                                             |
@@ -260,7 +260,7 @@ The empirical asset pricing workflow decomposes into three stages: data acquisit
 +------------------------------------------+---------------------------------------------------------------------+
 | `estimate_fama_macbeth()`                | Runs cross-sectional ordinary least squares (OLS) regressions each  |
 |                                          | period and aggregates into average risk premia with Newey-West      |
-|                                          | standard errors.                                                    |
+|                                          | standard errors [@newey.1987].                                      |
 +------------------------------------------+---------------------------------------------------------------------+
 | `estimate_betas()`                       | Estimates rolling-window market betas for each asset.               |
 +------------------------------------------+---------------------------------------------------------------------+
@@ -906,7 +906,7 @@ ggplot() +
   theme(plot.margin = margin(5, 10, 5, 10))
 ```
 
-A handful of additional helpers cover routine operations that recur across empirical studies. `winsorize()` and `trim()` handle outliers in cross-sectional variables: the former symmetrically replaces values below the $q$th and above the $(1-q)$th percentile with the corresponding quantile values, while the latter sets them to `NA`. `estimate_model()` fits a linear model from a formula string and returns the coefficients as a tidy one-row data frame, which composes naturally with `group_by()` for grouped or rolling regressions such as estimating time-series factor exposures stock by stock. `compute_rolling_value()` applies an arbitrary aggregation function over a rolling window defined in calendar time rather than row counts, accommodating irregular observation frequencies and missing periods.
+A handful of additional helpers cover routine operations that recur across empirical studies. `winsorize()` and `trim()` handle outliers in cross-sectional variables: the former symmetrically replaces values below the $q$-th and above the $(1-q)$-th percentile with the corresponding quantile values, while the latter sets them to `NA`. `estimate_model()` fits a linear model from a formula string and returns the coefficients as a tidy one-row data frame, which composes naturally with `group_by()` for grouped or rolling regressions such as estimating time-series factor exposures stock by stock. `compute_rolling_value()` applies an arbitrary aggregation function over a rolling window defined in calendar time rather than row counts, accommodating irregular observation frequencies and missing periods.
 
 ### Portfolio sorting {#sec-portfolio-sorting}
 
@@ -1095,7 +1095,7 @@ Before the first WRDS download, call `set_wrds_credentials()` to store WRDS cred
 ```{r}
 #| label: set-data-domain
 data_domain <- "wrds"
-data_domain <- "pseudo"
+data_domain <- "pseudo" ## !!!!! remove before submitting !!!!!
 ```
 
 We restrict the sample to the period from 1972 onward because Compustat coverage is often incomplete before that date, and we end the sample at 2024, the most recent full calendar year at the time of writing.
@@ -1557,7 +1557,7 @@ Researchers who want finer-grained control can call the lower-level portfolio-so
 
 #### Asset pricing tests {#sec-fama-macbeth}
  
-A long-short return is one summary of whether asset growth predicts the cross-section of returns. A complementary view comes from Fama-MacBeth regressions [@fama.1973], which estimate the average risk premium attached to a characteristic after running cross-sectional regressions period by period. [tidyfinance]{.pkg} implements the standard procedure in `estimate_fama_macbeth()`, which takes a panel and a model formula, fits one cross-sectional ordinary least squares (OLS) regression per period, and aggregates the period-level coefficients into average risk premia with Newey-West [@newey.1987] standard errors with automatic lag selection.
+A long-short return is one summary of whether asset growth predicts the cross-section of returns. A complementary view comes from Fama-MacBeth regressions [@fama.1973], which estimate the average risk premium attached to a characteristic after running cross-sectional regressions period by period. [tidyfinance]{.pkg} implements the standard procedure in `estimate_fama_macbeth()`, which takes a panel and a model formula, fits one cross-sectional ordinary least squares (OLS) regression per period, and aggregates the period-level coefficients into average risk premia with Newey-West standard errors with automatic lag selection.
 
 Here, we winsorize the AG signal at the 1st and 99th percentiles to keep extreme observations from dominating the cross-sectional regressions and pair it with log market capitalization as a size control.
  
