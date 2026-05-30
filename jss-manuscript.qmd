@@ -288,14 +288,16 @@ The empirical asset pricing workflow decomposes into three stages: data acquisit
 | Ken French's      | Fama-French 169+ factor models, | ```                                   |
 | Data Library      | portfolios, industry            | download_data(                        |
 |                   | classifications                 |   domain = "factors_ff",              |
-|                   |                                 |   dataset = "Fama/French 3 Factors"   |
+|                   |                                 |   dataset =                           |
+|                   |                                 |     "Fama/French 3 Factors"           |  
 |                   |                                 | )                                     |
 |                   |                                 | ```                                   |
 +-------------------+---------------------------------+---------------------------------------+
 | Global Q          | Hou-Xue-Zhang Q5 factor model   | ```                                   |
 |                   | (market, size, investment, ROE) | download_data(                        |
 |                   | at multiple frequencies         |   domain = "globalq",                 |
-|                   |                                 |   dataset = "factors_q5_monthly"      |
+|                   |                                 |   dataset =                           |
+|                   |                                 |     "factors_q5_monthly"              |
 |                   |                                 | )                                     |
 |                   |                                 | ```                                   |
 +-------------------+---------------------------------+---------------------------------------+
@@ -336,7 +338,8 @@ The empirical asset pricing workflow decomposes into three stages: data acquisit
 | High-Frequency    | 5-second frequency data         | ```                                   |
 |                   | for S&P 500 constituents        | download_data(                        |
 |                   |                                 |   domain = "tidyfinance",             |
-|                   |                                 |   dataset = "high_frequency_sp500"    |
+|                   |                                 |   dataset =                           |
+|                   |                                 |     "high_frequency_sp500"            |      
 |                   |                                 | )                                     |
 |                   |                                 | ```                                   |
 +-------------------+---------------------------------+---------------------------------------+
@@ -1092,6 +1095,7 @@ Before the first WRDS download, call `set_wrds_credentials()` to store WRDS cred
 ```{r}
 #| label: set-data-domain
 data_domain <- "wrds"
+data_domain <- "pseudo"
 ```
 
 We restrict the sample to the period from 1972 onward because Compustat coverage is often incomplete before that date, and we end the sample at 2024, the most recent full calendar year at the time of writing.
