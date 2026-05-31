@@ -1078,7 +1078,6 @@ Before the first WRDS download, call `set_wrds_credentials()` to store WRDS cred
 ```{r}
 #| label: set-data-domain
 data_domain <- "wrds"
-data_domain <- "pseudo" ## !!!!! remove before submitting !!!!!
 ```
 
 We restrict the sample to the period from 1972 onward because Compustat coverage is often incomplete before that date, and we end the sample at 2024, the most recent full calendar year at the time of writing.
