@@ -158,6 +158,11 @@ portfolio_sort_grid <- tidyfinance::download_data(
   "tidyfinance",
   "factor_library_grid"
 )
+
+n_specifications_candidate <- portfolio_sort_grid |>
+  dplyr::count(sorting_variable) |>
+  dplyr::pull(n) |>
+  max() * nrow(sorting_variable_information)
 ```
 
 ## Introduction {#sec-intro}
@@ -1642,7 +1647,9 @@ tibble::tribble(
   )
 ```
 
-The factor library covers `{r} format(nrow(sorting_variable_information), big.mark = ",")` sorting variables. The selection follows @jensen.2023. @tbl-sorting-variables lists all variables with their long-short direction and primary reference; @sec-variable-details in the Appendix documents the construction of each variable. Each variable runs through every valid combination of the choices in @tbl-sorting-decisions, producing `{r} format(nrow(portfolio_sort_grid), big.mark = ",")` factor return series in total.
+The factor library covers `{r} format(nrow(sorting_variable_information), big.mark = ",")` sorting variables. The selection follows @jensen.2023. @tbl-sorting-variables lists all variables with their long-short direction and primary reference; @sec-variable-details in the Appendix documents the construction of each variable. Each variable runs through every valid combination of the choices in @tbl-sorting-decisions, producing `{r} format(nrow(portfolio_sort_grid), big.mark = ",")` factor return series in total.[^valid-grid]
+
+[^valid-grid]: Crossing every choice in @tbl-sorting-decisions across the `{r} format(nrow(sorting_variable_information), big.mark = ",")` sorting variables defines `{r} format(n_specifications_candidate, big.mark = ",")` candidate specifications, once the secondary size dimension is collapsed for univariate sorts, where it does not apply. Two variable-specific restrictions account for the remaining gap. Market Equity is excluded from the two bivariate sorts, because size already serves as the secondary sort variable, and Earnings-to-Market is excluded from specifications that retain firms with negative earnings, because a negative denominator inverts the characteristic's ranking. The result is the `{r} format(nrow(portfolio_sort_grid), big.mark = ",")` valid series reported here.
 
 ```{r}
 #| label: tbl-sorting-variables
