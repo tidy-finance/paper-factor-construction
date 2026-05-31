@@ -2541,7 +2541,7 @@
     },
     "tidyfinance": {
       "Package": "tidyfinance",
-      "Version": "0.5.0.9006",
+      "Version": "0.6.0.9000",
       "Source": "GitHub",
       "Type": "Package",
       "Title": "Tidy Finance Helper Functions",
@@ -2588,7 +2588,7 @@
       "RemoteUsername": "tidy-finance",
       "RemoteRepo": "r-tidyfinance",
       "RemoteRef": "HEAD",
-      "RemoteSha": "4d3b53b8893189dacd7eb15c616ff4f20dd59de1",
+      "RemoteSha": "c52f29533c283b25d2a88e136ee02f66b40b4a76",
       "RemoteHost": "api.github.com"
     },
     "tidyr": {
