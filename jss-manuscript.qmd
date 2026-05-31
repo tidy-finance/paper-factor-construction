@@ -441,7 +441,7 @@ The second mode, enabled by `ff_adjustment = TRUE` and shown in Panel B of @fig-
 #| label: fig-lagging-illustration
 #| fig-cap: "Two lagging mechanisms in `add_lagged_columns()`. Each row represents a data series with observed (filled) and missing (hollow) cells. The dashed rectangle marks the search window from the perspective of the most recent observation (the top row); arrows show which value gets matched to each target month. Panel A (`ff_adjustment = FALSE`) returns the most recent observed value within a window bounded by `lag` and `max_lag`. Panel B (`ff_adjustment = TRUE`) implements the Fama-French convention, where the lagged value updates only at the June/July boundary and is held constant for the next twelve months."
 #| fig-width: 6.5
-#| fig-height: 3.2
+#| fig-height: 4
 #| out-width: "100%"
 #| fig-pos: "H"
 #| echo: false
@@ -753,8 +753,8 @@ ggplot() +
   # --- Panel headers (above each panel of tiles) -----------------------------
   annotate(
     "text",
-    x = x_std + ts / 2 + 0.25,
-    y = 1,
+    x = x_std + ts / 2 + 0.35,
+    y = 0.1,
     label = "Panel A",
     color = "grey30",
     size = 3.6,
@@ -763,8 +763,8 @@ ggplot() +
   ) +
   annotate(
     "text",
-    x = x_ff + ts / 2 + 0.25,
-    y = 1,
+    x = x_ff + ts / 2 + 0.35,
+    y = 0.1,
     label = "Panel B",
     color = "grey30",
     size = 3.6,
