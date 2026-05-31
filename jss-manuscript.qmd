@@ -1086,13 +1086,13 @@ Before the first WRDS download, call `set_wrds_credentials()` to store WRDS cred
 data_domain <- "wrds"
 ```
 
-We restrict the sample to the period from 1972 onward because Compustat coverage is often incomplete before that date, and we end the sample at 2024, the most recent full calendar year at the time of writing.
-
 ```{r}
 #| label: set-date-range
 date_start <- as.Date("1972-01-01")
 date_end <- as.Date("2024-12-31")
 ```
+
+We restrict the sample to the period from `{r} year(date_start)` onward because Compustat coverage is often incomplete before that date, and we end the sample at `{r} year(date_end)`, the most recent full calendar year at the time of writing.
 
 First, we download monthly stock returns from CRSP. Setting `add_ccm_links = TRUE` appends CRSP-Compustat linking identifiers needed to merge with financial statement data in the next step.
 
@@ -1156,7 +1156,7 @@ sorting_variable_data <- compustat_annual |>
 
 The call relies on two silent defaults: `max_lag` falls back to `lag` (here one year), so only the single observation exactly one year before each row is eligible; `ff_adjustment = FALSE`, so the look-back is the plain calendar window rather than the Fama-French June/July rebalancing convention introduced in @sec-variable-construction.
 
-`sorting_variable_data` contains one observation per firm-year, the natural unit for cross-sectional analysis of annual accounting variables. Asset growth is heavily right-skewed: a small number of firms with dramatic balance-sheet expansions generate extreme positive values. @tbl-ag-summary reports the pooled cross-sectional summary alongside the time-series average, minimum, and maximum of the corresponding statistic computed cross-sectionally each year.^[The pooled count of 52,000 firm-years is below the 53,000 downloaded in Section 4.1 because the one-year lag in the asset-growth construction drops each firm's first observation.] We obtain both views with `create_summary_statistics()`, a [tidyfinance]{.pkg} helper that returns the standard set of cross-sectional summary statistics for a variable: applied to the pooled (winsorized) sample for the first column and grouped by calendar year for the next three. @tbl-ag-summary assembles the two computations side by side.
+`sorting_variable_data` contains one observation per firm-year, the natural unit for cross-sectional analysis of annual accounting variables. Asset growth is heavily right-skewed: a small number of firms with dramatic balance-sheet expansions generate extreme positive values. @tbl-ag-summary reports the pooled cross-sectional summary alongside the time-series average, minimum, and maximum of the corresponding statistic computed cross-sectionally each year.^[The pooled count of `{r} format(sum(!is.na(sorting_variable_data$asset_growth)), big.mark = ",")` firm-years is below the `{r} format(nrow(compustat_annual), big.mark = ",")` downloaded in @sec-data-download because the one-year lag in the asset-growth construction drops each firm's first observation.] We obtain both views with `create_summary_statistics()`, a [tidyfinance]{.pkg} helper that returns the standard set of cross-sectional summary statistics for a variable: applied to the pooled (winsorized) sample for the first column and grouped by calendar year for the next three. @tbl-ag-summary assembles the two computations side by side.
 
 ```{r}
 #| label: ag-summary-prep
@@ -1598,7 +1598,7 @@ fm_results |>
   )
 ```
  
-The negative slope on `asset_growth` lines up with the long-short evidence in @tbl-univariate-sort-ag and @tbl-customized-comparison: high-AG firms earn lower subsequent returns, conditional on size. As an external benchmark, @cooper.2008 [Table III, Panel A, Model 1] reports a Fama-MacBeth slope on annual ASSETG of −0.0922 ($t$~statistic of −6.52). Converted to a monthly basis and sign-flipped, this is approximately 0.0077 $(=-1\cdot(−0.0922/12))$, directly comparable to the magnitude of the AG coefficient in our table.[^cooper-fm-controls] Switching to `vcov = "iid"` or supplying `vcov_options = list(lag = 6, prewhite = FALSE)` would change the standard-error treatment without altering the rest of the call, and adding additional regressors (a beta estimate from `estimate_betas()`, a profitability measure, an idiosyncratic-volatility control) is a one-line extension to the model formula. The same function therefore covers the standard cross-sectional asset-pricing test that complements the portfolio-sort evidence used throughout the rest of the paper.
+The negative slope on `asset_growth` lines up with the long-short evidence in @tbl-univariate-sort-ag and @tbl-customized-comparison: high-AG firms earn lower subsequent returns, conditional on size. As an external benchmark, @cooper.2008 [Table III, Panel A, Model 1] reports a Fama-MacBeth slope on annual ASSETG of −0.0922 ($t$~statistic of −6.52). Converted to a monthly basis and sign-flipped, this is approximately `{r} round(-1 * (-0.0922 / 12), 4)` $(=-1\cdot(−0.0922/12))$, directly comparable to the magnitude of the AG coefficient in our table.[^cooper-fm-controls] Switching to `vcov = "iid"` or supplying `vcov_options = list(lag = 6, prewhite = FALSE)` would change the standard-error treatment without altering the rest of the call, and adding additional regressors (a beta estimate from `estimate_betas()`, a profitability measure, an idiosyncratic-volatility control) is a one-line extension to the model formula. The same function therefore covers the standard cross-sectional asset-pricing test that complements the portfolio-sort evidence used throughout the rest of the paper.
 
 [^cooper-fm-controls]: @cooper.2008 additionally controls for book-to-market and 6- and 36-month past returns, both negatively correlated with AG.
 
@@ -1766,16 +1766,19 @@ ag_alpha <- ag_data |>
   )) |>
   select(id, alpha = intercept) |>
   mutate(alpha = alpha * 12)
+
+# Cooper (2008, Table II, Panel C, All Firms) value-weighted decile FF3 alpha,
+# sign-flipped to the bottom-minus-top convention.
+cooper_vw_alpha <- 0.084
 ```
 
 ```{r}
 #| label: fig-ag-alpha
-#| fig-cap: !expr 'paste0("Distribution of asset-growth Fama-French three-factor alphas across construction choices. The histogram shows annualized alphas (monthly intercepts multiplied by 12, expressed in percent on the x-axis) from regressing each of the ", format(ag_data|>count(id)|>nrow(), big.mark = ","), " long-short specifications of the asset-growth factor on the market, size, and value factors, estimated by OLS. The dashed vertical line marks zero. The dotted vertical line marks the value-weighted decile FF3 alpha reported in @cooper.2008 [Table II, Panel C, All Firms], sign-flipped to the bottom-minus-top convention: 8.4\\% per year over July 1968 to June 2003. Specifications vary as listed in @tbl-sorting-decisions. Sample: ", year(date_start), "--", year(date_end), ".")'
+#| fig-cap: !expr 'paste0("Distribution of asset-growth Fama-French three-factor alphas across construction choices. The histogram shows annualized alphas (monthly intercepts multiplied by 12, expressed in percent on the x-axis) from regressing each of the ", format(ag_data|>count(id)|>nrow(), big.mark = ","), " long-short specifications of the asset-growth factor on the market, size, and value factors, estimated by OLS. The dashed vertical line marks zero. The dotted vertical line marks the value-weighted decile FF3 alpha reported in @cooper.2008 [Table II, Panel C, All Firms], sign-flipped to the bottom-minus-top convention: ", cooper_vw_alpha * 100, "\\% per year over July 1968 to June 2003. Specifications vary as listed in @tbl-sorting-decisions. Sample: ", year(date_start), "--", year(date_end), ".")'
 #| fig-width: 6.5
 #| echo: false
 #| out-width: "100%"
 n_specs <- nrow(ag_alpha)
-cooper_vw_alpha <- 0.084
 
 ag_alpha |>
   ggplot(aes(x = alpha)) +
@@ -1842,7 +1845,7 @@ r_version <- renv_lock$R$Version
 
 We obtained the results in this paper using [R]{.proglang} `{r} r_version` with the following packages: [tidyfinance]{.pkg} `{r} pkg_version("tidyfinance")`, [dplyr]{.pkg} `{r} pkg_version("dplyr")` [@dplyr], [tidyr]{.pkg} `{r} pkg_version("tidyr")` [@tidyr], [ggplot2]{.pkg} `{r} pkg_version("ggplot2")` [@ggplot2], and [lubridate]{.pkg} `{r} pkg_version("lubridate")` [@lubridate]. We install development versions of [tidyfinance]{.pkg} with [pak]{.pkg} `{r} pkg_version("pak")` [@pak]. Figures additionally use [ggforce]{.pkg} `{r} pkg_version("ggforce")` [@ggforce], [scales]{.pkg} `{r} pkg_version("scales")` [@scales], and [patchwork]{.pkg} `{r} pkg_version("patchwork")` [@patchwork]. CRAN hosts [R]{.proglang} and all packages at [https://CRAN.R-project.org/](https://CRAN.R-project.org/). [renv]{.pkg} `{r} pkg_version("renv")` [@renv] ensures full reproducibility of the computational environment. Reproducing the factor return data requires an institutional subscription to WRDS, as the underlying CRSP and Compustat data are proprietary and cannot be redistributed. A synthetic-data path with identical schema is available via `download_data(domain = "pseudo", ...)` for readers without WRDS access; see @sec-data-download.
 
-Reproducing this manuscript takes about 15 minutes: `quarto render jss-manuscript.qmd` pulls the precomputed factor library via `download_data()` and uses the WRDS subset described in @sec-data-download, or pseudo data of identical schema for readers without WRDS access. Timings reported here are obtained on Windows 11 x64 (build 26200) with a 16-core processor running [R]{.proglang} 4.5.2; WRDS extracts are not pre-cached, so the 15-minute figure includes the time to download the underlying CRSP and Compustat panels.
+Reproducing this manuscript takes about 15 minutes: `quarto render jss-manuscript.qmd` pulls the precomputed factor library via `download_data()` and uses the WRDS subset described in @sec-data-download, or pseudo data of identical schema for readers without WRDS access. Timings reported here are obtained on Windows 11 x64 (build 26200) with a 16-core processor running [R]{.proglang} `{r} r_version`; WRDS extracts are not pre-cached, so the 15-minute figure includes the time to download the underlying CRSP and Compustat panels.
 
 We publish all code, data workflows, and documentation at [https://github.com/tidy-finance/jss-multilingual-factor-library](https://github.com/tidy-finance/jss-multilingual-factor-library). The code is released under the MIT License, which is compatible with the GNU General Public License (GPL).
 
