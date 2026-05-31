@@ -162,7 +162,8 @@ portfolio_sort_grid <- tidyfinance::download_data(
 n_specifications_candidate <- portfolio_sort_grid |>
   dplyr::count(sorting_variable) |>
   dplyr::pull(n) |>
-  max() * nrow(sorting_variable_information)
+  max() *
+  nrow(sorting_variable_information)
 ```
 
 ## Introduction {#sec-intro}
