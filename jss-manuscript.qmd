@@ -292,9 +292,9 @@ The empirical asset pricing workflow decomposes into three stages: data acquisit
 |                |                                    | ```                                     |
 +----------------+------------------------------------+-----------------------------------------+
 | Global Q       | Hou-Xue-Zhang Q5 factor model      | ```                                     |
-|                | (market, size, investment, ROE)    | download_data(                          |
-|                | at multiple frequencies            |   domain = "globalq",                   |
-|                |                                    |   dataset =                             |
+|                | (market, size, investment, ROE,    | download_data(                          |
+|                | expected growth) at multiple       |   domain = "globalq",                   |
+|                | frequencies                        |   dataset =                             |
 |                |                                    |     "factors_q5_monthly")               |
 |                |                                    | ```                                     |
 +----------------+------------------------------------+-----------------------------------------+
@@ -417,7 +417,7 @@ ff_factors <- download_data(
 
 The `start_date` and `end_date` arguments generalize across every dataset type in @tbl-data-sources that supports a time dimension.
 
-Public data still require non-trivial cleaning. The Goyal-Welch [@goyal.2008] macroeconomic predictors are a typical case: `download_data(domain = "macro_predictors", dataset = "monthly")` fetches the raw spreadsheet at the requested frequency (set `dataset` to `monthly`, `quarterly`, or `annual`), parses dates from the native `yyyymm`, `yyyyq`, or `yyyy` format, strips comma thousand separators, and coerces character columns to numeric. It then constructs the standard predictors used in the equity-premium prediction literature: the log dividend-price ratio (`dp`), dividend yield (`dy`), earnings-price ratio (`ep`), dividend-payout ratio (`de`), the forward equity risk premium (`rp_div`), the term spread (`tms`), and the default-yield spread (`dfy`). The output is the cleaned panel filtered to the requested date range.
+Public data still need nontrivial cleaning. The Goyal-Welch [@goyal.2008] macroeconomic predictors are a typical case: `download_data(domain = "macro_predictors", dataset = "monthly")` fetches the raw spreadsheet at the requested frequency (set `dataset` to `monthly`, `quarterly`, or `annual`), parses dates from the native `yyyymm`, `yyyyq`, or `yyyy` format, strips comma thousand separators, and coerces character columns to numeric. It then constructs the standard predictors used in the equity-premium prediction literature: the log dividend-price ratio (`dp`), dividend yield (`dy`), earnings-price ratio (`ep`), dividend-payout ratio (`de`), the forward equity risk premium (`rp_div`), the term spread (`tms`), and the default-yield spread (`dfy`). The output is the cleaned panel filtered to the requested date range.
 
 For empirical asset pricing work, WRDS is the gold-standard source of return and accounting panels. WRDS data are proprietary, so an institutional subscription and credentials are required. [tidyfinance]{.pkg} handles this once. `set_wrds_credentials()` prompts for the username and password and stores them in a project-specific or global `.Renviron` file, and prompts the user to add `.Renviron` to `.gitignore` to prevent credential leakage. Subsequent `download_data()` calls open the database connection automatically. Depending on the user's WRDS account settings, `download_data()` may also trigger a two-factor authentication (2FA) challenge that WRDS sends to the registered device; once approved, the connection proceeds normally.
 
@@ -1151,7 +1151,7 @@ sorting_variable_data <- compustat_annual |>
 
 The call relies on two silent defaults: `max_lag` falls back to `lag` (here one year), so only the single observation exactly one year before each row is eligible; `ff_adjustment = FALSE`, so the look-back is the plain calendar window rather than the Fama-French June/July rebalancing convention introduced in @sec-variable-construction.
 
-`sorting_variable_data` contains one observation per firm-year, the natural unit for cross-sectional analysis of annual accounting variables. Asset growth is heavily right-skewed: a small number of firms with dramatic balance-sheet expansions generate extreme positive values. @tbl-ag-summary reports the pooled cross-sectional summary alongside the time-series average, minimum, and maximum of the corresponding statistic computed cross-sectionally each year. We obtain both views with `create_summary_statistics()`, a [tidyfinance]{.pkg} helper that returns the standard set of cross-sectional summary statistics for a variable: applied to the pooled (winsorized) sample for the first column and grouped by calendar year for the next three. @tbl-ag-summary assembles the two computations side by side.
+`sorting_variable_data` contains one observation per firm-year, the natural unit for cross-sectional analysis of annual accounting variables. Asset growth is heavily right-skewed: a small number of firms with dramatic balance-sheet expansions generate extreme positive values. @tbl-ag-summary reports the pooled cross-sectional summary alongside the time-series average, minimum, and maximum of the corresponding statistic computed cross-sectionally each year.^[The pooled count of 52,000 firm-years is below the 53,000 downloaded in Section 4.1 because the one-year lag in the asset-growth construction drops each firm's first observation.] We obtain both views with `create_summary_statistics()`, a [tidyfinance]{.pkg} helper that returns the standard set of cross-sectional summary statistics for a variable: applied to the pooled (winsorized) sample for the first column and grouped by calendar year for the next three. @tbl-ag-summary assembles the two computations side by side.
 
 ```{r}
 #| label: ag-summary-prep
@@ -1637,7 +1637,7 @@ tibble::tribble(
       ">{\\raggedright\\arraybackslash}p{2.4cm}",
       ">{\\raggedright\\arraybackslash}p{3.2cm}",
       ">{\\raggedright\\arraybackslash}p{2.8cm}",
-      ">{\\raggedright\\arraybackslash}p{3.8cm}"
+      ">{\\raggedright\\arraybackslash}p{4.8cm}"
     ),
     col.names = c("Preprocessing choice", "Argument", "Options", "Description")
   )
@@ -1667,7 +1667,7 @@ tab <- sorting_variable_information |>
     col.names = c("Variable", "Name", "", "Main reference")
   )
 
-tab[1] <- sub("llll", "lp{4.5cm}lp{5cm}", tab[1], fixed = TRUE)
+tab[1] <- sub("llll", "lp{5.5cm}lp{6.5cm}", tab[1], fixed = TRUE)
 tab
 ```
 
