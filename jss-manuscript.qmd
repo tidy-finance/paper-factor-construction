@@ -1812,7 +1812,7 @@ Empirical asset pricing depends on dozens of construction choices that no consen
 
 We will maintain and extend the package on CRAN. The construction helpers are covered by unit tests that exercise the lagging, breakpoint, and portfolio-aggregation paths on fixture panels, so each release ships against a passing R CMD check. The companion Hugging Face artifacts (the spliced risk-free rate and the precomputed factor library) are refreshed on a scheduled GitHub Actions workflow, so the published series track new WRDS releases without manual intervention.
 
-Companion materials at [tidy-finance.org](https://tidy-finance.org) integrate [tidyfinance]{.pkg} into open coursework and self-study tracks for graduate finance and asset pricing.
+Companion materials at [tidy-finance.org](https://tidy-finance.org) integrate [tidyfinance]{.pkg} into open coursework and self-study tracks for graduate finance and asset pricing in both [R]{.proglang} and [Python]{.proglang}. The site also hosts a reviewed channel through which researchers can publish replications and new construction routines, so the catalog of factors and conventions can grow with the literature rather than freezing at the package's release.
 
 ## Computational details {.unnumbered}
 
