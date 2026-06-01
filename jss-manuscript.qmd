@@ -1884,7 +1884,7 @@ $$
 \text{CDI}_t = \log(\text{DLC}_{t} + \text{DLTT}_{t}) - \log(\text{DLC}_{t-60} + \text{DLTT}_{t-60})\text{.}
 $$
 
-We replace missing values of DLC and DLTT with zero. The sum of DLC and DLTT must be strictly positive; the variable is set to missing otherwise.
+We replace missing values of DLC and DLTT with zero. The sum of DLC and DLTT must be strictly positive; otherwise, the variable is set to missing.
 
 **CSI - Composite Share Issuance**
 
@@ -1910,7 +1910,7 @@ $$
 DCOL_{t} = \frac{(LCT_{t} - DLC_{t}) - (LCT_{t-12} - DLC_{t-12})}{AT_{t-12}}\text{.}
 $$
 
-We replace the missing values of DLC with 0.
+We set the missing values in DLC to zero.
 
 **DFNL - Change in Financial Liabilities**
 
@@ -1920,7 +1920,7 @@ $$
 DFNL_{t} = \frac{(DLC_{t} + DLTT_{t} + PSTK_{t}) - (DLC_{t-12} + DLTT_{t-12} + PSTK_{t-12})}{AT_{t-12}}\text{.}
 $$
 
-We replace the missing values of DLC, DLTT and PSTK with 0, if at least one of them is given.
+We replace the missing values of DLC, DLTT, and PSTK with zero, if at least one of them is available.
 
 **NDF - Net Debt Financing**
 
@@ -1981,7 +1981,7 @@ RER_{t} = \frac{FATB_{t} + FATL_{t}}{PPEGT_{t}}\text{.}
 $$
 
 Subsequently, we winsorize the real-estate ratios in each fiscal year at the first and 99$\text{th}$ percentile.
-The industry-adjusted real-estate ratio is obtained by subtracting the industry average real-estate ratio from each stock-specific real-estate ratio.
+The industry-adjusted real-estate ratio is obtained by subtracting the industry average real-estate ratio from each stock's real-estate ratio.
 We use 2-digit SIC codes to assign stocks to industries.
 We always require at least five observations to calculate the industry average each year.
 
@@ -2046,7 +2046,7 @@ WC_{t} = (ACT_{t} - CHE_{t}) - (LCT_{t} - DLC_{t})\text{,}
 $$
 
 where ACT corresponds to current assets, CHE to cash, LCT to current liabilities, and DLC to short-term debt.
-We set missing values of DLC to zero.
+We set the missing values in DLC to zero.
 Then, the change in net non-cash working capital corresponds to the change in $WC$ from fiscal year $t-12$ to fiscal year $t$ scaled by lagged total assets (AT), i.e.,
 
 $$
@@ -2071,7 +2071,7 @@ $$
 
 where AT corresponds to total assets, CHE to cash and short-term investments, DLC to current debt, DLTT to long-term debt, MIB to minority interests, PSTK to the value of preferred stocks, and CEQ to common equity.
 Missing values in DLC, DLTT, MIB, and PSTK are set to zero.
-Then, net operating assets is the net operating assets of fiscal year $t$ scaled by lagged assets (AT), i.e.,
+Then, net operating assets are the net operating assets of fiscal year $t$ scaled by lagged assets (AT), i.e.,
 
 $$
 NOA_{t} = \frac{NOA^{int}_{t}}{AT_{t-12}}\text{.}
@@ -2086,7 +2086,7 @@ OA_{t} = \frac{(\Delta ACT_{t} - \Delta CHE_{t}) - (\Delta LCT_{t} - \Delta DLC_
 $$
 
 where ACT is current assets, CHE cash, LCT current liabilities, DLC short-term debt, TXP taxes payable, and DP depreciation and amortization.
-Moreover, we replace the missing values of DLC and TXP with zero.
+Moreover, we replace the missing values in DLC and TXP with zero.
 $\Delta$ represents changes over one year.
 From 1988 onwards, we measure operating accruals as
 
@@ -2100,7 +2100,7 @@ where NI is net income and OANCF corresponds to net cash flow from operations.
 
 **MOM - Return Momentum**
 
-Following @fama.1996, we measure return momentum from monthly CRSP returns (where $r$ is a simple return) as the cumulative return from month $t-11$ to month $t-1$ skipping the most recent month, i.e.,
+Following @fama.1996, we measure return momentum from monthly CRSP returns (where $r$ is a simple return) as the cumulative return from month $t-11$ to month $t-1$, skipping the most recent month, i.e.,
 
 $$
 \text{MOM}_t = \text{exp}\left(\sum^{t-1}_{\tau = t-11}\log(1 + r_{\tau})\right) - 1\text{.}
@@ -2153,7 +2153,7 @@ $$
 
 **CBOP - Cash-Based Operating Profitability**
 
-Following @ball.2016, we measure cash-based operating profitability
+Following @ball.2016, we measure cash-based operating profitability as
 
 \begin{align*}
 CBOP_{t} = &\big(REVT_{t} - COGS_{t} - XSGA_{t} + XRD_{t} \\
@@ -2175,7 +2175,7 @@ $$
 
 **O - Ohlson's O-score**
 
-Following @ohlson.1980, we measure O-score with the following linear relation
+Following @ohlson.1980, we measure the O-score with the following linear relation:
 
 \begin{align*}
 O_{t} = &- 1.32 - 0.407 \cdot \log(AT_{t}) + 6.03 \cdot \frac{DLC_{t} + DLTT_{t}}{AT_{t}} \\
@@ -2198,9 +2198,9 @@ $$
 where REVT corresponds to total revenues, COGS to cost of goods sold, XSGA to selling, general and administrative expenses, XINT to interest expenses, and BE to book equity.
 The definition of book equity is (a) the book equity of shareholders plus (b) deferred taxes and investment tax credit (Compustat item TXDITC or TXDB + ITCB if TXDITC is unavailable) minus (c) the book value of preferred stock.
 Regarding (a), the book equity of shareholders is shareholders' equity (SEQ), or the sum of common equity (CEQ) and the par value of preferred stock (PSTK), or, if all previous items are unavailable, total assets (AT) minus total liabilities (LT).
-Regarding (b), deferred taxes (TXDITC) or investment tax credits (TXDB plus ITCB) if deferred taxes is unavailable.
+Regarding (b), deferred taxes (TXDITC) or investment tax credits (TXDB plus ITCB) if deferred taxes are unavailable.
 Regarding (c), the book value of preferred stock corresponds in the following order either to the redemption value (PSTKRV), or the liquidation value (PSTKL), or if all previous items are unavailable to the par value (PSTK).
-We replace missing values of items (b) and (c) with zero.
+We replace the missing values in items (b) and (c) with zero.
 Moreover, missing values in COGS, XSGA, and XINT are set to zero.
 
 **ROA - Return on Assets**
@@ -2211,7 +2211,7 @@ $$
 ROA_{q} = \frac{IBQ_{q}}{ATQ_{q-1}}\text{.}
 $$
 
-Finally, the earnings announcement date has to be after the fiscal quarter end date.
+Finally, the earnings announcement date must be after the fiscal quarter-end date.
 
 **ROE - Return on Equity**
 
@@ -2225,7 +2225,7 @@ Quarterly book equity (BEQ) is computed as the (a) book equity of shareholders p
 Regarding (a), we measure book equity of shareholders by shareholders' equity (SEQQ), or the sum of common equity (CEQQ) and the par value of preferred stock (PSTKQ), or if all previous items are unavailable by total assets (ATQ) minus total liabilities (LTQ).
 Regarding (b), the balance sheet deferred taxes and investment tax credit is TXDITCQ, or TXDBQ, or zero if both are missing.
 Regarding (c), the book value of preferred stocks corresponds to PSTKRQ, or PSTKQ, or zero if both are unavailable.
-Finally, the earnings announcement date has to be after the fiscal quarter end date.
+Finally, the earnings announcement date must be after the fiscal quarter-end date.
 
 **TBI - Taxable Income to Book Income**
 
@@ -2258,13 +2258,13 @@ $$
 RV_{t} = \frac{|r_{d}|}{prc_{t} * vol_{t}}\text{.}
 $$
 
-Then, the Amihud illiquidity measure corresponds to the average return to volume estimate over the last six months.
+Then, the Amihud illiquidity measure corresponds to the average return-to-volume estimate over the last six months.
 We require at least 50 observations for this average and adjust the trading volume of NASDAQ stocks according to @gao.2010.
 
 **BETA - Beta Relative to the Market**
 
 Following @fama.1973, we measure the market beta $\beta_{1}$ from monthly CRSP data.
-Specifically, we run the following time series regression over the previous five years
+Specifically, we run the following time series regression over the previous five years:
 
 $$
 r_{t}^{e} = \alpha + \beta_{1} \cdot (MKT_{t} - R_{t}^{f}) + u_{t}\text{.}
@@ -2322,9 +2322,9 @@ $$
 
 The definition of book equity is (a) the book equity of shareholders plus (b) deferred taxes and investment tax credit (Compustat item TXDITC or TXDB + ITCB if TXDITC is unavailable) minus (c) the book value of preferred stock.
 Regarding (a), the book equity of shareholders is shareholders' equity (SEQ), or the sum of common equity (CEQ) and the par value of preferred stock (PSTK), or, if all previous items are unavailable, total assets (AT) minus total liabilities (LT).
-Regarding (b), deferred taxes (TXDITC) or investment tax credits (TXDB plus ITCB) if deferred taxes is unavailable.
+Regarding (b), deferred taxes (TXDITC) or investment tax credits (TXDB plus ITCB) if deferred taxes are unavailable.
 Regarding (c), the book value of preferred stock corresponds in the following order either to the redemption value (PSTKRV), or the liquidation value (PSTKL), or if all previous items are unavailable to the par value (PSTK).
-We replace missing values of items (b) and (c) with zero.
+We replace the missing values in items (b) and (c) with zero.
 
 **CFM - Cash Flow to Market Equity**
 
@@ -2348,7 +2348,7 @@ We exclude stocks with missing DLC and DLTT observations.
 
 **EBM - Enterprise Book Equity to Market Equity**
 
-Following @penman.2007, we measure enterprise book equity scaled by market equity as net debt plus book equity scaled by net debt plus market equity
+Following @penman.2007, we measure enterprise book equity scaled by market equity as net debt plus book equity scaled by net debt plus market equity, i.e.,
 
 $$
 EBM_{t} = \frac{(DLTT_{t} + DLC_{t} + PSTK_{t} + DVPA_{t} - TSTKP_{t}) - CHE_{t} + BE_{t}}{(DLTT_{t} + DLC_{t} + PSTK_{t} + DVPA_{t} - TSTKP_{t}) - CHE_{t} + ME_{t}}\text{,}
@@ -2357,7 +2357,7 @@ $$
 where DLTT corresponds to long-term debt, DLC to current debt, PSTK to the value of preferred stock, DVPA to preferred dividends in arrears, TSTKP to preferred treasury stock, CHE to cash and short-term investments, and ME to the market equity from CRSP (i.e., the fiscal-year end's shares outstanding, shrout, times the absolute value of their price, altprc, in million USD).
 Lastly, in this case, book equity BE is computed as common equity (CEQ) plus TSTKP minus DVPA.
 Missing observations in DVPA and TSTKP are set to zero.
-Additionally, we require that the sum of net debt and book equity, as well as the sum of net debt plus market equity, are positive.
+Additionally, we require that the sum of net debt and book equity, as well as the sum of net debt plus market equity, is positive.
 
 **EM - Earnings to Market Equity**
 
@@ -2377,7 +2377,7 @@ $$
 NDM_{t} = \frac{(DLTT_{t} + DLC_{t} + PSTK_{t} + DVPA_{t} - TSTKP_{t}) - CHE_{t}}{ME_{t}}\text{,}
 $$
 
-where DLTT corresponds to long-term debt, DLC to current debt, PSTK to the value of preferred stock, DVPA to preferred dividends in arrears, TSTKP to preferred treasury stock, CHE to cash and short-term investments.
+where DLTT corresponds to long-term debt, DLC to current debt, PSTK to the value of preferred stock, DVPA to preferred dividends in arrears, TSTKP to preferred treasury stock, and CHE to cash and short-term investments.
 Lastly, missing observations in DVPA and TSTKP are set to zero.
 
 **NPY - Net Payout Yield**
@@ -2390,7 +2390,7 @@ NPY_{t} = &\big[(DVC_{t} + PRSTKC_{t} + \Delta PSTKRV_{t} \cdot {1}_{\Delta PSTK
 \end{align*}
 
 where DVC are dividends from common stock, PRSTKC is the purchase of common and preferred stock, PSTKRV is the value of the net number of preferred stocks outstanding, and SSTK reflects the sale of common and preferred stocks.
-${1}_{\Delta PSTKRV <0}$ is a dummy variable that has value one if the annual change in PSTKRV is negative and zero otherwise.
+${1}_{\Delta PSTKRV <0}$ is a dummy variable that is one if the annual change in PSTKRV is negative and zero otherwise.
 Moreover, we exclude stocks with negative net payouts.
 
 **OCM - Operating Cash Flow to Market Equity**
