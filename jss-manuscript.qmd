@@ -39,7 +39,7 @@ author:
     email: patrickw@ru.is
     affiliations:
       - name: Reykjavík University
-        department: School of Business
+        department: Department of Business and Economics
         address: Menntavegur 1
         city: 102 Reykjavík
         country: Iceland
