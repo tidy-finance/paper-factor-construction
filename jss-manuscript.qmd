@@ -96,6 +96,12 @@ format_pretty_date <- function(d) {
   }
   paste0(format(d, "%B "), day, suffix, ", ", format(d, "%Y"))
 }
+
+# Sample period actually covered by a panel, after filtering and lagging may
+# have moved the first usable date past the nominal download start.
+sample_years <- function(data) {
+  paste0(format(min(data$date), "%Y"), "--", format(max(data$date), "%Y"))
+}
 ```
 
 ```{r}
@@ -222,14 +228,14 @@ The empirical asset pricing workflow decomposes into three stages: data acquisit
 +------------------------------------------+---------------------------------------------------------------------+
 | Function                                 | Purpose                                                             |
 +==========================================+=====================================================================+
-| *Data acquisition*                                                                                             |
+| *Data acquisition*                       |                                                                     |
 +------------------------------------------+---------------------------------------------------------------------+
 | `download_data()`                        | Retrieves and cleans a panel from supported data providers.         |
 +------------------------------------------+---------------------------------------------------------------------+
 | `set_wrds_credentials()`                 | Stores WRDS username and password in `.Renviron` for subsequent     |
 |                                          | calls.                                                              |
 +------------------------------------------+---------------------------------------------------------------------+
-| *Variable construction*                                                                                        |
+| *Variable construction*                  |                                                                     |
 +------------------------------------------+---------------------------------------------------------------------+
 | `add_lagged_columns()`                   | Attaches the most recent observed value within a configurable       |
 |                                          | look-back window, with optional Fama-French timing.                 |
@@ -245,7 +251,10 @@ The empirical asset pricing workflow decomposes into three stages: data acquisit
 | `compute_rolling_value()`                | Applies an aggregation function over a calendar-time rolling        |
 |                                          | window.                                                             |
 +------------------------------------------+---------------------------------------------------------------------+
-| *Portfolio sorting*                                                                                            |
+| `filter_sorting_data()`                  | Applies the universe screens in `filter_options()`, such as         |
+|                                          | excluding financials, utilities, or low-priced or small stocks.     |
++------------------------------------------+---------------------------------------------------------------------+
+| *Portfolio sorting*                      |                                                                     |
 +------------------------------------------+---------------------------------------------------------------------+
 | `compute_breakpoints()`                  | Computes quantile cutoffs from a cross-section, optionally          |
 |                                          | restricted by exchange or by minimum market-cap quantile.           |
@@ -262,7 +271,7 @@ The empirical asset pricing workflow decomposes into three stages: data acquisit
 | `implement_portfolio_sort()`             | Wraps filtering, breakpoint computation, assignment, and            |
 |                                          | aggregation into a single call for univariate and bivariate sorts.  |
 +------------------------------------------+---------------------------------------------------------------------+
-| *Asset pricing tests*                                                                                          |
+| *Asset pricing tests*                    |                                                                     |
 +------------------------------------------+---------------------------------------------------------------------+
 | `estimate_fama_macbeth()`                | Runs cross-sectional ordinary least squares (OLS) regressions each  |
 |                                          | period and aggregates into average risk premia with Newey-West      |
@@ -297,7 +306,7 @@ The empirical asset pricing workflow decomposes into three stages: data acquisit
 |                |                                    |     "Fama/French 3 Factors")            |
 |                |                                    | ```                                     |
 +----------------+------------------------------------+-----------------------------------------+
-| Global Q       | @hou.2014 Q factor model           | ```                                     |
+| Global Q       | @hou.2021 q5 factor model          | ```                                     |
 |                | (market, size, investment, ROE,    | download_data(                          |
 |                | expected growth) at multiple       |   domain = "globalq",                   |
 |                | frequencies                        |   dataset =                             |
@@ -410,7 +419,7 @@ download_data(
 )
 ```
 
-Similarly, we can fetch the @fama.1993 three-factor data from Ken French's Data Library with a single call to download and parse the published archives:
+Similarly, we can fetch the Fama-French three-factor data from Ken French's Data Library with a single call to download and parse the published archives:
 ```{r}
 #| label: example-ff-factors
 ff_factors <- download_data(
@@ -895,7 +904,7 @@ ggplot() +
   theme(plot.margin = margin(5, 10, 5, 10))
 ```
 
-A handful of additional helpers cover routine operations that recur across empirical studies. `winsorize()` and `trim()` handle outliers in cross-sectional variables: the former symmetrically replaces values below the $q$-th and above the $(1-q)$-th percentile with the corresponding quantile values, while the latter sets them to `NA`. `estimate_model()` fits a linear model from a formula string and returns the coefficients as a tidy one-row data frame, which composes naturally with `group_by()` for grouped or rolling regressions such as estimating time-series factor exposures stock by stock. `compute_rolling_value()` applies an arbitrary aggregation function over a rolling window defined in calendar time rather than row counts, accommodating irregular observation frequencies and missing periods.
+A handful of additional helpers cover routine operations that recur across empirical studies. `winsorize()` and `trim()` handle outliers in cross-sectional variables: the former symmetrically replaces values below the $q$-th and above the $(1-q)$-th percentile with the corresponding quantile values, while the latter sets them to `NA`. `estimate_model()` fits a linear model from a formula string and returns the coefficients as a tidy one-row data frame, which composes naturally with `group_by()` for grouped or rolling regressions such as estimating time-series factor exposures stock by stock. `compute_rolling_value()` applies an arbitrary aggregation function over a rolling window defined in calendar time rather than row counts, accommodating irregular observation frequencies and missing periods. `filter_sorting_data()` screens a panel before sorting, dropping observations that fail the universe filters bundled in a `filter_options()` object, such as financial or utility firms or stocks below a minimum price or size; by default it reports how many observations each filter removes, which `quiet = TRUE` suppresses. `implement_portfolio_sort()` calls it internally, but it is also exposed for use as a standalone screening step.
 
 ### Portfolio sorting {#sec-portfolio-sorting}
 
@@ -1073,7 +1082,7 @@ library("lubridate")
 
 Constructing the asset growth factor requires two WRDS panels: annual accounting data from Compustat to compute the asset growth signal and monthly stock returns from CRSP to translate the signal into portfolio returns.
 
-CRSP and Compustat are proprietary and require a WRDS subscription. All numbers, tables, and figures in this paper are computed from the real WRDS data with `data_domain <- "wrds"`. Readers without a WRDS subscription can render the entire manuscript against synthetic data of identical schema by setting `data_domain <- "pseudo"` in the chunk below. The pseudo path covers the three WRDS-sourced datasets the case study consumes:monthly CRSP returns, annual Compustat fundamentals, and the CRSP-Compustat linking table. Every `download_data()` call for one of these datasets then routes to an in-package synthetic generator rather than to WRDS, so the document compiles end-to-end without a subscription, credentials, or network access to a paid provider.
+CRSP and Compustat are proprietary and require a WRDS subscription. All numbers, tables, and figures in this paper are computed from the real WRDS data with `data_domain <- "wrds"`. Readers without a WRDS subscription can render the entire manuscript against synthetic data of identical schema by setting `data_domain <- "pseudo"` in the chunk below. The pseudo path covers the three WRDS-sourced datasets the case study consumes: monthly CRSP returns, annual Compustat fundamentals, and the CRSP-Compustat linking table. Every `download_data()` call for one of these datasets then routes to an in-package synthetic generator rather than to WRDS, so the document compiles end-to-end without a subscription, credentials, or network access to a paid provider.
 
 The generator preserves column names, dtypes, missingness patterns, panel structure, and approximate scales, so the cleaning, lagging, and sorting code paths exercise the same branches they would on real data, and every figure and table in this paper renders without error. What the generator does not preserve are economic relations. Returns are independent draws around a calibrated mean, and characteristics carry no predictive content for subsequent returns; the long-short premia recovered against pseudo data are therefore noise. The workflow reproduces; the quantitative results do not.
 
@@ -1135,7 +1144,7 @@ $$
 AG_t = (AT_t - AT_{t-1}) / AT_{t-1}\text{,}
 $$
 
-where $AT_t$ is total assets in year $t$ (Compustat field `AT`).
+where $AT_t$ is total assets in year $t$ (Compustat field `at`).
 
 The `add_lagged_columns()` function from [tidyfinance]{.pkg} handles temporal alignment by creating a lagged version of total assets grouped by firm identifier (`gvkey`) with a one-year lag. Non-finite values (arising when lagged total assets are zero or missing) become `NA`.
 
@@ -1174,7 +1183,7 @@ yearly_stats <- sorting_variable_data |>
 
 ```{r}
 #| label: tbl-ag-summary
-#| tbl-cap: !expr 'paste0("Cross-sectional summary statistics for asset growth (winsorized at the 1st and 99th percentiles). The ''Pooled'' column reports the statistic computed on the entire firm-year sample. The ''Yearly'' columns summarize the time series of statistic values computed cross-sectionally year by year, taking the average, minimum, and maximum across calendar years. N is the count of firm-year observations (pooled) or per-year observations (yearly columns). Sample: ", year(date_start), "--", year(date_end), ".")'
+#| tbl-cap: !expr 'paste0("Cross-sectional summary statistics for asset growth (winsorized at the 1st and 99th percentiles). The ''Pooled'' column reports the statistic computed on the entire firm-year sample. The ''Yearly'' columns summarize the time series of statistic values computed cross-sectionally year by year, taking the average, minimum, and maximum across calendar years. N is the count of firm-year observations (pooled) or per-year observations (yearly columns). Sample: ", sample_years(drop_na(sorting_variable_data, asset_growth)), ".")'
 #| echo: false
 stat_cols <- c("n", "mean", "sd", "q10", "q25", "q50", "q75", "q90")
 stat_labels <- c("N", "Mean", "SD", "P10", "P25", "Median", "P75", "P90")
@@ -1248,7 +1257,7 @@ The filter removes the initial year used to compute the growth rate plus an addi
 
 ```{r}
 #| label: fig-ag-percentiles
-#| fig-cap: !expr 'paste0("Selected percentiles (33rd, 50th, 66th) of cross-sectional asset growth over time. The y-axis reports annual growth in total assets in percent. Sample: ", year(date_start), "--", year(date_end), ".")'
+#| fig-cap: !expr 'paste0("Selected percentiles (33rd, 50th, 66th) of cross-sectional asset growth over time. The y-axis reports annual growth in total assets in percent. Sample: ", sample_years(drop_na(sorting_data)), ".")'
 #| fig-width: 6.5
 #| out-width: "100%"
 #| echo: false
@@ -1371,7 +1380,7 @@ univariate_sort_table <- bind_rows(
 
 ```{r}
 #| label: tbl-univariate-sort-ag
-#| tbl-cap: !expr 'paste0("Time-series averages of annualized monthly excess returns for asset growth quintile portfolios. Portfolios are formed annually in July using NYSE breakpoints. Means are annualized (multiplied by 12). The $t$~statistic tests whether the mean monthly excess return differs from zero. Capped value-weighted pulls weights above the 80th percentile back to that cap. The L/S row is the long-short portfolio (bottom minus top quintile). Sample: ", year(date_start), "--", year(date_end), ".")'
+#| tbl-cap: !expr 'paste0("Time-series averages of annualized monthly excess returns for asset growth quintile portfolios. Portfolios are formed annually in July using NYSE breakpoints. Means are annualized (multiplied by 12). The $t$\\ statistic tests whether the mean monthly excess return differs from zero. Capped value-weighted pulls weights above the 80th percentile back to that cap. The L/S row is the long-short portfolio (bottom minus top quintile). Sample: ", sample_years(drop_na(portfolio_returns)), ".")'
 #| echo: false
 group_header <- paste0(
   " & \\multicolumn{2}{c}{Value-weighted} & ",
@@ -1414,7 +1423,7 @@ structure(
 \endgroup
 ```
 
-The value-weighted long-short portfolio earns `{r} round(mean(factor_returns_ag$ret_excess_vw, na.rm = TRUE) * 12 * 100, 1)`% per year ($t$~statistic of `{r} round(mean(factor_returns_ag$ret_excess_vw, na.rm = TRUE) / (sd(factor_returns_ag$ret_excess_vw, na.rm = TRUE) / sqrt(sum(!is.na(factor_returns_ag$ret_excess_vw)))), 2)`), consistent with the negative premium documented by @cooper.2008. The equal-weighted spread is larger, as expected for characteristics that correlate with size. The monotone decline of value-weighted means across quintiles confirms that [tidyfinance]{.pkg} reproduces the literature result from raw WRDS data with a single function call.
+The value-weighted long-short portfolio earns `{r} round(mean(factor_returns_ag$ret_excess_vw, na.rm = TRUE) * 12 * 100, 1)`% per year ($t$\ statistic of `{r} round(mean(factor_returns_ag$ret_excess_vw, na.rm = TRUE) / (sd(factor_returns_ag$ret_excess_vw, na.rm = TRUE) / sqrt(sum(!is.na(factor_returns_ag$ret_excess_vw)))), 2)`), consistent with the negative premium documented by @cooper.2008. The equal-weighted spread is larger, as expected for characteristics that correlate with size. The monotone decline of value-weighted means across quintiles confirms that [tidyfinance]{.pkg} reproduces the literature result from raw WRDS data with a single function call.
 
 #### Customized specification (bivariate sorts) {#sec-customized-sorts}
 
@@ -1486,7 +1495,7 @@ factor_returns_bivariate <- portfolio_returns_bivariate |>
   compute_long_short_returns(direction = "bottom_minus_top")
 ```
 
-@tbl-customized-comparison decomposes the customized premium into two layers. Adding the size-controlled double sort alone (the bivariate-only row) lifts the annualized premium from `{r} round(mean(factor_returns_ag$ret_excess_vw, na.rm = TRUE) * 12 * 100, 1)`% to `{r} round(mean(factor_returns_bivariate$ret_excess_vw, na.rm = TRUE) * 12 * 100, 1)`%, with the $t$~statistic moving from borderline to significant at conventional levels. Controlling for size reveals that most of the AG signal in the cross-section was masked by size dispersion in the univariate sort. Layering the filter set and the 20% breakpoint threshold on top trims the magnitude back to `{r} round(mean(factor_returns_customized$ret_excess_vw, na.rm = TRUE) * 12 * 100, 1)`%, where the spread remains significant at conventional levels: removing financials, utilities, and loss-making firms strips out some of the firms contributing to the unfiltered spread. Across all three specifications, the spread is positive and reflects the negative AG premium reported in @cooper.2008, who finds an annual value-weighted long-short premium of about 12.6% over July 1968 to June 2003.[^cooper-deciles]
+@tbl-customized-comparison decomposes the customized premium into two layers. Adding the size-controlled double sort alone (the bivariate-only row) lifts the annualized premium from `{r} round(mean(factor_returns_ag$ret_excess_vw, na.rm = TRUE) * 12 * 100, 1)`% to `{r} round(mean(factor_returns_bivariate$ret_excess_vw, na.rm = TRUE) * 12 * 100, 1)`%, with the $t$\ statistic moving from borderline to significant at conventional levels. Controlling for size reveals that most of the AG signal in the cross-section was masked by size dispersion in the univariate sort. Layering the filter set and the 20% breakpoint threshold on top trims the magnitude back to `{r} round(mean(factor_returns_customized$ret_excess_vw, na.rm = TRUE) * 12 * 100, 1)`%, where the spread remains significant at conventional levels: removing financials, utilities, and loss-making firms strips out some of the firms contributing to the unfiltered spread. Across all three specifications, the spread is positive and reflects the negative AG premium reported in @cooper.2008, who finds an annual value-weighted long-short premium of about 12.6% over July 1968 to June 2003.[^cooper-deciles]
 
 [^cooper-deciles]: @cooper.2008 sorts into deciles.
 
@@ -1525,7 +1534,7 @@ customized_comparison_table <- bind_rows(
 
 ```{r}
 #| label: tbl-customized-comparison
-#| tbl-cap: !expr 'paste0("Comparison of long-short asset growth returns across three specifications. The baseline is a univariate sort with NYSE breakpoints and no filters. The bivariate-only specification adds a dependent double-sort on size to the baseline but otherwise keeps the same universe and breakpoints. The customized specification adds the filter set (financials, utilities, non-positive earnings) and a 20\\% size threshold on the breakpoints. All rows use annual July rebalancing; means are annualized value-weighted excess returns. Sample: ", year(date_start), "--", year(date_end), ".")'
+#| tbl-cap: !expr 'paste0("Comparison of long-short asset growth returns across three specifications. The baseline is a univariate sort with NYSE breakpoints and no filters. The bivariate-only specification adds a dependent double-sort on size to the baseline but otherwise keeps the same universe and breakpoints. The customized specification adds the filter set (financials, utilities, non-positive earnings) and a 20\\% size threshold on the breakpoints. All rows use annual July rebalancing; means are annualized value-weighted excess returns. Sample: ", sample_years(drop_na(factor_returns_ag)), ".")'
 #| echo: false
 customized_comparison_table |>
   knitr::kable(
@@ -1571,7 +1580,7 @@ fm_results <- estimate_fama_macbeth(
  
 ```{r}
 #| label: tbl-fama-macbeth
-#| tbl-cap: !expr 'paste0("Fama-MacBeth regression of monthly excess returns on lagged asset growth and lagged log market capitalization. Coefficients are time-series averages of monthly cross-sectional OLS estimates; standard errors are Newey-West [@newey.1987] with automatic lag selection. The intercept and slopes on the right-hand-side variables are reported on the monthly scale. Sample: ", year(date_start), "--", year(date_end), ".")'
+#| tbl-cap: !expr 'paste0("Fama-MacBeth regression of monthly excess returns on lagged asset growth and lagged log market capitalization. Coefficients are time-series averages of monthly cross-sectional OLS estimates; standard errors are Newey-West [@newey.1987] with automatic lag selection. The intercept and slopes on the right-hand-side variables are reported on the monthly scale. Sample: ", sample_years(fm_data), ".")'
 #| echo: false
 fm_results |>
   mutate(
@@ -1598,7 +1607,7 @@ fm_results |>
   )
 ```
  
-The negative slope on `asset_growth` lines up with the long-short evidence in @tbl-univariate-sort-ag and @tbl-customized-comparison: high-AG firms earn lower subsequent returns, conditional on size. As an external benchmark, @cooper.2008 [Table III, Panel A, Model 1] reports a Fama-MacBeth slope on annual ASSETG of −0.0922 ($t$~statistic of −6.52). Converted to a monthly basis and sign-flipped, their slope is approximately `{r} round(-1 * (-0.0922 / 12), 4)` $(=-1\cdot(−0.0922/12))$, directly comparable to the magnitude of the AG coefficient in our table.[^cooper-fm-controls] Switching to `vcov = "iid"` or supplying `vcov_options = list(lag = 6, prewhite = FALSE)` would change the standard-error treatment without altering the rest of the call, and adding additional regressors (e.g., a beta estimate from `estimate_betas()`, a profitability measure, an idiosyncratic-volatility control) is a one-line extension to the model formula. The same function therefore covers the standard cross-sectional asset-pricing test that complements the portfolio-sort evidence used throughout the rest of the paper.
+The negative slope on `asset_growth` in @tbl-fama-macbeth lines up with the long-short evidence in @tbl-univariate-sort-ag and @tbl-customized-comparison: high-AG firms earn lower subsequent returns, conditional on size. As an external benchmark, @cooper.2008 [Table III, Panel A, Model 1] reports a Fama-MacBeth slope on annual ASSETG of −0.0922 ($t$\ statistic of −6.52). Converted to a monthly basis and sign-flipped, their slope is approximately `{r} round(-1 * (-0.0922 / 12), 4)` $(=-1\cdot(−0.0922/12))$, directly comparable to the magnitude of the AG coefficient in our table.[^cooper-fm-controls] Switching to `vcov = "iid"` or supplying `vcov_options = list(lag = 6, prewhite = FALSE)` would change the standard-error treatment without altering the rest of the call, and adding additional regressors (e.g., a beta estimate from `estimate_betas()`, a profitability measure, an idiosyncratic-volatility control) is a one-line extension to the model formula. The same function therefore covers the standard cross-sectional asset-pricing test that complements the portfolio-sort evidence used throughout the rest of the paper.
 
 [^cooper-fm-controls]: @cooper.2008 additionally controls for book-to-market and 6- and 36-month past returns, both negatively correlated with AG.
 
@@ -1748,7 +1757,7 @@ return_data <- download_data(
 
 ### Construction-choice sensitivity {#sec-library-sensitivity}
 
-We illustrate the kind of sensitivity analysis the library supports by computing a @fama.1993 three-factor alpha for each specification of the asset-growth factor in `ag_data`. Because the factor return is the long-short payoff of a self-financing portfolio, it is already in excess form, and the risk-free rate does not enter the regression. The @fama.1993 three factors are available from the earlier `download_data(domain = "factors_ff", dataset = "Fama/French 3 Factors")` call in @sec-data-access: `ff_factors` contains the monthly market excess return (`mkt_excess`), the size factor (`smb`), and the value factor (`hml`). For each specification $i$, we estimate
+We illustrate the kind of sensitivity analysis the library supports by computing a Fama-French three-factor alpha for each specification of the asset-growth factor in `ag_data`. Because the factor return is the long-short payoff of a self-financing portfolio, it is already in excess form, and the risk-free rate does not enter the regression. The Fama-French three factors are available from the earlier `download_data(domain = "factors_ff", dataset = "Fama/French 3 Factors")` call in @sec-data-access: `ff_factors` contains the monthly market excess return (`mkt_excess`), the size factor (`smb`), and the value factor (`hml`). For each specification $i$, we estimate
 $$
 r_{i,t} = \alpha_i + \beta_i \, \text{MKT}_t^e + s_i \, \text{SMB}_t + h_i \, \text{HML}_t + \varepsilon_{i,t}
 $$
@@ -1774,7 +1783,7 @@ cooper_vw_alpha <- 0.084
 
 ```{r}
 #| label: fig-ag-alpha
-#| fig-cap: !expr 'paste0("Distribution of asset-growth @fama.1993 three-factor alphas across construction choices. The histogram shows annualized alphas (monthly intercepts multiplied by 12, expressed in percent on the x-axis) from regressing each of the ", format(ag_data|>count(id)|>nrow(), big.mark = ","), " long-short specifications of the asset-growth factor on the market, size, and value factors, estimated by OLS. The dashed vertical line marks zero. The dotted vertical line marks the value-weighted decile FF3 alpha reported in @cooper.2008 [Table II, Panel C, All Firms], sign-flipped to the bottom-minus-top convention: ", cooper_vw_alpha * 100, "\\% per year over July 1968 to June 2003. Specifications vary as listed in @tbl-sorting-decisions. Sample: ", year(date_start), "--", year(date_end), ".")'
+#| fig-cap: !expr 'paste0("Distribution of asset-growth Fama-French three-factor alphas across construction choices. The histogram shows annualized alphas (monthly intercepts multiplied by 12, expressed in percent on the x-axis) from regressing each of the ", format(ag_data|>count(id)|>nrow(), big.mark = ","), " long-short specifications of the asset-growth factor on the market, size, and value factors, estimated by OLS. The dashed vertical line marks zero. The dotted vertical line marks the value-weighted decile FF3 alpha reported in @cooper.2008 [Table II, Panel C, All Firms], sign-flipped to the bottom-minus-top convention: ", cooper_vw_alpha * 100, "\\% per year over July 1968 to June 2003. Specifications vary as listed in @tbl-sorting-decisions. Sample: ", sample_years(ag_data), ".")'
 #| fig-width: 6.5
 #| echo: false
 #| out-width: "100%"
@@ -1878,25 +1887,25 @@ Stefan Voigt is grateful to the Danish Finance Institute for financial support.
 
 **CDI - Composite Debt Issuance**
 
-Following @lyandres.2008, we compute composite debt issuance as the logarithmic growth rate of book debt (current debt, DLC, plus long-term debt, DLTT) over the last five years:
+Following @lyandres.2008, we compute composite debt issuance as the logarithmic growth rate of book debt (current debt, `dlc`, plus long-term debt, `dltt`) over the last five years:
 
 $$
-\text{CDI}_t = \log(\text{DLC}_{t} + \text{DLTT}_{t}) - \log(\text{DLC}_{t-60} + \text{DLTT}_{t-60})\text{.}
+CDI_t = \log(DLC_{t} + DLTT_{t}) - \log(DLC_{t-60} + DLTT_{t-60})\text{.}
 $$
 
-We replace missing values of DLC and DLTT with zero. The sum of DLC and DLTT must be strictly positive; otherwise, the variable is set to missing.
+We replace missing values of `dlc` and `dltt` with zero. The sum of `dlc` and `dltt` must be strictly positive; otherwise, the variable is set to missing.
 
 **CSI - Composite Share Issuance**
 
-Following @daniel.2006, we measure composite share issuance from CRSP data as the difference between the change in market equity (ME) (i.e., the shares outstanding, shrout, times the absolute value of their price, altprc, in million USD) and the cumulative log return (where $r$ is a simple return) in each month from $t$ to $t-60$, i.e.,
+Following @daniel.2006, we measure composite share issuance from CRSP data as the difference between the change in market equity (ME) (i.e., the shares outstanding, `shrout`, times the absolute value of their price, `altprc`, in million USD) and the cumulative log return (where $r$ is a simple return) in each month from $t$ to $t-60$, i.e.,
 
 $$
-\text{CSI}_t = \log(ME_t / ME_{t-60}) - \sum^t_{\tau = t-59}\log(1 + r_{\tau})\text{.}
+CSI_t = \log(ME_t / ME_{t-60}) - \sum^t_{\tau = t-59}\log(1 + r_{\tau})\text{.}
 $$
 
 **DBE - Change in Common Equity**
 
-Following @richardson.2005, we calculate the change in common equity as the change in common equity (CEQ) over one year scaled by lagged assets (AT), i.e.,
+Following @richardson.2005, we calculate the change in common equity as the change in common equity (`ceq`) over one year scaled by lagged assets (`at`), i.e.,
 
 $$
 DBE_{t} = \frac{CEQ_{t} - CEQ_{t-12}}{AT_{t-12}}\text{.}
@@ -1904,37 +1913,37 @@ $$
 
 **DCOL - Change in Current Operating Liabilities**
 
-Following @richardson.2005, we measure the change in current operating liabilities as the change in current operating liabilities (i.e., current liabilities, LCT, minus current debt, DLC) over one year scaled by lagged assets (AT), i.e.,
+Following @richardson.2005, we measure the change in current operating liabilities as the change in current operating liabilities (i.e., current liabilities, `lct`, minus current debt, `dlc`) over one year scaled by lagged assets (`at`), i.e.,
 
 $$
 DCOL_{t} = \frac{(LCT_{t} - DLC_{t}) - (LCT_{t-12} - DLC_{t-12})}{AT_{t-12}}\text{.}
 $$
 
-We set the missing values in DLC to zero.
+We set the missing values in `dlc` to zero.
 
 **DFNL - Change in Financial Liabilities**
 
-Following @richardson.2005, we measure the change in financial liabilities (i.e., the sum of current debt, DLC, plus long-term debt, DLTT, plus preferred stocks, PSTK) over one year scaled by lagged assets (AT), i.e.,
+Following @richardson.2005, we measure the change in financial liabilities (i.e., the sum of current debt, `dlc`, plus long-term debt, `dltt`, plus preferred stocks, `pstk`) over one year scaled by lagged assets (`at`), i.e.,
 
 $$
 DFNL_{t} = \frac{(DLC_{t} + DLTT_{t} + PSTK_{t}) - (DLC_{t-12} + DLTT_{t-12} + PSTK_{t-12})}{AT_{t-12}}\text{.}
 $$
 
-We replace the missing values of DLC, DLTT, and PSTK with zero, if at least one of them is available.
+We replace the missing values of `dlc`, `dltt`, and `pstk` with zero, if at least one of them is available.
 
 **NDF - Net Debt Financing**
 
-Following @bradshaw.2006, we measure net debt financing as cash proceeds from the issuance of long-term debt (DLTIS) minus cash payments for long-term debt reductions (DLTR) plus net changes in current debt (DLCCH) scaled by the average total assets (AT) over the current and the last year, i.e.,
+Following @bradshaw.2006, we measure net debt financing as cash proceeds from the issuance of long-term debt (`dltis`) minus cash payments for long-term debt reductions (`dltr`) plus net changes in current debt (`dlcch`) scaled by the average total assets (`at`) over the current and the last year, i.e.,
 
 $$
 NDF_{t} = \frac{DLTIS_{t} - DLTR_{t} + DLCCH_{t}}{\frac{1}{2} \big(AT_{t} + AT_{t-12} \big)}\text{.}
 $$
 
-We replace the missing values of DLCCH with zero.
+We replace the missing values of `dlcch` with zero.
 
 **NEF - Net Equity Financing**
 
-Following @bradshaw.2006, we measure net equity financing as proceeds from the sale of common and preferred stocks (SSTK) minus payments for the repurchase of common and preferred stocks (PRSTKC) minus cash payments for dividends (DV) scaled by the average total assets (AT) over the current and the last year, i.e.,
+Following @bradshaw.2006, we measure net equity financing as proceeds from the sale of common and preferred stocks (`sstk`) minus payments for the repurchase of common and preferred stocks (`prstkc`) minus cash payments for dividends (`dv`) scaled by the average total assets (`at`) over the current and the last year, i.e.,
 
 $$
 NEF_{t} = \frac{SSTK_{t} - PRSTKC_{t} - DV_{t}}{\frac{1}{2} \big(AT_{t} + AT_{t-12} \big)}\text{.}
@@ -1948,7 +1957,7 @@ Following @bradshaw.2006, we measure net external financing as the sum of net de
 
 **HR - Hiring Rate**
 
-Following @belo.2014, we measure the hiring rate as the change in the number of employees (EMP) over one year scaled by the average number of employees, i.e.,
+Following @belo.2014, we measure the hiring rate as the change in the number of employees (`emp`) over one year scaled by the average number of employees, i.e.,
 
 $$
 HR_{t} = \frac{EMP_{t} - EMP_{t-12}}{\frac{1}{2} \big(EMP_{t} + EMP_{t-12} \big)}\text{.}
@@ -1958,7 +1967,7 @@ We exclude firms with a hiring rate of zero.
 
 **OL - Operating Leverage**
 
-Following @novy-marx.2011, we measure operating leverage as cost of goods sold (COGS) plus selling, general, and administrative expenses (XSGA), both scaled by current total assets (AT), i.e.,
+Following @novy-marx.2011, we measure operating leverage as cost of goods sold (`cogs`) plus selling, general, and administrative expenses (`xsga`), both scaled by current total assets (`at`), i.e.,
 
 $$
 OL_{t} = \frac{COGS_{t} + XSGA_{t}}{AT_{t}}\text{.}
@@ -1968,13 +1977,13 @@ $$
 
 Following @tuzel.2010, we measure the real-estate ratio in two subperiods differently.
 
-(a) Before 1983, the real-estate ratio is the sum of buildings (PPENB) and capital leases (PPENLS) scaled by net property, plant, and equipment (PPENT), i.e.,
+(a) Before 1983, the real-estate ratio is the sum of buildings (`ppenb`) and capital leases (`ppenls`) scaled by net property, plant, and equipment (`ppent`), i.e.,
 
 $$
 RER_{t} = \frac{PPENB_{t} + PPENLS_{t}}{PPENT_{t}}\text{.}
 $$
 
-(b) After the end of 1983, the real-estate ratio is the sum of buildings at cost (FATB) and leases at cost (FATL), both divided by gross property, plant, and equipment (PPEGT), i.e.,
+(b) After the end of 1983, the real-estate ratio is the sum of buildings at cost (`fatb`) and leases at cost (`fatl`), both divided by gross property, plant, and equipment (`ppegt`), i.e.,
 
 $$
 RER_{t} = \frac{FATB_{t} + FATL_{t}}{PPEGT_{t}}\text{.}
@@ -1989,7 +1998,7 @@ We always require at least five observations to calculate the industry average e
 
 **ACI - Abnormal Corporate Investment**
 
-Following @titman.2004, we measure abnormal corporate investments using the variable CE, which is capital expenditures (CAPX) scaled by sales (SALE), then ACI is given by CE scaled by CE from the previous three years minus one, i.e.,
+Following @titman.2004, we measure abnormal corporate investments using the variable CE, which is capital expenditures (`capx`) scaled by sales (`sale`), then ACI is given by CE scaled by CE from the previous three years minus one, i.e.,
 
 $$
 ACI_{t} = \frac{CE_{t}}{\frac{1}{3} \big(CE_{t-12} + CE_{t-24} + CE_{t-36} \big)}-1\text{.}
@@ -1999,7 +2008,7 @@ We follow @hou.2020 and exclude stocks with sales below 10 million dollars.
 
 **AG - Asset Growth**
 
-Following @cooper.2008, we measure asset growth as the change in total assets (AT) over one year scaled by lagged assets (AT), i.e.,
+Following @cooper.2008, we measure asset growth as the change in total assets (`at`) over one year scaled by lagged assets (`at`), i.e.,
 
 $$
 AG_{t} = \frac{AT_{t} - AT_{t-12}}{AT_{t-12}}\text{.}
@@ -2007,7 +2016,7 @@ $$
 
 **DINV - Inventory Changes**
 
-Following @thomas.2002, we measure the change in inventory as the annual change in inventories (INVT) scaled by average total assets (AT) over the current and the last year, i.e.,
+Following @thomas.2002, we measure the change in inventory as the annual change in inventories (`invt`) scaled by average total assets (`at`) over the current and the last year, i.e.,
 
 $$
 DINV_{t} = \frac{INVT_{t} - INVT_{t-12}}{\frac{1}{2} \big(AT_{t} + AT_{t-12} \big)}\text{.}
@@ -2021,9 +2030,9 @@ $$
 NOA^{int}_{t} = (AT_{t} - CHE_{t}) - (AT_{t} - DLC_{t} - DLTT_{t} - MIB_{t} - PSTK_{t} - CEQ_{t})\text{,}
 $$
 
-where AT corresponds to total assets, CHE to cash and short-term investments, DLC to current debt, DLTT to long-term debt, MIB to minority interests, PSTK to the value of preferred stocks, and CEQ to common equity.
-Missing values in DLC, DLTT, MIB, and PSTK are set to zero.
-Then, the change in net operating assets is the difference between net operating assets of fiscal year $t$ and fiscal year $t-12$ scaled by lagged assets (AT), i.e.,
+where `at` corresponds to total assets, `che` to cash and short-term investments, `dlc` to current debt, `dltt` to long-term debt, `mib` to minority interests, `pstk` to the value of preferred stocks, and `ceq` to common equity.
+Missing values in `dlc`, `dltt`, `mib`, and `pstk` are set to zero.
+Then, the change in net operating assets is the difference between net operating assets of fiscal year $t$ and fiscal year $t-12$ scaled by lagged assets (`at`), i.e.,
 
 $$
 DNOA_{t} = \frac{NOA^{int}_{t} - NOA^{int}_{t-12}}{AT_{t-12}}\text{.}
@@ -2031,7 +2040,7 @@ $$
 
 **DPIA - Change in Property, Plant, Equipment, and Inventory**
 
-Following @lyandres.2008, we measure the change in property, plant, equipment, and inventory by combining the change in gross property, plant, and equipment (PPEGT) with the annual change in inventory (INVT) and scaling this sum by lagged total assets (AT), i.e.,
+Following @lyandres.2008, we measure the change in property, plant, equipment, and inventory by combining the change in gross property, plant, and equipment (`ppegt`) with the annual change in inventory (`invt`) and scaling this sum by lagged total assets (`at`), i.e.,
 
 $$
 DPIA_{t} = \frac{(PPEGT_{t} - PPEGT_{t-12}) + (INVT_{t} - INVT_{t-12})}{AT_{t-12}}\text{.}
@@ -2045,9 +2054,9 @@ $$
 WC_{t} = (ACT_{t} - CHE_{t}) - (LCT_{t} - DLC_{t})\text{,}
 $$
 
-where ACT corresponds to current assets, CHE to cash, LCT to current liabilities, and DLC to short-term debt.
-We set the missing values in DLC to zero.
-Then, the change in net non-cash working capital corresponds to the change in $WC$ from fiscal year $t-12$ to fiscal year $t$ scaled by lagged total assets (AT), i.e.,
+where `act` corresponds to current assets, `che` to cash, `lct` to current liabilities, and `dlc` to short-term debt.
+We set the missing values in `dlc` to zero.
+Then, the change in net non-cash working capital corresponds to the change in $WC$ from fiscal year $t-12$ to fiscal year $t$ scaled by lagged total assets (`at`), i.e.,
 
 $$
 DWC_{t} = \frac{WC_{t} - WC_{t-12}}{AT_{t-12}}\text{.}
@@ -2055,7 +2064,7 @@ $$
 
 **IG - Investment Growth**
 
-Following @xing.2008, we measure investment growth as the annual change in capital expenditures (CAPX) scaled by lagged capital expenditures, i.e.,
+Following @xing.2008, we measure investment growth as the annual change in capital expenditures (`capx`) scaled by lagged capital expenditures, i.e.,
 
 $$
 IG_{t} = \frac{CAPX_{t} - CAPX_{t-12}}{CAPX_{t-12}}\text{.}
@@ -2069,9 +2078,9 @@ $$
 NOA^{int}_{t} = (AT_{t} - CHE_{t}) - (AT_{t} - DLC_{t} - DLTT_{t} - MIB_{t} - PSTK_{t} - CEQ_{t})\text{,}
 $$
 
-where AT corresponds to total assets, CHE to cash and short-term investments, DLC to current debt, DLTT to long-term debt, MIB to minority interests, PSTK to the value of preferred stocks, and CEQ to common equity.
-Missing values in DLC, DLTT, MIB, and PSTK are set to zero.
-Then, net operating assets are the net operating assets of fiscal year $t$ scaled by lagged assets (AT), i.e.,
+where `at` corresponds to total assets, `che` to cash and short-term investments, `dlc` to current debt, `dltt` to long-term debt, `mib` to minority interests, `pstk` to the value of preferred stocks, and `ceq` to common equity.
+Missing values in `dlc`, `dltt`, `mib`, and `pstk` are set to zero.
+Then, net operating assets are the net operating assets of fiscal year $t$ scaled by lagged assets (`at`), i.e.,
 
 $$
 NOA_{t} = \frac{NOA^{int}_{t}}{AT_{t-12}}\text{.}
@@ -2085,8 +2094,8 @@ $$
 OA_{t} = \frac{(\Delta ACT_{t} - \Delta CHE_{t}) - (\Delta LCT_{t} - \Delta DLC_{t} - \Delta TXP_{t}) -DP_{t}}{AT_{t-12}}\text{,}
 $$
 
-where ACT is current assets, CHE cash, LCT current liabilities, DLC short-term debt, TXP taxes payable, and DP depreciation and amortization.
-Moreover, we replace the missing values in DLC and TXP with zero.
+where `act` is current assets, `che` cash, `lct` current liabilities, `dlc` short-term debt, `txp` taxes payable, and `dp` depreciation and amortization.
+Moreover, we replace the missing values in `dlc` and `txp` with zero.
 $\Delta$ represents changes over one year.
 From 1988 onwards, we measure operating accruals as
 
@@ -2094,7 +2103,7 @@ $$
 OA_{t} = \frac{NI_{t} - OANCF_{t}}{AT_{t-12}}\text{,}
 $$
 
-where NI is net income and OANCF corresponds to net cash flow from operations.
+where `ni` is net income and `oancf` corresponds to net cash flow from operations.
 
 ### Momentum
 
@@ -2103,18 +2112,18 @@ where NI is net income and OANCF corresponds to net cash flow from operations.
 Following @fama.1996, we measure return momentum from monthly CRSP returns (where $r$ is a simple return) as the cumulative return from month $t-11$ to month $t-1$, skipping the most recent month, i.e.,
 
 $$
-\text{MOM}_t = \text{exp}\left(\sum^{t-1}_{\tau = t-11}\log(1 + r_{\tau})\right) - 1\text{.}
+MOM_t = \exp\left(\sum^{t-1}_{\tau = t-11}\log(1 + r_{\tau})\right) - 1\text{.}
 $$
 
 **RMOM - Residual Momentum**
 
 Following @blitz.2011, we define the 11-month residual momentum (RMOM) in each month and for each stock as cumulative residual returns from month $t-11$ to month $t-1$, scaled by the standard deviation of residual returns over the same time horizon.
-Residual returns $\epsilon$ are obtained in each month from regressing monthly simple, excess stock returns from month $t-1$ to month $t-36$ on the @fama.1993 three-factor model.
+Residual returns $\epsilon$ are obtained in each month from regressing monthly simple, excess stock returns from month $t-1$ to month $t-36$ on the Fama-French three-factor model.
 Throughout these rolling regressions, we always require 36 monthly returns.
 
 **RS - Revenue Surprise**
 
-Following @jegadeesh.2006, we measure the change in revenues per share (DRPS) from quarterly Compustat data as quarterly sales (SALEQ) scaled by the product of quarterly shares outstanding (CSHPRQ) times their cumulative adjustment factor (AJEXQ), i.e.,
+Following @jegadeesh.2006, we measure the change in revenues per share (DRPS) from quarterly Compustat data as quarterly sales (`saleq`) scaled by the product of quarterly shares outstanding (`cshprq`) times their cumulative adjustment factor (`ajexq`), i.e.,
 
 $$
 DRPS_{q}= \frac{SALEQ_{q}}{CSHPRQ_{q} \cdot AJEXQ_{q}} - \frac{SALEQ_{q-4}}{CSHPRQ_{q-4} \cdot AJEXQ_{q-4}}\text{.}
@@ -2126,7 +2135,7 @@ Finally, the earnings announcement date has to be after the fiscal quarter end d
 
 **SUE - Standardized Unexpected Earnings**
 
-Following @foster.1984, we measure unexpected earnings per share (UES) from quarterly Compustat data as the change in split-adjusted earnings (which are equal to quarterly earnings per share, EPSPXQ, scaled by the correction factor for shares outstanding, AJEXQ) per share from its value four quarters ago, i.e.,
+Following @foster.1984, we measure unexpected earnings per share (UES) from quarterly Compustat data as the change in split-adjusted earnings (which are equal to quarterly earnings per share, `epspxq`, scaled by the correction factor for shares outstanding, `ajexq`) per share from its value four quarters ago, i.e.,
 
 $$
 UES_{q} = \frac{EPSPXQ_{q}}{AJEXQ_{q}} - \frac{EPSPXQ_{q-4}}{AJEXQ_{q-4}}\text{.}
@@ -2146,7 +2155,7 @@ We only consider stock-month pairs with more than three valid price observations
 Following @debondt.1985, we measure the long-term reversal effect by the cumulative returns from month $t-60$ to month $t-13$, i.e.,
 
 $$
-\text{REV}_t = \text{exp}\left(\sum^{t-13}_{\tau = t-60}\log(1 + r_{\tau})\right) - 1\text{.}
+REV_t = \exp\left(\sum^{t-13}_{\tau = t-60}\log(1 + r_{\tau})\right) - 1\text{.}
 $$
 
 ### Profitability
@@ -2161,13 +2170,13 @@ CBOP_{t} = &\big(REVT_{t} - COGS_{t} - XSGA_{t} + XRD_{t} \\
 &+ \Delta DRLT_{t} + \Delta AP_{t} + \Delta XACC_{t} \big) / AT_{t}\text{,}
 \end{align*}
 
-where REVT is total revenue, COGS are cost of goods sold, XSGA are selling, general, and administrative expenses, and XRD are R&D expenses.
-Moreover, $\Delta$ refers to one-year changes, which we measure for accounts receivable (RECT), inventory (INVT), prepaid expenses (XPP), deferred revenues (the sum of current, DRC, and long-term, DRLT), trade accounts payable (AP), and accrued expenses (XACC).
-We set the missing values of XRD and all missing changes to zero.
+where `revt` is total revenue, `cogs` are cost of goods sold, `xsga` are selling, general, and administrative expenses, and `xrd` are R&D expenses.
+Moreover, $\Delta$ refers to one-year changes, which we measure for accounts receivable (`rect`), inventory (`invt`), prepaid expenses (`xpp`), deferred revenues (the sum of current, `drc`, and long-term, `drlt`), trade accounts payable (`ap`), and accrued expenses (`xacc`).
+We set the missing values of `xrd` and all missing changes to zero.
 
 **GPA - Gross Profits to Assets**
 
-Following @novy-marx.2013, we measure gross profits to assets as total revenues (REVT) minus cost of goods sold (COGS) scaled by current total assets (AT), i.e.,
+Following @novy-marx.2013, we measure gross profits to assets as total revenues (`revt`) minus cost of goods sold (`cogs`) scaled by current total assets (`at`), i.e.,
 
 $$
 GPA_{t} = \frac{REVT_{t} - COGS_{t}}{AT_{t}}\text{.}
@@ -2184,7 +2193,7 @@ O_{t} = &- 1.32 - 0.407 \cdot \log(AT_{t}) + 6.03 \cdot \frac{DLC_{t} + DLTT_{t}
 &+ 0.285 \cdot \mathbf{1}_{NI_{t} < 0 \text{ and } NI_{t-12} < 0} - 0.521 \cdot \frac{NI_{t}-NI_{t-12}}{|NI_{t}| + |NI_{t-12}|}\text{,}
 \end{align*}
 
-where AT corresponds to total assets, DLC to short-term debt, DLTT to long-term debt, ACT to current assets, LCT to current liabilities, LT to total liabilities, PI to pretax income, DP to depreciation and amortization, and NI to net income.
+where `at` corresponds to total assets, `dlc` to short-term debt, `dltt` to long-term debt, `act` to current assets, `lct` to current liabilities, `lt` to total liabilities, `pi` to pretax income, `dp` to depreciation and amortization, and `ni` to net income.
 We winsorize all variables except for dummy variables at the first and 99$\text{th}$ percentile of their respective distribution.
 
 **OPE - Operating Profits to Book Equity**
@@ -2195,17 +2204,17 @@ $$
 OPE_{t} = \frac{REVT_{t} - COGS_{t} - XSGA_{t} - XINT_{t}}{BE_{t}}\text{,}
 $$
 
-where REVT corresponds to total revenues, COGS to cost of goods sold, XSGA to selling, general and administrative expenses, XINT to interest expenses, and BE to book equity.
-The definition of book equity is (a) the book equity of shareholders plus (b) deferred taxes and investment tax credit (Compustat item TXDITC or TXDB + ITCB if TXDITC is unavailable) minus (c) the book value of preferred stock.
-Regarding (a), the book equity of shareholders is shareholders' equity (SEQ), or the sum of common equity (CEQ) and the par value of preferred stock (PSTK), or, if all previous items are unavailable, total assets (AT) minus total liabilities (LT).
-Regarding (b), deferred taxes (TXDITC) or investment tax credits (TXDB plus ITCB) if deferred taxes are unavailable.
-Regarding (c), the book value of preferred stock corresponds in the following order either to the redemption value (PSTKRV), or the liquidation value (PSTKL), or if all previous items are unavailable to the par value (PSTK).
+where `revt` corresponds to total revenues, `cogs` to cost of goods sold, `xsga` to selling, general and administrative expenses, `xint` to interest expenses, and BE to book equity.
+The definition of book equity is (a) the book equity of shareholders plus (b) deferred taxes and investment tax credit (Compustat item `txditc` or `txdb` + `itcb` if `txditc` is unavailable) minus (c) the book value of preferred stock.
+Regarding (a), the book equity of shareholders is shareholders' equity (`seq`), or the sum of common equity (`ceq`) and the par value of preferred stock (`pstk`), or, if all previous items are unavailable, total assets (`at`) minus total liabilities (`lt`).
+Regarding (b), deferred taxes (`txditc`) or investment tax credits (`txdb` plus `itcb`) if deferred taxes are unavailable.
+Regarding (c), the book value of preferred stock corresponds in the following order either to the redemption value (`pstkrv`), or the liquidation value (`pstkl`), or if all previous items are unavailable to the par value (`pstk`).
 We replace the missing values in items (b) and (c) with zero.
-Moreover, missing values in COGS, XSGA, and XINT are set to zero.
+Moreover, missing values in `cogs`, `xsga`, and `xint` are set to zero.
 
 **ROA - Return on Assets**
 
-Following @balakrishnan.2010, we measure return on assets as quarterly income before extraordinary items (IBQ) relative to lagged quarterly total assets (ATQ), i.e.,
+Following @balakrishnan.2010, we measure return on assets as quarterly income before extraordinary items (`ibq`) relative to lagged quarterly total assets (`atq`), i.e.,
 
 $$
 ROA_{q} = \frac{IBQ_{q}}{ATQ_{q-1}}\text{.}
@@ -2215,21 +2224,21 @@ Finally, the earnings announcement date must be after the fiscal quarter-end dat
 
 **ROE - Return on Equity**
 
-Following @hou.2014, we measure return on equity as quarterly income before extraordinary items (IBQ) relative to lagged book equity (BEQ)
+Following @hou.2014, we measure return on equity as quarterly income before extraordinary items (`ibq`) relative to lagged book equity (BEQ)
 
 $$
 ROE_{q} = \frac{IBQ_{q}}{BEQ_{q-1}}\text{.}
 $$
 
 Quarterly book equity (BEQ) is computed as the (a) book equity of shareholders plus (b) balance sheet deferred taxes and investment tax credit minus (c) the book value of preferred stock.
-Regarding (a), we measure book equity of shareholders by shareholders' equity (SEQQ), or the sum of common equity (CEQQ) and the par value of preferred stock (PSTKQ), or if all previous items are unavailable by total assets (ATQ) minus total liabilities (LTQ).
-Regarding (b), the balance sheet deferred taxes and investment tax credit is TXDITCQ, or TXDBQ, or zero if both are missing.
-Regarding (c), the book value of preferred stocks corresponds to PSTKRQ, or PSTKQ, or zero if both are unavailable.
+Regarding (a), we measure book equity of shareholders by shareholders' equity (`seqq`), or the sum of common equity (`ceqq`) and the par value of preferred stock (`pstkq`), or if all previous items are unavailable by total assets (`atq`) minus total liabilities (`ltq`).
+Regarding (b), the balance sheet deferred taxes and investment tax credit is `txditcq`, or `txdbq`, or zero if both are missing.
+Regarding (c), the book value of preferred stocks corresponds to `pstkrq`, or `pstkq`, or zero if both are unavailable.
 Finally, the earnings announcement date must be after the fiscal quarter-end date.
 
 **TBI - Taxable Income to Book Income**
 
-Following @lev.2004, we measure taxable income to book income as pretax income (PI) scaled by net income (NI)
+Following @lev.2004, we measure taxable income to book income as pretax income (`pi`) scaled by net income (`ni`)
 
 $$
 TBI_{t} = \frac{PI_{t}}{NI_{t}}\text{.}
@@ -2242,7 +2251,7 @@ We require positive pretax and net income.
 **ME - Size**
 
 Following @fama.1992, we measure size as the natural logarithm of the market equity.
-We obtain market equity data from CRSP by multiplying the shares outstanding (shrout \* 1,000, as they are given in thousands) with the corresponding share price (the absolute value of altprc), i.e.,
+We obtain market equity data from CRSP by multiplying the shares outstanding (`shrout` \* 1,000, as they are given in thousands) with the corresponding share price (the absolute value of `altprc`), i.e.,
 
 $$
 ME_{t} = \log\left(shrout_{t}*1000*|altprc_{t}|\right)\text{.}
@@ -2252,7 +2261,7 @@ $$
 
 **AMI - Amihud Illiquidity Measure**
 
-Following @amihud.2002, we measure the illiquidity from daily return-to-volume (RV), which is the absolute daily return (r) scaled by the daily dollar trading volume (product of vol and prc), i.e.,
+Following @amihud.2002, we measure the illiquidity from daily return-to-volume (RV), which is the absolute daily return (r) scaled by the daily dollar trading volume (product of `vol` and `prc`), i.e.,
 
 $$
 RV_{t} = \frac{|r_{d}|}{prc_{t} * vol_{t}}\text{.}
@@ -2267,32 +2276,32 @@ Following @fama.1973, we measure the market beta $\beta_{1}$ from monthly CRSP d
 Specifically, we run the following time series regression over the previous five years:
 
 $$
-r_{t}^{e} = \alpha + \beta_{1} \cdot (MKT_{t} - R_{t}^{f}) + u_{t}\text{.}
+r_{t}^{e} = \alpha + \beta_{1} \cdot (\text{MKT}_{t} - R_{t}^{f}) + u_{t}\text{.}
 $$
 
 Moreover, we require at least 24 monthly observations for the regression above.
 
 **DTV - Dollar Trading Volume**
 
-Following @brennan.1998, we measure dollar trading volume from daily CRSP data as the average dollar trading volume (product of vol and prc) from month $t-6$ to month $t-1$ (with at least 50 observations).
+Following @brennan.1998, we measure dollar trading volume from daily CRSP data as the average dollar trading volume (product of `vol` and `prc`) from month $t-6$ to month $t-1$ (with at least 50 observations).
 Moreover, we adjust dollar trading volume from NASDAQ according to @gao.2010.
 
-**ISKEW - Idiosyncratic Skewness Relative to the @fama.1993 three-factor model**
+**ISKEW - Idiosyncratic Skewness Relative to the Fama-French three-factor model**
 
-Following @bali.2016, we regress daily excess returns in each month on the three @fama.1993 factor model (with a minimum of 15 daily observations), i.e.,
+Following @bali.2016, we regress daily excess returns in each month on the Fama-French three-factor model (with a minimum of 15 daily observations), i.e.,
 
 $$
-r_{t}^{e} = \alpha + \beta_{1} \cdot (MKT_{t} - R_{t}^{f}) + \beta_{2} \cdot SMB_{t} + \beta_{3} \cdot HML_{t} + u_{t}\text{.}
+r_{t}^{e} = \alpha + \beta_{1} \cdot (\text{MKT}_{t} - R_{t}^{f}) + \beta_{2} \cdot \text{SMB}_{t} + \beta_{3} \cdot \text{HML}_{t} + u_{t}\text{.}
 $$
 
 Then, idiosyncratic skewness is measured as the skewness of residuals $u_{t}$.
 
-**IVOL - Idiosyncratic Volatility Relative to the @fama.1993 model**
+**IVOL - Idiosyncratic Volatility Relative to the Fama-French model**
 
-Following @ang.2006, we compute idiosyncratic volatility relative to the @fama.1993 three-factor model as the volatility of residuals from the following regression (with a minimum of 15 daily observations)
+Following @ang.2006, we compute idiosyncratic volatility relative to the Fama-French three-factor model as the volatility of residuals from the following regression (with a minimum of 15 daily observations)
 
 $$
-r_{t}^{e} = \alpha + \beta_{1} \cdot (MKT_{t} - R_{t}^{f}) + \beta_{2} \cdot SMB_{t} + \beta_{3} \cdot HML_{t} + u_{t}\text{.}
+r_{t}^{e} = \alpha + \beta_{1} \cdot (\text{MKT}_{t} - R_{t}^{f}) + \beta_{2} \cdot \text{SMB}_{t} + \beta_{3} \cdot \text{HML}_{t} + u_{t}\text{.}
 $$
 
 **MDR - Maximum Daily Return**
@@ -2301,7 +2310,7 @@ Following @bali.2011, we measure the maximum daily (excess) return in each month
 
 **TUR - Share Turnover**
 
-Following @datar.1998, we measure the daily share turnover of each stock as the number of shares traded (vol) scaled by the number of shares outstanding (shrout), i.e.,
+Following @datar.1998, we measure the daily share turnover of each stock as the number of shares traded (`vol`) scaled by the number of shares outstanding (`shrout`), i.e.,
 
 $$
 T_{t} = \frac{vol}{shrout}\text{.}
@@ -2314,21 +2323,21 @@ Moreover, we adjust the trading volume of NASDAQ stocks according to @gao.2010.
 
 **BM - Book Equity to Market Equity**
 
-Following @davis.2000, we measure the book-to-market ratio as book equity (BE) from Compustat divided by market equity (ME) from CRSP (i.e., the fiscal-year end's shares outstanding, shrout, times the absolute value of their price, altprc, in million USD), i.e.,
+Following @davis.2000, we measure the book-to-market ratio as book equity (BE) from Compustat divided by market equity (ME) from CRSP (i.e., the fiscal-year end's shares outstanding, `shrout`, times the absolute value of their price, `altprc`, in million USD), i.e.,
 
 $$
 BM_{t} = \frac{BE_{t}}{ME_{t}}\text{.}
 $$
 
-The definition of book equity is (a) the book equity of shareholders plus (b) deferred taxes and investment tax credit (Compustat item TXDITC or TXDB + ITCB if TXDITC is unavailable) minus (c) the book value of preferred stock.
-Regarding (a), the book equity of shareholders is shareholders' equity (SEQ), or the sum of common equity (CEQ) and the par value of preferred stock (PSTK), or, if all previous items are unavailable, total assets (AT) minus total liabilities (LT).
-Regarding (b), deferred taxes (TXDITC) or investment tax credits (TXDB plus ITCB) if deferred taxes are unavailable.
-Regarding (c), the book value of preferred stock corresponds in the following order either to the redemption value (PSTKRV), or the liquidation value (PSTKL), or if all previous items are unavailable to the par value (PSTK).
+The definition of book equity is (a) the book equity of shareholders plus (b) deferred taxes and investment tax credit (Compustat item `txditc` or `txdb` + `itcb` if `txditc` is unavailable) minus (c) the book value of preferred stock.
+Regarding (a), the book equity of shareholders is shareholders' equity (`seq`), or the sum of common equity (`ceq`) and the par value of preferred stock (`pstk`), or, if all previous items are unavailable, total assets (`at`) minus total liabilities (`lt`).
+Regarding (b), deferred taxes (`txditc`) or investment tax credits (`txdb` plus `itcb`) if deferred taxes are unavailable.
+Regarding (c), the book value of preferred stock corresponds in the following order either to the redemption value (`pstkrv`), or the liquidation value (`pstkl`), or if all previous items are unavailable to the par value (`pstk`).
 We replace the missing values in items (b) and (c) with zero.
 
 **CFM - Cash Flow to Market Equity**
 
-Following @lakonishok.1994, we measure the cash-flow-to-price ratio as income before extraordinary items (IB) plus depreciation (DP) scaled by market equity from CRSP (i.e., the fiscal-year end's shares outstanding, shrout, times the absolute value of their price, altprc, in million USD), i.e.,
+Following @lakonishok.1994, we measure the cash-flow-to-price ratio as income before extraordinary items (`ib`) plus depreciation (`dp`) scaled by market equity from CRSP (i.e., the fiscal-year end's shares outstanding, `shrout`, times the absolute value of their price, `altprc`, in million USD), i.e.,
 
 $$
 CFM_{t} = \frac{IB_{t} + DP_{t}}{ME_{t}}\text{.}
@@ -2338,13 +2347,13 @@ We exclude all stocks with negative cash flows.
 
 **DM - Debt to Market Equity**
 
-Following @bhandari.1988, we measure the debt-to-market ratio as short-term debt (DLC) plus long-term debt (DLTT) from Compustat divided by market equity from CRSP (i.e., the fiscal-year end's shares outstanding, shrout, times the absolute value of their price, altprc, in million USD), i.e.,
+Following @bhandari.1988, we measure the debt-to-market ratio as short-term debt (`dlc`) plus long-term debt (`dltt`) from Compustat divided by market equity from CRSP (i.e., the fiscal-year end's shares outstanding, `shrout`, times the absolute value of their price, `altprc`, in million USD), i.e.,
 
 $$
 DM_{t} = \frac{DLC_{t} + DLTT_{t}}{ME_{t}}\text{.}
 $$
 
-We exclude stocks with missing DLC and DLTT observations.
+We exclude stocks with missing `dlc` and `dltt` observations.
 
 **EBM - Enterprise Book Equity to Market Equity**
 
@@ -2354,14 +2363,14 @@ $$
 EBM_{t} = \frac{(DLTT_{t} + DLC_{t} + PSTK_{t} + DVPA_{t} - TSTKP_{t}) - CHE_{t} + BE_{t}}{(DLTT_{t} + DLC_{t} + PSTK_{t} + DVPA_{t} - TSTKP_{t}) - CHE_{t} + ME_{t}}\text{,}
 $$
 
-where DLTT corresponds to long-term debt, DLC to current debt, PSTK to the value of preferred stock, DVPA to preferred dividends in arrears, TSTKP to preferred treasury stock, CHE to cash and short-term investments, and ME to the market equity from CRSP (i.e., the fiscal-year end's shares outstanding, shrout, times the absolute value of their price, altprc, in million USD).
-Lastly, in this case, book equity BE is computed as common equity (CEQ) plus TSTKP minus DVPA.
-Missing observations in DVPA and TSTKP are set to zero.
+where `dltt` corresponds to long-term debt, `dlc` to current debt, `pstk` to the value of preferred stock, `dvpa` to preferred dividends in arrears, `tstkp` to preferred treasury stock, `che` to cash and short-term investments, and ME to the market equity from CRSP (i.e., the fiscal-year end's shares outstanding, `shrout`, times the absolute value of their price, `altprc`, in million USD).
+Lastly, in this case, book equity BE is computed as common equity (`ceq`) plus `tstkp` minus `dvpa`.
+Missing observations in `dvpa` and `tstkp` are set to zero.
 Additionally, we require that the sum of net debt and book equity, as well as the sum of net debt plus market equity, is positive.
 
 **EM - Earnings to Market Equity**
 
-Following @basu.1983, we measure the earnings-to-price ratio as income before extraordinary items (IB) from Compustat divided by market equity from CRSP (i.e., the fiscal-year end's shares outstanding, shrout, times the absolute value of their price, altprc, in million USD), i.e.,
+Following @basu.1983, we measure the earnings-to-price ratio as income before extraordinary items (`ib`) from Compustat divided by market equity from CRSP (i.e., the fiscal-year end's shares outstanding, `shrout`, times the absolute value of their price, `altprc`, in million USD), i.e.,
 
 $$
 EM_{t} = \frac{IB_{t}}{ME_{t}}\text{.}
@@ -2371,43 +2380,43 @@ We exclude firms with negative earnings.
 
 **NDM - Net Debt to Market Equity**
 
-Following @penman.2007, we measure net debt to price as net debt from Compustat scaled by market equity from CRSP (i.e., the fiscal-year end's shares outstanding, shrout, times the absolute value of their price, altprc, in million USD), i.e.,
+Following @penman.2007, we measure net debt to price as net debt from Compustat scaled by market equity from CRSP (i.e., the fiscal-year end's shares outstanding, `shrout`, times the absolute value of their price, `altprc`, in million USD), i.e.,
 
 $$
 NDM_{t} = \frac{(DLTT_{t} + DLC_{t} + PSTK_{t} + DVPA_{t} - TSTKP_{t}) - CHE_{t}}{ME_{t}}\text{,}
 $$
 
-where DLTT corresponds to long-term debt, DLC to current debt, PSTK to the value of preferred stock, DVPA to preferred dividends in arrears, TSTKP to preferred treasury stock, and CHE to cash and short-term investments.
-Lastly, missing observations in DVPA and TSTKP are set to zero.
+where `dltt` corresponds to long-term debt, `dlc` to current debt, `pstk` to the value of preferred stock, `dvpa` to preferred dividends in arrears, `tstkp` to preferred treasury stock, and `che` to cash and short-term investments.
+Lastly, missing observations in `dvpa` and `tstkp` are set to zero.
 
 **NPY - Net Payout Yield**
 
-Following @boudoukh.2007, we measure the net payout yield as net payouts from Compustat scaled by market equity from CRSP (i.e., the fiscal-year end's shares outstanding, shrout, times the absolute value of their price, altprc, in million USD), i.e.,
+Following @boudoukh.2007, we measure the net payout yield as net payouts from Compustat scaled by market equity from CRSP (i.e., the fiscal-year end's shares outstanding, `shrout`, times the absolute value of their price, `altprc`, in million USD), i.e.,
 
 \begin{align*}
 NPY_{t} = &\big[(DVC_{t} + PRSTKC_{t} + \Delta PSTKRV_{t} \cdot {1}_{\Delta PSTKRV <0}) \\
 &- (SSTK_{t} - \Delta PSTKRV_{t} \cdot {1}_{\Delta PSTKRV >0})\big] / ME_{t}\text{,}
 \end{align*}
 
-where DVC are dividends from common stock, PRSTKC is the purchase of common and preferred stock, PSTKRV is the value of the net number of preferred stocks outstanding, and SSTK reflects the sale of common and preferred stocks.
-${1}_{\Delta PSTKRV <0}$ is a dummy variable that is one if the annual change in PSTKRV is negative and zero otherwise.
+where `dvc` are dividends from common stock, `prstkc` is the purchase of common and preferred stock, `pstkrv` is the value of the net number of preferred stocks outstanding, and `sstk` reflects the sale of common and preferred stocks.
+${1}_{\Delta PSTKRV <0}$ is a dummy variable that is one if the annual change in `pstkrv` is negative and zero otherwise.
 Moreover, we exclude stocks with negative net payouts.
 
 **OCM - Operating Cash Flow to Market Equity**
 
-Following @desai.2004, we measure the ratio of operating cash flows to price as operating cash flows (OC) from Compustat divided by the market equity from CRSP (i.e., the fiscal-year end's shares outstanding, shrout, times the absolute value of their price, altprc, in million USD), i.e.,
+Following @desai.2004, we measure the ratio of operating cash flows to price as operating cash flows (OC) from Compustat divided by the market equity from CRSP (i.e., the fiscal-year end's shares outstanding, `shrout`, times the absolute value of their price, `altprc`, in million USD), i.e.,
 
 $$
 OCM_{t} = \frac{OC_{t}}{ME_{t}}\text{.}
 $$
 
-Before 1988, we measure OC as funds from operations (FOPT) minus the change in working capital (item WCAP).
-Thereafter, we measure OC as net cash flows from operating activities (OANCF).
+Before 1988, we measure OC as funds from operations (`fopt`) minus the change in working capital (item `wcap`).
+Thereafter, we measure OC as net cash flows from operating activities (`oancf`).
 Moreover, we exclude firms with negative operating cash flows.
 
 **SM - Sales to Market Equity**
 
-Following @barbee.1996, we measure the sales-to-price ratio (SM) as sales (SALE) from Compustat divided by the market equity from CRSP (i.e., the fiscal-year end's shares outstanding, shrout, times the absolute value of their price, altprc, in million USD), i.e.,
+Following @barbee.1996, we measure the sales-to-price ratio (SM) as sales (`sale`) from Compustat divided by the market equity from CRSP (i.e., the fiscal-year end's shares outstanding, `shrout`, times the absolute value of their price, `altprc`, in million USD), i.e.,
 
 $$
 SM_{t} = \frac{SALE_{t}}{ME_{t}}\text{.}
