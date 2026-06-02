@@ -391,7 +391,7 @@ The empirical asset pricing workflow decomposes into three stages: data acquisit
 \endgroup
 ```
 
-Most rows in @tbl-data-sources mirror upstream providers; the high-frequency dataset is the exception, which we host it ourselves. It comprises message-level snapshots of the NASDAQ limit order book for the SPY exchange-traded fund (and TLT for government bonds) from July 2007 to October 2025, more than 30 billion order-book messages in total, curated for the analysis in @menkveld.2026.
+Most rows in @tbl-data-sources mirror upstream providers; the high-frequency dataset is the exception, which we host ourselves. It comprises message-level snapshots of the NASDAQ limit order book for the SPY exchange-traded fund (and TLT for government bonds) from July 2007 to October 2025, more than 30 billion order-book messages in total, curated for the analysis in @menkveld.2026.
 
 A first illustration uses only public data sources. We retrieve the current constituents of the Dow Jones Industrial Average and then download daily prices for those tickers over a chosen window. `list_supported_indexes()` returns the full set of equity indexes available through the `"constituents"` domain.
 
