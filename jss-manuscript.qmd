@@ -1,10 +1,21 @@
 ---
 title: "[tidyfinance]{.pkg}: Transparent Factor Construction for Empirical Asset Pricing"
 title-plain: "tidyfinance: Transparent Factor Construction for Empirical Asset Pricing"
+short-title: "[tidyfinance]{.pkg}: Transparent Factor Construction for Empirical Asset Pricing"
 format:
     jss-pdf:
         keep-tex: true
         fig-pos: 'H'
+        number-sections: true
+        colorlinks: false
+header-includes:
+  - |
+    \setlength{\parskip}{0.7ex plus0.1ex minus0.1ex}
+    \setlength{\parindent}{0em}
+    \ifPDFTeX
+      \DeclareUnicodeCharacter{2191}{\ensuremath{\uparrow}}
+      \DeclareUnicodeCharacter{2193}{\ensuremath{\downarrow}}
+    \fi
 author:
   - name: Christoph Frey
     orcid: 0000-0002-9937-0903
@@ -50,8 +61,11 @@ keywords: [financial risk factors, reproducible research, asset pricing, R]
 keywords-formatted: [financial risk factors, reproducible research, asset pricing, "[R]{.proglang}"]
 bibliography: bibliography.bib
 
+journal:
+  type: article
+
 execute:
-  cache: false
+  cache: true
 
 knitr:
   opts_chunk:
@@ -1597,7 +1611,7 @@ fm_results |>
   )
 ```
  
-The negative slope on `asset_growth` in @tbl-fama-macbeth lines up with the long-short evidence in @tbl-univariate-sort-ag and @tbl-customized-comparison: high-AG firms earn lower subsequent returns, conditional on size. As an external benchmark, @cooper.2008 [Table III, Panel A, Model 1] reports a Fama-MacBeth slope on annual asset growth of −0.0922 ($t$\ statistic of −6.52). Converted to a monthly basis, their slope is approximately `{r} round(-0.0922 / 12, 4)` $(=−0.0922/12)$, directly comparable to the magnitude of the AG coefficient in our table.[^cooper-fm-controls] Switching to `vcov = "iid"` or supplying `vcov_options = list(lag = 6, prewhite = FALSE)` would change the standard-error treatment without altering the rest of the call, and adding additional regressors (e.g., a beta estimate from `estimate_betas()`, a profitability measure, an idiosyncratic-volatility control) is a one-line extension to the model formula. The same function therefore covers the standard cross-sectional asset-pricing test that complements the portfolio-sort evidence used throughout the rest of the paper.
+The negative slope on `asset_growth` in @tbl-fama-macbeth lines up with the long-short evidence in @tbl-univariate-sort-ag and @tbl-customized-comparison: high-AG firms earn lower subsequent returns, conditional on size. As an external benchmark, @cooper.2008 [Table III, Panel A, Model 1] reports a Fama-MacBeth slope on annual asset growth of -0.0922 ($t$\ statistic of -6.52). Converted to a monthly basis, their slope is approximately `{r} round(-0.0922 / 12, 4)` $(=-0.0922/12)$, directly comparable to the magnitude of the AG coefficient in our table.[^cooper-fm-controls] Switching to `vcov = "iid"` or supplying `vcov_options = list(lag = 6, prewhite = FALSE)` would change the standard-error treatment without altering the rest of the call, and adding additional regressors (e.g., a beta estimate from `estimate_betas()`, a profitability measure, an idiosyncratic-volatility control) is a one-line extension to the model formula. The same function therefore covers the standard cross-sectional asset-pricing test that complements the portfolio-sort evidence used throughout the rest of the paper.
 
 [^cooper-fm-controls]: @cooper.2008 additionally controls for book-to-market and 6- and 36-month past returns, both negatively correlated with AG.
 
@@ -1651,6 +1665,12 @@ The factor library covers `{r} format(nrow(sorting_variable_information), big.ma
 
 [^valid-grid]: Crossing every choice in @tbl-sorting-decisions across the `{r} format(nrow(sorting_variable_information), big.mark = ",")` sorting variables defines `{r} format(n_specifications_candidate, big.mark = ",")` candidate specifications, once the secondary size dimension is collapsed for univariate sorts, where it does not apply. Two variable-specific restrictions account for the remaining gap. Market Equity is excluded from the two bivariate sorts because size already serves as the secondary sort variable, and Earnings-to-Market is excluded from specifications that retain firms with negative earnings because a negative denominator inverts the characteristic's ranking. The result is the `{r} format(nrow(portfolio_sort_grid), big.mark = ",")` valid series reported here.
 
+```{=latex}
+\begingroup\small
+\setlength{\tabcolsep}{4pt}
+\renewcommand{\arraystretch}{1.0}
+```
+
 ```{r}
 #| label: tbl-sorting-variables
 #| tbl-cap: "Sorting variables in the factor library. The direction column indicates whether the long-short factor return goes long top-minus-bottom (↑) or bottom-minus-top (↓) of the characteristic distribution."
@@ -1675,6 +1695,10 @@ tab <- sorting_variable_information |>
 
 tab[1] <- sub("llll", "lp{5.5cm}lp{6.5cm}", tab[1], fixed = TRUE)
 tab
+```
+
+```{=latex}
+\endgroup
 ```
 
 ### Access {#sec-library-access}
@@ -1869,8 +1893,6 @@ Stefan Voigt is grateful to the Danish Finance Institute for financial support.
 \renewcommand{\thetable}{A-\arabic{table}}
 \setcounter{figure}{0}
 \renewcommand{\thefigure}{A-\arabic{figure}}
-
-# Appendix {.unnumbered}
 
 ## Variable construction {#sec-variable-details}
 
