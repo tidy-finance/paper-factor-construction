@@ -1,10 +1,21 @@
 ---
 title: "[tidyfinance]{.pkg}: Transparent Factor Construction for Empirical Asset Pricing"
 title-plain: "tidyfinance: Transparent Factor Construction for Empirical Asset Pricing"
+short-title: "[tidyfinance]{.pkg}: Transparent Factor Construction for Empirical Asset Pricing"
 format:
     jss-pdf:
         keep-tex: true
         fig-pos: 'H'
+        number-sections: true
+        colorlinks: false
+header-includes:
+  - |
+    \setlength{\parskip}{0.7ex plus0.1ex minus0.1ex}
+    \setlength{\parindent}{0em}
+    \ifPDFTeX
+      \DeclareUnicodeCharacter{2191}{\ensuremath{\uparrow}}
+      \DeclareUnicodeCharacter{2193}{\ensuremath{\downarrow}}
+    \fi
 author:
   - name: Christoph Frey
     orcid: 0000-0002-9937-0903
@@ -50,8 +61,11 @@ keywords: [financial risk factors, reproducible research, asset pricing, R]
 keywords-formatted: [financial risk factors, reproducible research, asset pricing, "[R]{.proglang}"]
 bibliography: bibliography.bib
 
+journal:
+  type: article
+
 execute:
-  cache: false
+  cache: true
 
 knitr:
   opts_chunk:
@@ -394,7 +408,7 @@ The empirical asset pricing workflow decomposes into three stages: data acquisit
 |                |                                    | ```                                     |
 +----------------+------------------------------------+-----------------------------------------+
 | TRACE          | Corporate bond transactions        | ```                                     |
-|                | (@dicknielsen.2009 cleaned)        | download_data(                          |
+|                | @dicknielsen.2009 cleaned          | download_data(                          |
 |                |                                    |   domain = "wrds",                      |
 |                |                                    |   dataset = "trace_enhanced",           |
 |                |                                    |   cusips = "655844CJ5")                 |
@@ -1370,7 +1384,7 @@ univariate_sort_table <- bind_rows(
 
 ```{r}
 #| label: tbl-univariate-sort-ag
-#| tbl-cap: !expr 'paste0("Time-series averages of annualized monthly excess returns for asset growth quintile portfolios. Portfolios are formed annually in July using NYSE breakpoints. Means are annualized (multiplied by 12). The $t$\\ statistic tests whether the mean monthly excess return differs from zero. Capped value-weighted pulls weights above the 80th percentile back to that cap. The L/S row is the long-short portfolio (bottom minus top quintile). Sample: ", sample_years(drop_na(portfolio_returns)), ".")'
+#| tbl-cap: !expr 'paste0("Time-series averages of annualized monthly excess returns for asset growth quintile portfolios. Portfolios are formed annually in July using NYSE breakpoints. Means are annualized (multiplied by 12). The $t$~statistic tests whether the mean monthly excess return differs from zero. Capped value-weighted pulls weights above the 80th percentile back to that cap. The L/S row is the long-short portfolio (bottom minus top quintile). Sample: ", sample_years(drop_na(portfolio_returns)), ".")'
 #| echo: false
 group_header <- paste0(
   " & \\multicolumn{2}{c}{Value-weighted} & ",
@@ -1413,7 +1427,7 @@ structure(
 \endgroup
 ```
 
-The value-weighted long-short portfolio earns `{r} round(mean(factor_returns_ag$ret_excess_vw, na.rm = TRUE) * 12 * 100, 1)`% per year ($t$\ statistic of `{r} round(mean(factor_returns_ag$ret_excess_vw, na.rm = TRUE) / (sd(factor_returns_ag$ret_excess_vw, na.rm = TRUE) / sqrt(sum(!is.na(factor_returns_ag$ret_excess_vw)))), 2)`), consistent with the premium documented by @cooper.2008. The equal-weighted spread is larger, as expected for characteristics that correlate with size. The monotone decline of value-weighted means across quintiles confirms that [tidyfinance]{.pkg} reproduces the literature result from raw WRDS data with a single function call.
+The value-weighted long-short portfolio earns `{r} round(mean(factor_returns_ag$ret_excess_vw, na.rm = TRUE) * 12 * 100, 1)`% per year ($t$~statistic of `{r} round(mean(factor_returns_ag$ret_excess_vw, na.rm = TRUE) / (sd(factor_returns_ag$ret_excess_vw, na.rm = TRUE) / sqrt(sum(!is.na(factor_returns_ag$ret_excess_vw)))), 2)`), consistent with the premium documented by @cooper.2008. The equal-weighted spread is larger, as expected for characteristics that correlate with size. The monotone decline of value-weighted means across quintiles confirms that [tidyfinance]{.pkg} reproduces the literature result from raw WRDS data with a single function call.
 
 #### Customized specification (bivariate sorts) {#sec-customized-sorts}
 
@@ -1485,7 +1499,7 @@ factor_returns_bivariate <- portfolio_returns_bivariate |>
   compute_long_short_returns(direction = "bottom_minus_top")
 ```
 
-@tbl-customized-comparison decomposes the customized premium into two layers. Adding the size-controlled double sort alone (the bivariate-only row) lifts the annualized premium from `{r} round(mean(factor_returns_ag$ret_excess_vw, na.rm = TRUE) * 12 * 100, 1)`% to `{r} round(mean(factor_returns_bivariate$ret_excess_vw, na.rm = TRUE) * 12 * 100, 1)`%, with the $t$\ statistic moving from borderline to significant at conventional levels. Controlling for size reveals that most of the AG signal in the cross-section was masked by size dispersion in the univariate sort. Layering the filter set and the 20% breakpoint threshold on top trims the magnitude back to `{r} round(mean(factor_returns_customized$ret_excess_vw, na.rm = TRUE) * 12 * 100, 1)`%, where the spread remains significant at conventional levels: removing financials, utilities, and loss-making firms strips out some of the firms contributing to the unfiltered spread. Across all three specifications, the spread is positive and reflects the negative AG premium reported in @cooper.2008, who finds an annual value-weighted long-short premium of about 12.6% over July 1968 to June 2003.[^cooper-deciles]
+@tbl-customized-comparison decomposes the customized premium into two layers. Adding the size-controlled double sort alone (the bivariate-only row) lifts the annualized premium from `{r} round(mean(factor_returns_ag$ret_excess_vw, na.rm = TRUE) * 12 * 100, 1)`% to `{r} round(mean(factor_returns_bivariate$ret_excess_vw, na.rm = TRUE) * 12 * 100, 1)`%, with the $t$~statistic moving from borderline to significant at conventional levels. Controlling for size reveals that most of the AG signal in the cross-section was masked by size dispersion in the univariate sort. Layering the filter set and the 20% breakpoint threshold on top trims the magnitude back to `{r} round(mean(factor_returns_customized$ret_excess_vw, na.rm = TRUE) * 12 * 100, 1)`%, where the spread remains significant at conventional levels: removing financials, utilities, and loss-making firms strips out some of the firms contributing to the unfiltered spread. Across all three specifications, the spread is positive and reflects the negative AG premium reported in @cooper.2008, who finds an annual value-weighted long-short premium of about 12.6% over July 1968 to June 2003.[^cooper-deciles]
 
 [^cooper-deciles]: @cooper.2008 sorts into deciles.
 
@@ -1597,7 +1611,7 @@ fm_results |>
   )
 ```
  
-The negative slope on `asset_growth` in @tbl-fama-macbeth lines up with the long-short evidence in @tbl-univariate-sort-ag and @tbl-customized-comparison: high-AG firms earn lower subsequent returns, conditional on size. As an external benchmark, @cooper.2008 [Table III, Panel A, Model 1] reports a Fama-MacBeth slope on annual asset growth of −0.0922 ($t$\ statistic of −6.52). Converted to a monthly basis, their slope is approximately `{r} round(-0.0922 / 12, 4)` $(=−0.0922/12)$, directly comparable to the magnitude of the AG coefficient in our table.[^cooper-fm-controls] Switching to `vcov = "iid"` or supplying `vcov_options = list(lag = 6, prewhite = FALSE)` would change the standard-error treatment without altering the rest of the call, and adding additional regressors (e.g., a beta estimate from `estimate_betas()`, a profitability measure, an idiosyncratic-volatility control) is a one-line extension to the model formula. The same function therefore covers the standard cross-sectional asset-pricing test that complements the portfolio-sort evidence used throughout the rest of the paper.
+The negative slope on `asset_growth` in @tbl-fama-macbeth lines up with the long-short evidence in @tbl-univariate-sort-ag and @tbl-customized-comparison: high-AG firms earn lower subsequent returns, conditional on size. As an external benchmark, @cooper.2008 [Table III, Panel A, Model 1] reports a Fama-MacBeth slope on annual asset growth of -0.0922 ($t$~statistic of -6.52). Converted to a monthly basis, their slope is approximately `{r} round(-0.0922 / 12, 4)` $(=-0.0922/12)$, directly comparable to the magnitude of the AG coefficient in our table.[^cooper-fm-controls] Switching to `vcov = "iid"` or supplying `vcov_options = list(lag = 6, prewhite = FALSE)` would change the standard-error treatment without altering the rest of the call, and adding additional regressors (e.g., a beta estimate from `estimate_betas()`, a profitability measure, an idiosyncratic-volatility control) is a one-line extension to the model formula. The same function therefore covers the standard cross-sectional asset-pricing test that complements the portfolio-sort evidence used throughout the rest of the paper.
 
 [^cooper-fm-controls]: @cooper.2008 additionally controls for book-to-market and 6- and 36-month past returns, both negatively correlated with AG.
 
@@ -1651,6 +1665,12 @@ The factor library covers `{r} format(nrow(sorting_variable_information), big.ma
 
 [^valid-grid]: Crossing every choice in @tbl-sorting-decisions across the `{r} format(nrow(sorting_variable_information), big.mark = ",")` sorting variables defines `{r} format(n_specifications_candidate, big.mark = ",")` candidate specifications, once the secondary size dimension is collapsed for univariate sorts, where it does not apply. Two variable-specific restrictions account for the remaining gap. Market Equity is excluded from the two bivariate sorts because size already serves as the secondary sort variable, and Earnings-to-Market is excluded from specifications that retain firms with negative earnings because a negative denominator inverts the characteristic's ranking. The result is the `{r} format(nrow(portfolio_sort_grid), big.mark = ",")` valid series reported here.
 
+```{=latex}
+\begingroup\small
+\setlength{\tabcolsep}{4pt}
+\renewcommand{\arraystretch}{1.0}
+```
+
 ```{r}
 #| label: tbl-sorting-variables
 #| tbl-cap: "Sorting variables in the factor library. The direction column indicates whether the long-short factor return goes long top-minus-bottom (↑) or bottom-minus-top (↓) of the characteristic distribution."
@@ -1675,6 +1695,10 @@ tab <- sorting_variable_information |>
 
 tab[1] <- sub("llll", "lp{5.5cm}lp{6.5cm}", tab[1], fixed = TRUE)
 tab
+```
+
+```{=latex}
+\endgroup
 ```
 
 ### Access {#sec-library-access}
@@ -1869,8 +1893,6 @@ Stefan Voigt is grateful to the Danish Finance Institute for financial support.
 \renewcommand{\thetable}{A-\arabic{table}}
 \setcounter{figure}{0}
 \renewcommand{\thefigure}{A-\arabic{figure}}
-
-# Appendix {.unnumbered}
 
 ## Variable construction {#sec-variable-details}
 
