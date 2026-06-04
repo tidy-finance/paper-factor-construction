@@ -2,10 +2,21 @@
 title: "[tidyfinance]{.pkg}: Transparent Factor Construction for Empirical Asset Pricing"
 title-plain: "tidyfinance: Transparent Factor Construction for Empirical Asset Pricing"
 short-title: "[tidyfinance]{.pkg}: Transparent Factor Construction for Empirical Asset Pricing"
+short-title: "[tidyfinance]{.pkg}: Transparent Factor Construction for Empirical Asset Pricing"
 format:
     jss-pdf:
         keep-tex: true
         fig-pos: 'H'
+        number-sections: true
+        colorlinks: false
+header-includes:
+  - |
+    \setlength{\parskip}{0.7ex plus0.1ex minus0.1ex}
+    \setlength{\parindent}{0em}
+    \ifPDFTeX
+      \DeclareUnicodeCharacter{2191}{\ensuremath{\uparrow}}
+      \DeclareUnicodeCharacter{2193}{\ensuremath{\downarrow}}
+    \fi
         number-sections: true
         colorlinks: false
 header-includes:
@@ -64,7 +75,11 @@ bibliography: bibliography.bib
 journal:
   type: article
 
+journal:
+  type: article
+
 execute:
+  cache: true
   cache: true
 
 knitr:
@@ -1671,6 +1686,12 @@ The factor library covers `{r} format(nrow(sorting_variable_information), big.ma
 \renewcommand{\arraystretch}{1.0}
 ```
 
+```{=latex}
+\begingroup\small
+\setlength{\tabcolsep}{4pt}
+\renewcommand{\arraystretch}{1.0}
+```
+
 ```{r}
 #| label: tbl-sorting-variables
 #| tbl-cap: "Sorting variables in the factor library. The direction column indicates whether the long-short factor return goes long top-minus-bottom (↑) or bottom-minus-top (↓) of the characteristic distribution."
@@ -1695,6 +1716,10 @@ tab <- sorting_variable_information |>
 
 tab[1] <- sub("llll", "lp{5.5cm}lp{6.5cm}", tab[1], fixed = TRUE)
 tab
+```
+
+```{=latex}
+\endgroup
 ```
 
 ```{=latex}
