@@ -3,7 +3,7 @@ title: "[tidyfinance]{.pkg}: Transparent Factor Construction for Empirical Asset
 title-plain: "tidyfinance: Transparent Factor Construction for Empirical Asset Pricing"
 format:
     jss-pdf:
-        keep-tex: false
+        keep-tex: true
         fig-pos: 'H'
 author:
   - name: Christoph Frey
@@ -96,7 +96,6 @@ format_pretty_date <- function(d) {
   }
   paste0(format(d, "%B "), day, suffix, ", ", format(d, "%Y"))
 }
-
 # Sample period actually covered by a panel, after filtering and lagging may
 # have moved the first usable date past the nominal download start.
 sample_years <- function(data) {
@@ -174,13 +173,13 @@ n_specifications_candidate <- portfolio_sort_grid |>
 
 ## Introduction {#sec-intro}
 
-Factor returns enter empirical asset pricing tests, optimal portfolio allocation, and risk-management decisions. Producing factor returns is a three-stage pipeline: data acquisition (e.g., downloading and cleaning raw accounting and return data from the Center for Research in Security Prices (CRSP), Compustat, and similar providers); variable construction (lagging variables to avoid look-ahead bias); and portfolio sorting (assigning securities to portfolios by characteristic). Each stage embeds construction choices: how to handle delistings, which fiscal-year lag to apply, where to set breakpoints, and whether to equal- or value-weight portfolios. Few pipelines are standardized, and fewer still ship with executable code. Therefore, reproducing or extending a factor series often starts with reconstructing the pipeline from scratch, with no way to verify that the result matches the original approach.
+Factor returns enter empirical asset pricing tests, optimal portfolio allocation, and risk-management decisions. Producing factor returns is a three-stage pipeline: data acquisition (e.g., downloading and cleaning raw return data and accounting data from the Center for Research in Security Prices (CRSP), Compustat, and similar providers); variable construction (lagging variables to avoid look-ahead bias); and portfolio sorting (assigning securities to portfolios by characteristic). Each stage embeds construction choices: how to handle delistings, which fiscal-year lag to apply, where to set breakpoints, and whether to equal- or value-weight portfolios. Few pipelines are standardized, and fewer still ship with executable code. Therefore, reproducing or extending a factor series often starts with reconstructing the pipeline from scratch, with no way to verify that the result matches the original approach.
 
-No widely adopted tool covers this upstream workflow. The most popular factor sources publish *series* without the code that produced them: Ken French's Data Library [@fama.2023] supplies the Fama-French three- and five-factor returns and dozens of sorted portfolios. Some other projects release code: the Open Source Bond Asset Pricing project [@dickerson.2023], available at [openbondassetpricing.com](https://openbondassetpricing.com/), covers fixed income; the Open Source Cross-Sectional Asset Pricing repository [@chen.2022] reproduces 213+ published anomalies, and @jensen.2023 release a global factor library spanning hundreds of long-short signals across many countries. None of these sources, however, exposes the preprocessing pipeline as configurable code that researchers can modify. Many individual authors also host their own published factors, with transparency about construction choices varying widely. Crucially, @walter.2024 and @soebhag.2024 show that these choices significantly affect the outcome of portfolio sorts. Existing [R]{.proglang} packages for quantitative finance operate downstream of factor construction, i.e., on price and return panels that the user must already have. Between raw data and standard asset-pricing tests sits an opaque layer, where construction choices accumulate silently.
+No widely adopted tool covers this upstream workflow. The most popular factor sources publish *series* without the code that produced them: Ken French's Data Library [@fama.2023] supplies the Fama-French three- and five-factor returns and dozens of sorted portfolios. Some other projects release code: the Open Source Bond Asset Pricing project [@dickerson.2023], available at [openbondassetpricing.com](https://openbondassetpricing.com/), covers fixed income; the Open Source Cross-Sectional Asset Pricing repository [@chen.2022] reproduces 213+ published anomalies, and @jensen.2023 release a global factor library spanning hundreds of long-short signals across many countries. None of these sources, however, exposes the preprocessing pipeline as configurable code that researchers can modify. Many individual authors also host their own published factors, with transparency about construction choices varying widely. @walter.2024 and @soebhag.2024 show that these choices significantly affect the outcome of portfolio sorts. Existing [R]{.proglang} packages for quantitative finance operate downstream of factor construction, i.e., on price and return panels that the user must already have. Between raw data and standard asset-pricing tests sits an opaque layer, where construction choices accumulate silently.
 
-This paper introduces [tidyfinance]{.pkg}, an [R]{.proglang} package on CRAN that exposes each stage of the pipeline as configurable code. The package addresses each stage with a dedicated interface. A unified `download_data()` function cleans, aligns, and harmonizes panels from WRDS (CRSP, Compustat, TRACE, FISD), Ken French's Data Library, FRED, and seven other providers, including current constituents for `{r} format(nrow(tidyfinance::list_supported_indexes()), big.mark = ",")` major equity indexes; @tbl-data-sources catalogs the full set. Composable helpers then automate fiscal-year lagging, breakpoint computation, and portfolio aggregation. Every construction choice is exposed as a function argument with a default that follows established convention (for instance, value-weights and the Fama-French fiscal-year lag). A default call reproduces standard practice; overriding any default takes one argument.
+This paper introduces [tidyfinance]{.pkg}, an [R]{.proglang} package on CRAN that exposes each stage of the pipeline as configurable code. The package addresses each stage with a dedicated interface. A unified `download_data()` function cleans, aligns, and harmonizes panels from Wharton Research Data Services (WRDS), Ken French's Data Library, Federal Reserve Economic Data (FRED), and seven other providers, including current constituents for `{r} format(nrow(tidyfinance::list_supported_indexes()), big.mark = ",")` major equity indexes; @tbl-data-sources catalogs the full set. The WRDS panels cover CRSP, Compustat, the Trade Reporting and Compliance Engine (TRACE), and the Mergent Fixed Income Securities Database (FISD). Composable helpers then automate fiscal-year lagging, breakpoint computation, and portfolio aggregation. Every construction choice is exposed as a function argument with a default that follows established convention (for instance, value-weights and the Fama-French fiscal-year lag). A default call reproduces standard practice; overriding any default takes one argument.
 
-We illustrate the package by reproducing a version of the asset growth factor of @cooper.2008 end-to-end from raw CRSP and Compustat data, then varying any construction choice with a single-argument change. To spare researchers the work of rebuilding the pipeline, we run [tidyfinance]{.pkg} across many defensible combinations and publish the results as a factor library of `{r} format(nrow(sorting_variable_information), big.mark = ",")` sorting variables across `{r} format(nrow(portfolio_sort_grid), big.mark = ",")` specifications. The library is available through a single `download_data()` call or an interactive dashboard at [factors.tidy-finance.org](https://factors.tidy-finance.org). The workflow that the package operationalizes is developed in the open-access textbooks *Tidy Finance with [R]{.proglang}* [@scheuch.2023] and *Tidy Finance with [Python]{.proglang}* [@scheuch.2024], which present each step in tutorial form with inline scripts. The contribution of this paper is the [tidyfinance]{.pkg} CRAN package itself: a unified, configurable, tested, and versioned [R]{.proglang} API for that workflow. Where the books teach a reader how to assemble the pipeline from scratch, the package supplies it as a single dependency that researchers can call, audit, and reuse without rebuilding the underlying code.
+We illustrate the package by reproducing a version of the asset growth factor of @cooper.2008 end-to-end from raw CRSP and Compustat data, then varying any construction choice with a single-argument change. To spare researchers the work of rebuilding the pipeline, we run [tidyfinance]{.pkg} across many defensible combinations and publish the results as a factor library of `{r} format(nrow(sorting_variable_information), big.mark = ",")` sorting variables across `{r} format(nrow(portfolio_sort_grid), big.mark = ",")` specifications. The library is available through a single `download_data()` call or an interactive dashboard at [factors.tidy-finance.org](https://factors.tidy-finance.org). The workflow that the package operationalizes is developed in the open-access textbooks *Tidy Finance with [R]{.proglang}* [@scheuch.2023] and *Tidy Finance with [Python]{.proglang}* [@scheuch.2024], which present each step in tutorial form with inline scripts. The contribution of this paper is [tidyfinance]{.pkg} itself: a unified, configurable, tested, and versioned [R]{.proglang} package for that workflow. Where the books teach a reader how to assemble the pipeline from scratch, the package supplies it as a single dependency that researchers can call, audit, and reuse without rebuilding the underlying code.
 
 ## Background and related work {#sec-background}
 
@@ -188,11 +187,11 @@ The [R]{.proglang} ecosystem for empirical asset pricing splits cleanly into thr
 
 **Data-acquisition packages.** Several [R]{.proglang} packages retrieve specific data sources commonly used in asset pricing. [frenchdata]{.pkg} [@frenchdata.2021] downloads and parses the zip archives from Ken French's Data Library into long data frames; it does not touch WRDS and does not implement any construction step beyond reading the published factor series. [quantmod]{.pkg} [@ryan.2025] and [tidyquant]{.pkg} [@dancho.2026] cover Yahoo Finance, FRED, and Tiingo, returning daily open, high, low, and close price series and a small set of derived return helpers; neither connects to WRDS, and neither covers factor-construction logic. [Rblpapi]{.pkg} [@armstrong.Rblpapi] queries the Bloomberg terminal for subscribers; the returned series leave the same factor-construction gap unfilled as the packages above. None of these packages covers the WRDS-CRSP-Compustat panel or the cleaning, alignment, and survivorship conventions the asset-pricing literature requires.
 
-**Downstream analysis packages.** Once a cleaned panel is in hand, several packages support analysis. [PerformanceAnalytics]{.pkg} [@peterson.2026] computes performance and risk metrics for return series. [fPortfolio]{.pkg} [@wuertz.fPortfolio] covers portfolio optimization. [RQuantLib]{.pkg} [@eddelbuettel.RQuantLib] interfaces with QuantLib for derivative pricing. [highfrequency]{.pkg} [@boudt.highfrequency] cleans intraday trade-and-quote panels and implements microstructure-volatility estimators; it operates on a panel the user must already have. Each of these tools assumes that the panel of returns and factors is already constructed; none implements a factor-construction layer.
+**Downstream analysis packages.** Once a cleaned panel is in hand, several packages support analysis. [PerformanceAnalytics]{.pkg} [@peterson.2026] computes performance and risk metrics for return series. [fPortfolio]{.pkg} [@wuertz.fPortfolio] covers portfolio optimization. [RQuantLib]{.pkg} [@eddelbuettel.RQuantLib] interfaces with QuantLib for derivative pricing. [highfrequency]{.pkg} [@boudt.highfrequency] cleans intraday trade-and-quote panels and implements microstructure-volatility estimators. Each of these tools assumes that the panel of returns and factors is already constructed; none implements a factor-construction layer.
 
-**Factor data releases.** A group of projects publishes *factor return series* directly. Ken French's Data Library [@fama.2023] supplies the canonical Fama-French three- and five-factor returns and dozens of sorted portfolios, but documents construction in prose only and releases no construction code. @akey.2026 show that these series change retroactively as the underlying method is silently revised, so that the factor returns a researcher obtains depend on *when* they were downloaded, with material effects on mutual-fund performance and cross-sectional asset pricing tests. A transparent, code-first pipeline removes precisely this opacity. Three more recent projects pair the published factor data with the construction script that produced it. @hou.2020 replicate 452 cross-sectional anomalies and document that most fail out-of-sample, attributing the failures in part to undocumented construction variation across studies. The Open Source Cross-Sectional Asset Pricing repository [@chen.2022] responds by publishing per-anomaly construction scripts alongside the resulting 213+ long-short returns. The Open Source Bond Asset Pricing project [@dickerson.2023] does the same for corporate bond factors. @jensen.2023 release the Global Factor Data of hundreds of long-short signals across many countries, together with the construction code in [Python]{.proglang}. These projects represent a substantial move toward transparency: a reader can inspect exactly how each factor was built and reproduce its returns. Two limitations remain. First, none exposes the pipeline as a callable API. A user who wants the asset growth factor rebalanced in January instead of July, or formed on NYSE-plus-NASDAQ breakpoints, or computed on a different fiscal-year lag, must fork the published script and edit it by hand. The script is not a function with named arguments. Second, the factor returns are frozen at the release date, with no in-workflow path to refresh them as new observations arrive or as a researcher's design choices evolve.
+**Factor data releases.** A group of projects publishes *factor return series* directly. Ken French's Data Library [@fama.2023] supplies the canonical @fama.1993 three- and five-factor returns and dozens of sorted portfolios, but documents construction in prose only and releases no construction code. @akey.2026 show that these series change retroactively as the underlying method is silently revised, so that the factor returns a researcher obtains depend on *when* they were downloaded, with material effects on mutual-fund performance and cross-sectional asset pricing tests. A transparent, code-first pipeline removes precisely this opacity. Three more recent projects pair the published factor data with the construction script that produced it. @hou.2020 replicate 452 cross-sectional anomalies and document that most fail out-of-sample, attributing the failures in part to undocumented construction variation across studies. The Open Source Cross-Sectional Asset Pricing repository [@chen.2022] responds by publishing per-anomaly construction scripts alongside the resulting 213+ long-short returns. The Open Source Bond Asset Pricing project [@dickerson.2023] does the same for corporate bond factors. @jensen.2023 release the Global Factor Data of hundreds of long-short signals across many countries, together with the construction code in [Python]{.proglang}. These projects represent a substantial move toward transparency: a reader can inspect exactly how each factor was built and reproduce its returns. Two limitations remain. First, none exposes the pipeline as a callable API. A user who wants the asset growth factor rebalanced in January instead of July, or formed on NYSE-plus-NASDAQ breakpoints, or computed on a different fiscal-year lag, must fork the published script and edit it by hand. The script is not a function with named arguments. Second, the factor returns are frozen at the release date, with no in-workflow path to refresh them as new observations arrive or as a researcher's design choices evolve.
 
-**Tidy finance: transparency and modularity.** [tidyfinance]{.pkg} fills the missing middle: it supplies the cleaned WRDS-CRSP-Compustat panel that data-acquisition packages do not produce and exposes the factor-construction pipeline that downstream analysis packages assume to be in hand. One `download_data()` call returns a cleaned WRDS-CRSP-Compustat panel; further functions implement the full factor-construction pipeline (fiscal-year lagging, breakpoint computation, portfolio sorting, long-short aggregation) as a chain of composable steps whose arguments cover the construction choices that vary across studies in the literature above. The companion textbooks *Tidy Finance with [R]{.proglang}* [@scheuch.2023] and *Tidy Finance with [Python]{.proglang}* [@scheuch.2024] develop the workflow itself in tutorial form, with the construction steps written out as inline scripts for readers to follow. The package is the software artifact that turns that workflow into a CRAN library: tested, versioned, and callable as a single dependency rather than copied chunk by chunk into each new project. Two design principles, both inherited from the textbooks, guide the API. *Transparency*: every construction decision is exposed as a configurable parameter with a documented default, following the *tidy data* discipline of @wickham.2014. *Modularity*: each construction step is a small function, so researchers can chain the full pipeline or call individual pieces inside their own workflows. [tidyfinance]{.pkg} additionally covers asset pricing tests and optimal portfolio choice; this paper focuses on factor construction and defers the remaining functionality to dedicated treatments.
+**[tidyfinance]{.pkg} fills the missing middle:** the package supplies the cleaned WRDS-CRSP-Compustat panel that data-acquisition packages do not produce and exposes the factor-construction pipeline that downstream analysis packages assume to be in hand. One `download_data()` call returns a cleaned WRDS-CRSP-Compustat panel; further functions implement the full factor-construction pipeline (fiscal-year lagging, breakpoint computation, portfolio sorting, long-short aggregation) as a chain of composable steps whose arguments cover the construction choices that vary across studies in the literature above. The companion textbooks *Tidy Finance with [R]{.proglang}* [@scheuch.2023] and *Tidy Finance with [Python]{.proglang}* [@scheuch.2024] develop the workflow itself in tutorial form, with the construction steps written out as inline scripts for readers to follow. The package is the software artifact that turns that workflow into a CRAN library: tested, versioned, and callable as a single dependency rather than copied chunk by chunk into each new project. Two design principles, both inherited from the textbooks, guide the API. *Transparency*: every construction decision is exposed as a configurable parameter with a documented default, following the *tidy data* discipline of @wickham.2014. *Modularity*: each construction step is a small function, so researchers can chain the full pipeline or call individual pieces inside their own workflows. [tidyfinance]{.pkg} additionally covers asset pricing tests and optimal portfolio choice; this paper focuses on factor construction and defers the remaining functionality to dedicated treatments.
 
 ## Package overview {#sec-overview}
 
@@ -203,6 +202,7 @@ You can install the released version of [tidyfinance]{.pkg} [from CRAN](https://
 ```{r}
 #| label: install-tidyfinance-cran
 #| eval: false
+#| purl: false
 install.packages("tidyfinance")
 ```
 
@@ -211,6 +211,7 @@ To install the development version of [tidyfinance]{.pkg} from [GitHub](https://
 ```{r}
 #| label: install-tidyfinance-dev
 #| eval: false
+#| purl: false
 install.packages("pak")
 pak::pak("tidy-finance/r-tidyfinance")
 ```
@@ -223,8 +224,13 @@ library("tidyfinance")
 
 ### Design and workflow {#sec-design}
 
-The empirical asset pricing workflow decomposes into three stages: data acquisition, variable construction, and portfolio sorting. Each stage involves dozens of small decisions: universe filters, cleaning rules, rebalancing conventions, and breakpoint definitions. @tbl-functions catalogs the user-facing functions exported by [tidyfinance]{.pkg}, grouped by workflow stage. The remainder of this section walks through them in narrative order.
+The empirical asset pricing workflow decomposes into three stages: data acquisition, variable construction, and portfolio sorting. Each stage involves dozens of small decisions: sample filters, cleaning rules, rebalancing conventions, and breakpoint definitions. @tbl-functions catalogs the user-facing functions exported by [tidyfinance]{.pkg}, grouped by workflow stage. The remainder of this section walks through them in narrative order.
 
+```{=latex}
+\begingroup\small
+\setlength{\tabcolsep}{4pt}
+\renewcommand{\arraystretch}{1.0}
+```
 +------------------------------------------+---------------------------------------------------------------------+
 | Function                                 | Purpose                                                             |
 +==========================================+=====================================================================+
@@ -251,8 +257,7 @@ The empirical asset pricing workflow decomposes into three stages: data acquisit
 | `compute_rolling_value()`                | Applies an aggregation function over a calendar-time rolling        |
 |                                          | window.                                                             |
 +------------------------------------------+---------------------------------------------------------------------+
-| `filter_sorting_data()`                  | Applies the universe screens in `filter_options()`, such as         |
-|                                          | excluding financials, utilities, or low-priced or small stocks.     |
+| `filter_sorting_data()`                  | Applies the sample filters bundled in `filter_options()`.           |
 +------------------------------------------+---------------------------------------------------------------------+
 | *Portfolio sorting*                      |                                                                     |
 +------------------------------------------+---------------------------------------------------------------------+
@@ -274,16 +279,19 @@ The empirical asset pricing workflow decomposes into three stages: data acquisit
 | *Asset pricing tests*                    |                                                                     |
 +------------------------------------------+---------------------------------------------------------------------+
 | `estimate_fama_macbeth()`                | Runs cross-sectional ordinary least squares (OLS) regressions each  |
-|                                          | period and aggregates into average risk premia with Newey-West      |
-|                                          | standard errors [@newey.1987].                                      |
+|                                          | period and aggregates into average risk premia with @newey.1987     |
+|                                          | standard errors.                                                    |
 +------------------------------------------+---------------------------------------------------------------------+
-| `estimate_betas()`                       | Estimates rolling-window market betas for each asset.               |
+| `estimate_betas()`                       | Estimates rolling-window CAPM betas for each asset.                 |
 +------------------------------------------+---------------------------------------------------------------------+
-| `estimate_model()`                       | Fits a linear model from a formula string and returns the           |
-|                                          | coefficients as a tidy one-row data frame.                          |
+| `estimate_model()`                       | Fits a linear model from a formula string and returns its           |
+|                                          | coefficients as a single-row data frame, one column per coefficient.|
 +------------------------------------------+---------------------------------------------------------------------+
 
 : User-facing functions in [tidyfinance]{.pkg}, grouped by workflow stage. Functions whose first argument is a panel chain naturally via the native pipe `|>`; `filter_options()`, `breakpoint_options()`, `portfolio_sort_options()`, and `data_options()` (explained in detail below) bundle the configurable arguments for the sorting helpers. {#tbl-functions}
+```{=latex}
+\endgroup
+```
 
 ### Data acquisition {#sec-data-access}
 
@@ -297,20 +305,18 @@ The empirical asset pricing workflow decomposes into three stages: data acquisit
 +----------------+------------------------------------+-----------------------------------------+
 | Source         | Description                        | Example                                 |
 +================+====================================+=========================================+
-| **Public data sources**                                                                       |
+| *Public data sources*                                                                         |
 +----------------+------------------------------------+-----------------------------------------+
 | Ken French's   | Fama-French 169+ factor            | ```                                     |
 | Data Library   | models, portfolios, industry       | download_data(                          |
 |                | classifications                    |   domain = "factors_ff",                |
-|                |                                    |   dataset =                             |
-|                |                                    |     "Fama/French 3 Factors")            |
+|                |                                    |   dataset = "Fama/French 3 Factors")    |
 |                |                                    | ```                                     |
 +----------------+------------------------------------+-----------------------------------------+
 | Global Q       | @hou.2021 q5 factor model          | ```                                     |
 |                | (market, size, investment, ROE,    | download_data(                          |
 |                | expected growth) at multiple       |   domain = "globalq",                   |
-|                | frequencies                        |   dataset =                             |
-|                |                                    |     "factors_q5_monthly")               |
+|                | frequencies                        |   dataset = "factors_q5_monthly")       |
 |                |                                    | ```                                     |
 +----------------+------------------------------------+-----------------------------------------+
 | Goyal-Welch    | Macroeconomic return predictors    | ```                                     |
@@ -333,7 +339,7 @@ The empirical asset pricing workflow decomposes into three stages: data acquisit
 +----------------+------------------------------------+-----------------------------------------+
 | Index          | Current members of major           | ```                                     |
 | Constituents   | equity indexes (S&P 500,           | download_data(                          |
-|                | Russell, DAX, MSCI World, etc.)    |   domain = "constituents",              |
+|                | Russell, etc.)                     |   domain = "constituents",              |
 |                |                                    |   index = "DAX")                        |
 |                |                                    | ```                                     |
 +----------------+------------------------------------+-----------------------------------------+
@@ -345,8 +351,7 @@ The empirical asset pricing workflow decomposes into three stages: data acquisit
 | High-Frequency | 5-second frequency data            | ```                                     |
 |                | for S&P 500 constituents           | download_data(                          |
 |                |                                    |   domain = "tidyfinance",               |
-|                |                                    |   dataset =                             |
-|                |                                    |     "high_frequency_sp500")             |
+|                |                                    |   dataset = "high_frequency_sp500")     |
 |                |                                    | ```                                     |
 +----------------+------------------------------------+-----------------------------------------+
 | Risk-Free Rate | Monthly risk-free rate             | ```                                     |
@@ -362,7 +367,7 @@ The empirical asset pricing workflow decomposes into three stages: data acquisit
 |                |                                    |   sorting_variable = "ag")              |
 |                |                                    | ```                                     |
 +----------------+------------------------------------+-----------------------------------------+
-| **WRDS (subscription required)**                                                              |
+| *WRDS (subscription required)*                                                                |
 +----------------+------------------------------------+-----------------------------------------+
 | CRSP           | Daily and monthly stock returns,   | ```                                     |
 |                | market cap, listing exchange,      | download_data(                          |
@@ -377,7 +382,7 @@ The empirical asset pricing workflow decomposes into three stages: data acquisit
 |                |                                    | ```                                     |
 +----------------+------------------------------------+-----------------------------------------+
 | CCM Links      | CRSP-Compustat linking table       | ```                                     |
-|                | (permno to gvkey)                  | download_data(                          |
+|                | (`permno` to `gvkey`)              | download_data(                          |
 |                |                                    |   domain = "wrds",                      |
 |                |                                    |   dataset = "ccm_links")                |
 |                |                                    | ```                                     |
@@ -400,9 +405,9 @@ The empirical asset pricing workflow decomposes into three stages: data acquisit
 \endgroup
 ```
 
-Most rows in @tbl-data-sources mirror upstream providers; the high-frequency dataset is the exception, which we host ourselves. It comprises message-level snapshots of the NASDAQ limit order book for the SPY exchange-traded fund (and TLT for government bonds) from July 2007 to October 2025, more than 30 billion order-book messages in total, curated for the analysis in @menkveld.2026.
+Most rows in @tbl-data-sources mirror upstream providers; the high-frequency dataset is the exception, which we host ourselves. It comprises 5 minute-level snapshots of the NASDAQ limit order book for the SPY exchange-traded fund from July 2007 to October 2025. The data has been aggregated based on more than 30 billion order-book messages in total. @menkveld.2026 provides construction details for the measures for return, volatility and liquidity.
 
-A first illustration uses only public data sources. We retrieve the current constituents of the Dow Jones Industrial Average and then download daily prices for those tickers over a chosen window. `list_supported_indexes()` returns the full set of equity indexes available through the `"constituents"` domain.
+A first illustration uses only public data sources. We retrieve the current constituents of the Dow Jones Industrial Average and then download daily prices from Yahoo!Finance for those tickers over a chosen window. `list_supported_indexes()` returns the full set of equity indexes available through the `"constituents"` domain.
 
 ```{r}
 #| label: example-dow-constituents
@@ -432,11 +437,11 @@ ff_factors <- download_data(
 
 The `start_date` and `end_date` arguments generalize across every dataset type in @tbl-data-sources that supports a time dimension.
 
-Public data still requires nontrivial cleaning. The Goyal-Welch [@goyal.2008] macroeconomic predictors are a typical case: `download_data(domain = "macro_predictors", dataset = "monthly")` fetches the raw spreadsheet at the requested frequency (set `dataset` to `monthly`, `quarterly`, or `annual`), parses dates from the native `yyyymm`, `yyyyq`, or `yyyy` format, strips comma thousand separators, and coerces character columns to numeric. It then constructs the standard predictors used in the equity-premium prediction literature: the log dividend-price ratio (`dp`), dividend yield (`dy`), earnings-price ratio (`ep`), dividend-payout ratio (`de`), the forward equity risk premium (`rp_div`), the term spread (`tms`), and the default-yield spread (`dfy`). The output is the cleaned panel filtered to the requested date range.
+Public data still requires nontrivial cleaning. The @goyal.2008 macroeconomic predictors are a typical case: `download_data(domain = "macro_predictors", dataset = "monthly")` fetches the raw spreadsheet at the requested frequency (set `dataset` to `monthly`, `quarterly`, or `annual`), parses dates, strips comma thousand separators, and coerces character columns to numeric. It then constructs the standard predictors used in the equity-premium prediction literature: the log dividend-price ratio (`dp`), dividend yield (`dy`), earnings-price ratio (`ep`), dividend-payout ratio (`de`), the forward equity risk premium (`rp_div`), the term spread (`tms`), and the default-yield spread (`dfy`). The output is the cleaned panel filtered to the requested date range.
 
 For empirical asset pricing work, WRDS is the common source of return and accounting panels. WRDS data are proprietary and require an institutional subscription and credentials. [tidyfinance]{.pkg} handles this setup once. `set_wrds_credentials()` prompts for the username and password and stores them in a project-specific or global `.Renviron` file, and prompts the user to add `.Renviron` to `.gitignore` to prevent credential leakage. Subsequent `download_data()` calls open the database connection automatically. Depending on the user's WRDS account settings, `download_data()` may also trigger a two-factor authentication (2FA) challenge that WRDS sends to the registered device; once approved, the connection proceeds normally.
 
-`download_data()` applies standard cleaning conventions following @bali.2016 and @scheuch.2023 automatically. For CRSP monthly data, the function restricts the universe to common equity securities listed on NYSE, AMEX (now NYSE American), or NASDAQ. It computes market capitalization as shares outstanding times price, constructs a one-month market capitalization lag for portfolio weights, and maps listing exchange codes and Standard Industrial Classification (SIC) codes to readable labels. Excess returns are raw returns minus a risk-free rate that [tidyfinance]{.pkg} constructs from FRED by splicing the 3-month Treasury bill secondary-market rate (pre-2001) with the 4-week Treasury bill secondary-market rate (from 2001 onward); the spliced series is hosted on Hugging Face and refreshed monthly by a scheduled GitHub Actions workflow. The function drops observations with missing returns or market capitalization, and incorporates delisting returns directly, eliminating the need for a separate adjustment. The function defaults to the CRSP 2.0 (CIZ) layout first introduced in July 2022. Alternatively, passing `version = "v1"` returns the legacy (SIZ) layout, which ends in December 2024 [see @schwarz.2026 for details]. 
+`download_data()` applies standard cleaning conventions following @bali.2016 and @scheuch.2023 automatically. For CRSP monthly data, the function restricts the universe to common equity securities listed on NYSE, AMEX (now NYSE American), or NASDAQ. It computes market capitalization as shares outstanding times price, constructs a one-month market capitalization lag for portfolio weights, and maps listing exchange codes and Standard Industrial Classification (SIC) codes to readable labels. Excess returns are raw returns minus a risk-free rate that [tidyfinance]{.pkg} constructs from FRED by splicing the 3-month Treasury bill secondary-market rate (pre-2001) with the 4-week Treasury bill secondary-market rate (from 2001 onward); the spliced series is hosted on Hugging Face and refreshed monthly by a scheduled GitHub Actions workflow. The function drops observations with missing returns or market capitalization, and incorporates delisting returns directly, eliminating the need for a separate adjustment. The function defaults to the CRSP 2.0 (CIZ) layout first introduced in July 2022. Alternatively, passing `version = "v1"` returns the legacy (SIZ) layout, which ends in December 2024. @schwarz.2026 document that the move to CIZ rewrites a non-trivial share of historical monthly returns through a changed dividend reinvestment assumption, yet find that average premia and their significance are largely unaffected.
 
 For Compustat annual data, `download_data()` restricts to industrial-format consolidated statements and retains only the most recent observation per firm-year. It constructs book equity in priority order: stockholders' equity when available, else common equity plus preferred stock, else total assets minus total liabilities. The function adds back deferred taxes and investment tax credits, and subtracts the book value of preferred stock.
 
@@ -904,13 +909,13 @@ ggplot() +
   theme(plot.margin = margin(5, 10, 5, 10))
 ```
 
-A handful of additional helpers cover routine operations that recur across empirical studies. `winsorize()` and `trim()` handle outliers in cross-sectional variables: the former symmetrically replaces values below the $q$-th and above the $(1-q)$-th percentile with the corresponding quantile values, while the latter sets them to `NA`. `estimate_model()` fits a linear model from a formula string and returns the coefficients as a tidy one-row data frame, which composes naturally with `group_by()` for grouped or rolling regressions such as estimating time-series factor exposures stock by stock. `compute_rolling_value()` applies an arbitrary aggregation function over a rolling window defined in calendar time rather than row counts, accommodating irregular observation frequencies and missing periods. `filter_sorting_data()` screens a panel before sorting, dropping observations that fail the universe filters bundled in a `filter_options()` object, such as financial or utility firms or stocks below a minimum price or size; by default it reports how many observations each filter removes, which `quiet = TRUE` suppresses. `implement_portfolio_sort()` calls it internally, but it is also exposed for use as a standalone screening step.
+A handful of additional helpers cover routine operations that recur across empirical studies. `winsorize()` and `trim()` handle outliers in cross-sectional variables: the former symmetrically replaces values below the $q$-th and above the $(1-q)$-th percentile with the corresponding quantile values, while the latter sets them to `NA`. `estimate_model()` fits a linear model from a formula string and returns the coefficients as a tidy one-row data frame, which composes naturally with `group_by()` for grouped or rolling regressions such as estimating time-series factor exposures stock by stock. `compute_rolling_value()` applies an arbitrary aggregation function over a rolling window defined in calendar time rather than row counts, accommodating irregular observation frequencies and missing periods. `filter_sorting_data()` screens a panel before sorting, dropping observations that fail the sample filters bundled in a `filter_options()` object, such as financial or utility firms or stocks below a minimum price or size; by default it reports how many observations each filter removes, which `quiet = TRUE` suppresses. `implement_portfolio_sort()` calls it internally, but it is also exposed for use as a standalone screening step.
 
 ### Portfolio sorting {#sec-portfolio-sorting}
 
-A portfolio sort groups stocks each period into ordered portfolios according to the level of a sorting variable. The boundaries between portfolios are called *breakpoints*: numeric cutoffs of the sorting variable that determine which portfolio a stock joins. A quintile sort on size, for instance, has four breakpoints at the 20th, 40th, 60th, and 80th percentiles of the cross-sectional market-capitalization distribution. Common sorting variables include size, beta, book-to-market, and momentum. The long-short return between the extreme portfolios is interpreted as a factor-mimicking strategy and serves as the basis for tests of whether the sorting variable forecasts future returns. Portfolio sorts are among the most widely used tools in empirical asset pricing [@bali.2016]. We expose the procedure through four composable building blocks plus a one-call wrapper.
+A portfolio sort groups stocks each period into ordered portfolios according to the level of a sorting variable. The boundaries between portfolios are called *breakpoints*: numeric cutoffs of the sorting variable that determine which portfolio a stock joins. A quintile sort on size, for instance, has four breakpoints at the 20th, 40th, 60th, and 80th percentiles of the cross-sectional market-capitalization distribution. Common sorting variables include size (measured as market capitalization), beta, book-to-market, and momentum. The long-short return between the extreme portfolios is interpreted as a factor-mimicking strategy and serves as the basis for tests of whether the sorting variable forecasts future returns. Portfolio sorts are among the most widely used tools in empirical asset pricing [@bali.2016]. We expose the procedure through four composable building blocks plus a one-call wrapper.
 
-`compute_breakpoints()` takes a cross-section and a sorting variable and returns the numeric cutoffs that define the portfolio boundaries. The user supplies either a number of portfolios (for example, five for quintiles) or an explicit vector of percentiles, but not both. A `breakpoints_exchanges` argument restricts the universe used to compute breakpoints. The standard convention is NYSE-listed stocks only, which prevents the large cross-section of small NASDAQ firms from dominating the breakpoints [@jensen.2023]. A related `breakpoints_min_size_threshold` argument excludes stocks below a market-cap quantile from the breakpoint computation, which size-related sorts often require because microcaps would otherwise distort the cutoffs. A `smooth_bunching` flag handles cases where the sorting variable takes the same value for many observations at the bottom or top of the distribution, so that the lowest (or highest) quantile breakpoints coincide. Without intervention, all tied observations would land in a single boundary portfolio while neighboring portfolios remain empty. When `smooth_bunching = TRUE`, the function assigns the bunched observations to the boundary portfolio and recomputes the remaining breakpoints on the subset of observations strictly inside the boundary value, restoring well-defined cutoffs for the interior portfolios.
+`compute_breakpoints()` takes a cross-section and a sorting variable and returns the numeric cutoffs that define the portfolio boundaries. The user supplies either a number of portfolios (for example, five for quintiles) or an explicit vector of percentiles, but not both. A `breakpoints_exchanges` argument restricts the universe used to compute breakpoints. The standard convention is NYSE-listed stocks only, which prevents the large cross-section of small NASDAQ-listed firms from dominating the breakpoints [@jensen.2023]. A related `breakpoints_min_size_threshold` argument excludes stocks below a market-cap quantile from the breakpoint computation, which size-related sorts often require because microcaps would otherwise distort the cutoffs. A `smooth_bunching` flag handles cases where the sorting variable takes the same value for many observations at the bottom or top of the distribution, so that the lowest (or highest) quantile breakpoints coincide. Without intervention, all tied observations would land in a single boundary portfolio while neighboring portfolios remain empty. When `smooth_bunching = TRUE`, the function assigns the bunched observations to the boundary portfolio and recomputes the remaining breakpoints on the subset of observations strictly inside the boundary value, restoring well-defined cutoffs for the interior portfolios.
 
 `assign_portfolio()` maps each observation to a portfolio integer and uses breakpoints supplied either directly or via a breakpoint-computing function (defaulting to `compute_breakpoints()`). In practice, `assign_portfolio()` is called separately for each rebalancing date, so that portfolios are reformed each period rather than fixed once for the whole sample.
 
@@ -1040,21 +1045,7 @@ p3 <- portfolios_dependent |>
 p1 +
   p2 +
   p3 +
-  plot_layout(guides = "collect", axes = "collect_y") +
-  plot_annotation(
-    title = "Portfolio sort approaches",
-    subtitle = paste0(
-      "Simulated cross-section: ",
-      n_portfolio,
-      "×",
-      n_portfolio,
-      " portfolios"
-    ),
-    theme = theme(
-      plot.title = element_text(face = "bold"),
-      plot.title.position = "plot"
-    )
-  )
+  plot_layout(guides = "collect", axes = "collect_y")
 ```
 
 `compute_long_short_returns()` takes the output of `compute_portfolio_returns()` and computes the spread between the top and bottom portfolios. A `direction` argument controls the sign and defaults to `"top_minus_bottom"`. The function returns one long-short series per return measure available in the input, so the equal-weighted, value-weighted, and capped value-weighted spreads are produced together. This long-short return is the factor-mimicking spread that the asset-pricing literature typically takes as the object of interest.
@@ -1078,22 +1069,21 @@ library("tidyr")
 library("lubridate")
 ```
 
-### Data download {#sec-data-download}
+### Data acquisition {#sec-data-download}
 
 Constructing the asset growth factor requires two WRDS panels: annual accounting data from Compustat to compute the asset growth signal and monthly stock returns from CRSP to translate the signal into portfolio returns.
 
 CRSP and Compustat are proprietary and require a WRDS subscription. All numbers, tables, and figures in this paper are computed from the real WRDS data with `data_domain <- "wrds"`. Readers without a WRDS subscription can render the entire manuscript against synthetic data of identical schema by setting `data_domain <- "pseudo"` in the chunk below. The pseudo path covers the three WRDS-sourced datasets the case study consumes: monthly CRSP returns, annual Compustat fundamentals, and the CRSP-Compustat linking table. Every `download_data()` call for one of these datasets then routes to an in-package synthetic generator rather than to WRDS, so the document compiles end-to-end without a subscription, credentials, or network access to a paid provider.
-
-The generator preserves column names, dtypes, missingness patterns, panel structure, and approximate scales, so the cleaning, lagging, and sorting code paths exercise the same branches they would on real data, and every figure and table in this paper renders without error. What the generator does not preserve are economic relations. Returns are independent draws around a calibrated mean, and characteristics carry no predictive content for subsequent returns; the long-short premia recovered against pseudo data are therefore noise. The workflow reproduces; the quantitative results do not.
-
-Two arguments to `download_data()` control the synthetic draws: `seed` fixes the random number generator so that two readers running the same chunk obtain bit-identical pseudo panels, and `n_assets` sets the size of the synthetic cross-section (default `1000L`), trading off compile speed against the realism of cross-sectional statistics. The practical implication is that every chunk in this paper can be inspected, edited, and re-rendered on a laptop with no proprietary data and no credentials; only the headline factor premia require WRDS to reproduce numerically.
-
-Before the first WRDS download, call `set_wrds_credentials()` to store WRDS credentials securely in `.Renviron`; subsequent `download_data()` calls establish the database connection automatically.
-
 ```{r}
 #| label: set-data-domain
 data_domain <- "wrds"
 ```
+
+The generator preserves column names, data types, missingness patterns, panel structure, and approximate scales, so the cleaning, lagging, and sorting code paths exercise the same branches they would on real data, and every figure and table in this paper renders without error. What the generator does not preserve are economic relations. Returns are independent draws around a calibrated mean, and characteristics carry no predictive content for subsequent returns; the long-short premia recovered against pseudo data are therefore noise. The workflow reproduces; the quantitative results do not.
+
+Two arguments to `download_data()` control the synthetic draws: `seed` fixes the random number generator so that two readers running the same chunk obtain bit-identical pseudo panels, and `n_assets` sets the size of the synthetic cross-section (default `1000L`), trading off compile speed against the realism of cross-sectional statistics. The practical implication is that every chunk in this paper can be inspected, edited, and re-rendered on a laptop with no proprietary data and no credentials; only the headline factor premia require WRDS to reproduce numerically.
+
+Before the first WRDS download, call `set_wrds_credentials()` to store WRDS credentials securely in `.Renviron`; subsequent `download_data()` calls establish the database connection automatically.
 
 ```{r}
 #| label: set-date-range
@@ -1117,7 +1107,7 @@ crsp_monthly <- download_data(
 )
 ```
 
-The dataset contains `{r} format(nrow(crsp_monthly), big.mark = ",")` stock-month observations for `{r} format(length(unique(crsp_monthly$permno)), big.mark = ",")` unique stocks, covering the period from `{r} format_pretty_date(min(crsp_monthly$date))` to `{r} format_pretty_date(max(crsp_monthly$date))`.
+The dataset contains `{r} format(nrow(crsp_monthly), big.mark = ",")` stock-month observations for `{r} format(length(unique(crsp_monthly$permno)), big.mark = ",")` unique stocks, covering the period from `{r} format_pretty_date(min(crsp_monthly$date))` to `{r} format_pretty_date(max(crsp_monthly$calculation_date))`.
 
 Next, we download annual financial statements from Compustat.
 
@@ -1134,17 +1124,17 @@ compustat_annual <- download_data(
   select(gvkey, date, at, ib)
 ```
 
-Annual Compustat data contain `{r} format(nrow(compustat_annual), big.mark = ",")` firm-year observations for `{r} format(length(unique(compustat_annual$gvkey)), big.mark = ",")` unique firms, covering the period from `{r} format_pretty_date(date_start)` to `{r} format_pretty_date(date_end)`. The `additional_columns` argument retrieves total assets (`at`) and income before extraordinary items (`ib`), needed for computing asset growth and applying an earnings filter in later steps. Setting `only_usd = TRUE` restricts the dataset to USD-denominated stocks, ensuring consistency with CRSP.
+Annual Compustat data contain `{r} format(nrow(compustat_annual), big.mark = ",")` firm-year observations for `{r} format(length(unique(compustat_annual$gvkey)), big.mark = ",")` unique firms, covering the period from `{r} format_pretty_date(date_start)` to `{r} format_pretty_date(date_end)`. The `additional_columns` argument retrieves total assets (`at`) and income before extraordinary items (`ib`), needed for computing asset growth and applying an earnings filter in later steps. Setting `only_usd = TRUE` restricts the dataset to USD-denominated stocks.
 
-### Data cleaning and variable construction {#sec-data-cleaning}
+### Variable construction {#sec-data-cleaning}
 
-We illustrate data cleaning and variable construction using asset growth (AG) as our running example. Asset growth is the year-over-year percentage change in total assets [@cooper.2008],
+We illustrate data cleaning and variable construction using asset growth (AG) as our running example. Asset growth for a firm $i$ in year $t$ is the year-over-year percentage change in total assets [@cooper.2008],
 
 $$
-AG_t = (AT_t - AT_{t-1}) / AT_{t-1}\text{,}
+AG_{t,i} = (AT_{t,i} - AT_{t-1,i}) / AT_{t-1,i}\text{,}
 $$
 
-where $AT_t$ is total assets in year $t$ (Compustat field `at`).
+where $AT_{t,i}$ is total assets for firm $i$ in year $t$ (retrieved in column `at`).
 
 The `add_lagged_columns()` function from [tidyfinance]{.pkg} handles temporal alignment by creating a lagged version of total assets grouped by firm identifier (`gvkey`) with a one-year lag. Non-finite values (arising when lagged total assets are zero or missing) become `NA`.
 
@@ -1248,12 +1238,12 @@ sorting_data <- crsp_monthly |>
     asset_growth,
     ib
   ) |>
-  filter(date > date_start + months(12) + months(18))
+  filter(date >= date_start + months(12) + months(18))
 ```
 
 The filter removes the initial year used to compute the growth rate plus an additional 18 months to avoid mechanically introduced gaps from the lagging step, leaving a panel of stock-month observations with excess returns, exchange membership, lagged market capitalization, and the lagged sorting variable. The auxiliary columns `siccd` and `ib` support the sample-construction filters in @sec-customized-sorts.
 
-@fig-ag-percentiles shows the 33rd, 50th, and 66th percentiles of asset growth over time in the resulting panel; pronounced spikes during economic expansions and contractions highlight the cyclical nature of corporate investment.
+@fig-ag-percentiles shows the 33rd, 50th, and 66th cross-sectional percentiles of asset growth over time in the resulting panel; pronounced spikes during economic expansions and contractions highlight the cyclical nature of corporate investment.
 
 ```{r}
 #| label: fig-ag-percentiles
@@ -1335,7 +1325,7 @@ portfolio_returns <- implement_portfolio_sort(
 
 Apart from setting `rebalancing_month = 7`, every other choice point falls back to the package default: a cap-weight cutoff at the 80th percentile of market capitalization for the capped value-weighted return, no minimum portfolio size, and no smooth bunching. The standard CRSP/Compustat column names (`permno`, `date`, `ret_excess`, `mktcap_lag`, `exchange`) are picked up automatically through the default `data_options()`. Setting `rebalancing_month = 7` reforms the portfolios each July and holds them for the following twelve months, in line with the standard Fama-French rebalancing convention. This schedule pairs with `ff_adjustment = TRUE` in `join_lagged_values()`: the signal is locked in at the June/July boundary, so July is the first month in which a fresh fiscal-year update is available.
 
-`compute_portfolio_returns()`, called internally, returns a long tibble with one row per portfolio-month and the three weighting columns introduced in @sec-portfolio-sorting: `ret_excess_vw` (value-weighted, VW), `ret_excess_ew` (equal-weighted, EW), and `ret_excess_vw_capped` (capped value-weighted, VWC). Piping the result through `compute_long_short_returns()` gives the long-short portfolio. The `direction = "bottom_minus_top"` argument means the factor is long low-AG stocks and short high-AG stocks, in line with the negative premium documented by @cooper.2008.
+`compute_portfolio_returns()`, called internally, returns a long tibble with one row per portfolio-month and the three weighting columns introduced in @sec-portfolio-sorting: `ret_excess_vw` (value-weighted, VW), `ret_excess_ew` (equal-weighted, EW), and `ret_excess_vw_capped` (capped value-weighted, VWC). Piping the result through `compute_long_short_returns()` gives the long-short portfolio. The `direction = "bottom_minus_top"` argument means the factor is long low-AG stocks and short high-AG stocks.
 
 ```{r}
 #| label: long-short-ag
@@ -1423,7 +1413,7 @@ structure(
 \endgroup
 ```
 
-The value-weighted long-short portfolio earns `{r} round(mean(factor_returns_ag$ret_excess_vw, na.rm = TRUE) * 12 * 100, 1)`% per year ($t$\ statistic of `{r} round(mean(factor_returns_ag$ret_excess_vw, na.rm = TRUE) / (sd(factor_returns_ag$ret_excess_vw, na.rm = TRUE) / sqrt(sum(!is.na(factor_returns_ag$ret_excess_vw)))), 2)`), consistent with the negative premium documented by @cooper.2008. The equal-weighted spread is larger, as expected for characteristics that correlate with size. The monotone decline of value-weighted means across quintiles confirms that [tidyfinance]{.pkg} reproduces the literature result from raw WRDS data with a single function call.
+The value-weighted long-short portfolio earns `{r} round(mean(factor_returns_ag$ret_excess_vw, na.rm = TRUE) * 12 * 100, 1)`% per year ($t$\ statistic of `{r} round(mean(factor_returns_ag$ret_excess_vw, na.rm = TRUE) / (sd(factor_returns_ag$ret_excess_vw, na.rm = TRUE) / sqrt(sum(!is.na(factor_returns_ag$ret_excess_vw)))), 2)`), consistent with the premium documented by @cooper.2008. The equal-weighted spread is larger, as expected for characteristics that correlate with size. The monotone decline of value-weighted means across quintiles confirms that [tidyfinance]{.pkg} reproduces the literature result from raw WRDS data with a single function call.
 
 #### Customized specification (bivariate sorts) {#sec-customized-sorts}
 
@@ -1607,7 +1597,7 @@ fm_results |>
   )
 ```
  
-The negative slope on `asset_growth` in @tbl-fama-macbeth lines up with the long-short evidence in @tbl-univariate-sort-ag and @tbl-customized-comparison: high-AG firms earn lower subsequent returns, conditional on size. As an external benchmark, @cooper.2008 [Table III, Panel A, Model 1] reports a Fama-MacBeth slope on annual ASSETG of −0.0922 ($t$\ statistic of −6.52). Converted to a monthly basis and sign-flipped, their slope is approximately `{r} round(-1 * (-0.0922 / 12), 4)` $(=-1\cdot(−0.0922/12))$, directly comparable to the magnitude of the AG coefficient in our table.[^cooper-fm-controls] Switching to `vcov = "iid"` or supplying `vcov_options = list(lag = 6, prewhite = FALSE)` would change the standard-error treatment without altering the rest of the call, and adding additional regressors (e.g., a beta estimate from `estimate_betas()`, a profitability measure, an idiosyncratic-volatility control) is a one-line extension to the model formula. The same function therefore covers the standard cross-sectional asset-pricing test that complements the portfolio-sort evidence used throughout the rest of the paper.
+The negative slope on `asset_growth` in @tbl-fama-macbeth lines up with the long-short evidence in @tbl-univariate-sort-ag and @tbl-customized-comparison: high-AG firms earn lower subsequent returns, conditional on size. As an external benchmark, @cooper.2008 [Table III, Panel A, Model 1] reports a Fama-MacBeth slope on annual asset growth of −0.0922 ($t$\ statistic of −6.52). Converted to a monthly basis, their slope is approximately `{r} round(-0.0922 / 12, 4)` $(=−0.0922/12)$, directly comparable to the magnitude of the AG coefficient in our table.[^cooper-fm-controls] Switching to `vcov = "iid"` or supplying `vcov_options = list(lag = 6, prewhite = FALSE)` would change the standard-error treatment without altering the rest of the call, and adding additional regressors (e.g., a beta estimate from `estimate_betas()`, a profitability measure, an idiosyncratic-volatility control) is a one-line extension to the model formula. The same function therefore covers the standard cross-sectional asset-pricing test that complements the portfolio-sort evidence used throughout the rest of the paper.
 
 [^cooper-fm-controls]: @cooper.2008 additionally controls for book-to-market and 6- and 36-month past returns, both negatively correlated with AG.
 
@@ -1618,7 +1608,7 @@ The negative slope on `asset_growth` in @tbl-fama-macbeth lines up with the long
 
 When every construction choice is configurable, no single combination is canonical. Rather than ship one default series and force users to rebuild the pipeline for every variant, we run [tidyfinance]{.pkg} across many defensible combinations and publish the results as a precomputed factor library. The complete construction pipeline is openly available at [github.com/tidy-finance/factor-library](https://github.com/tidy-finance/factor-library), so every step from raw data to published series can be inspected and reproduced. @walter.2024 and @gruber.2025, among others, argue for systematic enumeration over construction choices in preference to any single canonical specification.
 
-The library is constructed by running each combination of the choices in @tbl-sorting-decisions on the same underlying CRSP-Compustat universe. Beyond the variation @tbl-sorting-decisions makes explicit, two universe filters apply across all specifications. An *earnings filter* drops firms with non-positive income before extraordinary items (`ib`), which mitigates the influence of financial distress on the resulting portfolios. An *age filter* drops firms younger than two years, which ensures the sorting variable is based on stable financial information. Both filters are exposed as parameters of `download_data()`; users who want to switch them off can override the default.
+The library is constructed by running each combination of the choices in @tbl-sorting-decisions on the same underlying CRSP-Compustat universe. Beyond the variation @tbl-sorting-decisions makes explicit, two sample filters apply across all specifications. An *earnings filter* drops firms with non-positive income before extraordinary items (`ib`), which mitigates the influence of financial distress on the resulting portfolios. An *age filter* drops firms younger than two years, which ensures the sorting variable is based on stable financial information. Both filters are exposed as parameters of `download_data()`; users who want to switch them off can override the default.
 
 @tbl-sorting-decisions lists the preprocessing choices that vary across the library. Italic values mark the default for each choice; non-italic values are the alternatives we run.
 
@@ -1689,7 +1679,7 @@ tab
 
 ### Access {#sec-library-access}
 
-Researchers retrieve precomputed series without rebuilding the pipeline. [tidyfinance]{.pkg} hosts the library on Hugging Face and exposes it through `download_data()`. The library is a versioned downstream artifact: the manuscript itself consumes it through the same `download_data()` calls, so reproducing this paper requires only a download rather than a rerun of the construction code. Hugging Face retains a full commit history of each repository in the same way GitHub does, so legacy versions of the factor library remain accessible by referencing earlier snapshots; users can therefore reproduce results computed against an older release of the library even after the current version has been updated. An interactive dashboard at [factors.tidy-finance.org](https://factors.tidy-finance.org) provides the same series through a browser interface. The companion [Python]{.proglang} package [tidyfinance]{.pkg} offers an identical API for users who prefer to access the factor library data from [Python]{.proglang}.
+Researchers retrieve precomputed series without rebuilding the pipeline. [tidyfinance]{.pkg} hosts the library on Hugging Face and exposes it through `download_data()`. The library is a versioned downstream artifact: the manuscript itself consumes it through the same `download_data()` calls, so reproducing this paper requires only a download rather than a rerun of the construction code.^[The repository [https://github.com/tidy-finance/factor-library](https://github.com/tidy-finance/factor-library) contains the full source code for the factor library. ] Hugging Face retains a full commit history of each repository in the same way GitHub does, so legacy versions of the factor library remain accessible by referencing earlier snapshots; users can therefore reproduce results computed against an older release of the library even after the current version has been updated. An interactive dashboard at [factors.tidy-finance.org](https://factors.tidy-finance.org) provides the same series through a browser interface. The companion [Python]{.proglang} package [tidyfinance]{.pkg} offers an identical API for users who prefer to access the factor library data from [Python]{.proglang}.
 
 A default call retrieves a single factor by name and lag:
 
@@ -1775,10 +1765,6 @@ ag_alpha <- ag_data |>
   )) |>
   select(id, alpha = intercept) |>
   mutate(alpha = alpha * 12)
-
-# Cooper (2008, Table II, Panel C, All Firms) value-weighted decile FF3 alpha,
-# sign-flipped to the bottom-minus-top convention.
-cooper_vw_alpha <- 0.084
 ```
 
 ```{r}
@@ -1787,11 +1773,15 @@ cooper_vw_alpha <- 0.084
 #| fig-width: 6.5
 #| echo: false
 #| out-width: "100%"
+# Cooper (2008, Table II, Panel C, All Firms) value-weighted decile FF3 alpha,
+# sign-flipped to the bottom-minus-top convention.
+cooper_vw_alpha <- 0.084
+
 n_specs <- nrow(ag_alpha)
 
 ag_alpha |>
   ggplot(aes(x = alpha)) +
-  geom_histogram(binwidth = 0.012) +
+  geom_histogram(bins = 200) +
   geom_vline(xintercept = 0, linetype = "dashed") +
   geom_vline(
     xintercept = cooper_vw_alpha,
@@ -1814,16 +1804,10 @@ ag_alpha |>
   labs(
     x = "Annualized alpha",
     y = "Count",
-    title = paste(
-      "Asset-growth premium across",
-      format(n_specs, big.mark = ","),
-      "specifications"
-    ),
-    subtitle = "Fama-French three-factor alpha, annualized"
   )
 ```
 
-The dispersion in @fig-ag-alpha shows that construction choices materially shape the estimated premium. Across the `{r} format(nrow(ag_alpha), big.mark = ",")` specifications, annualized alphas average `{r} round(mean(ag_alpha$alpha) * 100, 2)`%, with a median of `{r} round(median(ag_alpha$alpha) * 100, 2)`%, a cross-specification standard deviation of `{r} round(sd(ag_alpha$alpha) * 100, 2)`%, and a range from `{r} round(min(ag_alpha$alpha) * 100, 2)`% to `{r} round(max(ag_alpha$alpha) * 100, 2)`%. Differences of this magnitude across defensible defaults echo the non-standard-errors evidence in @menkveld.2024: where the breakpoint is placed, when the portfolio rebalances, and which universe filters apply can move the headline number by more than conventional sampling uncertainty would suggest.
+The dispersion in @fig-ag-alpha shows that construction choices materially shape the estimated premium. Across the `{r} format(nrow(ag_alpha), big.mark = ",")` specifications, annualized alphas average `{r} round(mean(ag_alpha$alpha) * 100, 2)`%, with a median of `{r} round(median(ag_alpha$alpha) * 100, 2)`%, a cross-specification standard deviation of `{r} round(sd(ag_alpha$alpha) * 100, 2)`%, and a range from `{r} round(min(ag_alpha$alpha) * 100, 2)`% to `{r} round(max(ag_alpha$alpha) * 100, 2)`%. Differences of this magnitude across defensible defaults echo the non-standard-errors evidence in @menkveld.2024: where the breakpoint is placed, when the portfolio rebalances, and which sample filters apply can move the headline number by more than conventional sampling uncertainty would suggest.
 
 ## Summary and discussion {#sec-summary}
 
@@ -1838,6 +1822,7 @@ Companion materials at [tidy-finance.org](https://tidy-finance.org) integrate [t
 ```{r}
 #| label: renv-versions
 #| echo: false
+#| purl: false
 renv_lock <- jsonlite::fromJSON("renv.lock")
 pkg_version <- function(pkg) {
   v <- renv_lock$Packages[[pkg]]$Version
@@ -1857,6 +1842,12 @@ We obtained the results in this paper using [R]{.proglang} `{r} r_version` with 
 Reproducing this manuscript takes about 15 minutes: `quarto render jss-manuscript.qmd` pulls the precomputed factor library via `download_data()` and uses the WRDS subset described in @sec-data-download, or pseudo data of identical schema for readers without WRDS access. Timings reported here are obtained on `{r} sessionInfo()$running` with a `{r} parallel::detectCores()`-core processor running [R]{.proglang} `{r} r_version`; WRDS extracts are not pre-cached, so the 15-minute figure includes the time to download the underlying CRSP and Compustat panels.
 
 We publish all code, data workflows, and documentation at [https://github.com/tidy-finance/jss-multilingual-factor-library](https://github.com/tidy-finance/jss-multilingual-factor-library). The code is released under the MIT License, which is compatible with the GNU General Public License (GPL).
+
+```{r}
+#| label: session-info
+#| include: false
+sessionInfo()
+```
 
 ## Acknowledgments {.unnumbered}
 
@@ -1887,13 +1878,13 @@ Stefan Voigt is grateful to the Danish Finance Institute for financial support.
 
 **CDI - Composite Debt Issuance**
 
-Following @lyandres.2008, we compute composite debt issuance as the logarithmic growth rate of book debt (current debt, `dlc`, plus long-term debt, `dltt`) over the last five years:
+Following @lyandres.2008, we compute composite debt issuance as the logarithmic growth rate of book debt (current debt, DLC, plus long-term debt, DLTT) over the last five years:
 
 $$
 CDI_t = \log(DLC_{t} + DLTT_{t}) - \log(DLC_{t-60} + DLTT_{t-60})\text{.}
 $$
 
-We replace missing values of `dlc` and `dltt` with zero. The sum of `dlc` and `dltt` must be strictly positive; otherwise, the variable is set to missing.
+We replace missing values of DLC and DLTT with zero. The sum of DLC and DLTT must be strictly positive; otherwise, the variable is set to missing.
 
 **CSI - Composite Share Issuance**
 
@@ -1905,7 +1896,7 @@ $$
 
 **DBE - Change in Common Equity**
 
-Following @richardson.2005, we calculate the change in common equity as the change in common equity (`ceq`) over one year scaled by lagged assets (`at`), i.e.,
+Following @richardson.2005, we calculate the change in common equity as the change in common equity (CEQ) over one year scaled by lagged assets (AT), i.e.,
 
 $$
 DBE_{t} = \frac{CEQ_{t} - CEQ_{t-12}}{AT_{t-12}}\text{.}
@@ -1913,37 +1904,37 @@ $$
 
 **DCOL - Change in Current Operating Liabilities**
 
-Following @richardson.2005, we measure the change in current operating liabilities as the change in current operating liabilities (i.e., current liabilities, `lct`, minus current debt, `dlc`) over one year scaled by lagged assets (`at`), i.e.,
+Following @richardson.2005, we measure the change in current operating liabilities as the change in current operating liabilities (i.e., current liabilities, LCT, minus current debt, DLC) over one year scaled by lagged assets (AT), i.e.,
 
 $$
 DCOL_{t} = \frac{(LCT_{t} - DLC_{t}) - (LCT_{t-12} - DLC_{t-12})}{AT_{t-12}}\text{.}
 $$
 
-We set the missing values in `dlc` to zero.
+We set the missing values in DLC to zero.
 
 **DFNL - Change in Financial Liabilities**
 
-Following @richardson.2005, we measure the change in financial liabilities (i.e., the sum of current debt, `dlc`, plus long-term debt, `dltt`, plus preferred stocks, `pstk`) over one year scaled by lagged assets (`at`), i.e.,
+Following @richardson.2005, we measure the change in financial liabilities (i.e., the sum of current debt, DLC, plus long-term debt, DLTT, plus preferred stocks, PSTK) over one year scaled by lagged assets (AT), i.e.,
 
 $$
 DFNL_{t} = \frac{(DLC_{t} + DLTT_{t} + PSTK_{t}) - (DLC_{t-12} + DLTT_{t-12} + PSTK_{t-12})}{AT_{t-12}}\text{.}
 $$
 
-We replace the missing values of `dlc`, `dltt`, and `pstk` with zero, if at least one of them is available.
+We replace the missing values of DLC, DLTT, and PSTK with zero, if at least one of them is available.
 
 **NDF - Net Debt Financing**
 
-Following @bradshaw.2006, we measure net debt financing as cash proceeds from the issuance of long-term debt (`dltis`) minus cash payments for long-term debt reductions (`dltr`) plus net changes in current debt (`dlcch`) scaled by the average total assets (`at`) over the current and the last year, i.e.,
+Following @bradshaw.2006, we measure net debt financing as cash proceeds from the issuance of long-term debt (DLTIS) minus cash payments for long-term debt reductions (DLTR) plus net changes in current debt (DLCCH) scaled by the average total assets (AT) over the current and the last year, i.e.,
 
 $$
 NDF_{t} = \frac{DLTIS_{t} - DLTR_{t} + DLCCH_{t}}{\frac{1}{2} \big(AT_{t} + AT_{t-12} \big)}\text{.}
 $$
 
-We replace the missing values of `dlcch` with zero.
+We replace the missing values of DLCCH with zero.
 
 **NEF - Net Equity Financing**
 
-Following @bradshaw.2006, we measure net equity financing as proceeds from the sale of common and preferred stocks (`sstk`) minus payments for the repurchase of common and preferred stocks (`prstkc`) minus cash payments for dividends (`dv`) scaled by the average total assets (`at`) over the current and the last year, i.e.,
+Following @bradshaw.2006, we measure net equity financing as proceeds from the sale of common and preferred stocks (SSTK) minus payments for the repurchase of common and preferred stocks (PRSTKC) minus cash payments for dividends (DV) scaled by the average total assets (AT) over the current and the last year, i.e.,
 
 $$
 NEF_{t} = \frac{SSTK_{t} - PRSTKC_{t} - DV_{t}}{\frac{1}{2} \big(AT_{t} + AT_{t-12} \big)}\text{.}
@@ -1957,7 +1948,7 @@ Following @bradshaw.2006, we measure net external financing as the sum of net de
 
 **HR - Hiring Rate**
 
-Following @belo.2014, we measure the hiring rate as the change in the number of employees (`emp`) over one year scaled by the average number of employees, i.e.,
+Following @belo.2014, we measure the hiring rate as the change in the number of employees (EMP) over one year scaled by the average number of employees, i.e.,
 
 $$
 HR_{t} = \frac{EMP_{t} - EMP_{t-12}}{\frac{1}{2} \big(EMP_{t} + EMP_{t-12} \big)}\text{.}
@@ -1967,7 +1958,7 @@ We exclude firms with a hiring rate of zero.
 
 **OL - Operating Leverage**
 
-Following @novy-marx.2011, we measure operating leverage as cost of goods sold (`cogs`) plus selling, general, and administrative expenses (`xsga`), both scaled by current total assets (`at`), i.e.,
+Following @novy-marx.2011, we measure operating leverage as cost of goods sold (COGS) plus selling, general, and administrative expenses (XSGA), both scaled by current total assets (AT), i.e.,
 
 $$
 OL_{t} = \frac{COGS_{t} + XSGA_{t}}{AT_{t}}\text{.}
@@ -1977,13 +1968,13 @@ $$
 
 Following @tuzel.2010, we measure the real-estate ratio in two subperiods differently.
 
-(a) Before 1983, the real-estate ratio is the sum of buildings (`ppenb`) and capital leases (`ppenls`) scaled by net property, plant, and equipment (`ppent`), i.e.,
+(a) Before 1983, the real-estate ratio is the sum of buildings (PPENB) and capital leases (PPENLS) scaled by net property, plant, and equipment (PPENT), i.e.,
 
 $$
 RER_{t} = \frac{PPENB_{t} + PPENLS_{t}}{PPENT_{t}}\text{.}
 $$
 
-(b) After the end of 1983, the real-estate ratio is the sum of buildings at cost (`fatb`) and leases at cost (`fatl`), both divided by gross property, plant, and equipment (`ppegt`), i.e.,
+(b) After the end of 1983, the real-estate ratio is the sum of buildings at cost (FATB) and leases at cost (FATL), both divided by gross property, plant, and equipment (PPEGT), i.e.,
 
 $$
 RER_{t} = \frac{FATB_{t} + FATL_{t}}{PPEGT_{t}}\text{.}
@@ -2008,7 +1999,7 @@ We follow @hou.2020 and exclude stocks with sales below 10 million dollars.
 
 **AG - Asset Growth**
 
-Following @cooper.2008, we measure asset growth as the change in total assets (`at`) over one year scaled by lagged assets (`at`), i.e.,
+Following @cooper.2008, we measure asset growth as the change in total assets (AT) over one year scaled by lagged assets (AT), i.e.,
 
 $$
 AG_{t} = \frac{AT_{t} - AT_{t-12}}{AT_{t-12}}\text{.}
@@ -2016,7 +2007,7 @@ $$
 
 **DINV - Inventory Changes**
 
-Following @thomas.2002, we measure the change in inventory as the annual change in inventories (`invt`) scaled by average total assets (`at`) over the current and the last year, i.e.,
+Following @thomas.2002, we measure the change in inventory as the annual change in inventories (INVT) scaled by average total assets (AT) over the current and the last year, i.e.,
 
 $$
 DINV_{t} = \frac{INVT_{t} - INVT_{t-12}}{\frac{1}{2} \big(AT_{t} + AT_{t-12} \big)}\text{.}
@@ -2030,9 +2021,9 @@ $$
 NOA^{int}_{t} = (AT_{t} - CHE_{t}) - (AT_{t} - DLC_{t} - DLTT_{t} - MIB_{t} - PSTK_{t} - CEQ_{t})\text{,}
 $$
 
-where `at` corresponds to total assets, `che` to cash and short-term investments, `dlc` to current debt, `dltt` to long-term debt, `mib` to minority interests, `pstk` to the value of preferred stocks, and `ceq` to common equity.
-Missing values in `dlc`, `dltt`, `mib`, and `pstk` are set to zero.
-Then, the change in net operating assets is the difference between net operating assets of fiscal year $t$ and fiscal year $t-12$ scaled by lagged assets (`at`), i.e.,
+where AT corresponds to total assets, CHE to cash and short-term investments, DLC to current debt, DLTT to long-term debt, MIB to minority interests, PSTK to the value of preferred stocks, and CEQ to common equity.
+Missing values in DLC, DLTT, MIB, and PSTK are set to zero.
+Then, the change in net operating assets is the difference between net operating assets of fiscal year $t$ and fiscal year $t-12$ scaled by lagged assets (AT), i.e.,
 
 $$
 DNOA_{t} = \frac{NOA^{int}_{t} - NOA^{int}_{t-12}}{AT_{t-12}}\text{.}
@@ -2040,7 +2031,7 @@ $$
 
 **DPIA - Change in Property, Plant, Equipment, and Inventory**
 
-Following @lyandres.2008, we measure the change in property, plant, equipment, and inventory by combining the change in gross property, plant, and equipment (`ppegt`) with the annual change in inventory (`invt`) and scaling this sum by lagged total assets (`at`), i.e.,
+Following @lyandres.2008, we measure the change in property, plant, equipment, and inventory by combining the change in gross property, plant, and equipment (PPEGT) with the annual change in inventory (INVT) and scaling this sum by lagged total assets (AT), i.e.,
 
 $$
 DPIA_{t} = \frac{(PPEGT_{t} - PPEGT_{t-12}) + (INVT_{t} - INVT_{t-12})}{AT_{t-12}}\text{.}
@@ -2054,9 +2045,9 @@ $$
 WC_{t} = (ACT_{t} - CHE_{t}) - (LCT_{t} - DLC_{t})\text{,}
 $$
 
-where `act` corresponds to current assets, `che` to cash, `lct` to current liabilities, and `dlc` to short-term debt.
-We set the missing values in `dlc` to zero.
-Then, the change in net non-cash working capital corresponds to the change in $WC$ from fiscal year $t-12$ to fiscal year $t$ scaled by lagged total assets (`at`), i.e.,
+where ACT corresponds to current assets, CHE to cash, LCT to current liabilities, and DLC to short-term debt.
+We set the missing values in DLC to zero.
+Then, the change in net non-cash working capital corresponds to the change in $WC$ from fiscal year $t-12$ to fiscal year $t$ scaled by lagged total assets (AT), i.e.,
 
 $$
 DWC_{t} = \frac{WC_{t} - WC_{t-12}}{AT_{t-12}}\text{.}
@@ -2064,7 +2055,7 @@ $$
 
 **IG - Investment Growth**
 
-Following @xing.2008, we measure investment growth as the annual change in capital expenditures (`capx`) scaled by lagged capital expenditures, i.e.,
+Following @xing.2008, we measure investment growth as the annual change in capital expenditures (CAPX) scaled by lagged capital expenditures, i.e.,
 
 $$
 IG_{t} = \frac{CAPX_{t} - CAPX_{t-12}}{CAPX_{t-12}}\text{.}
@@ -2078,9 +2069,9 @@ $$
 NOA^{int}_{t} = (AT_{t} - CHE_{t}) - (AT_{t} - DLC_{t} - DLTT_{t} - MIB_{t} - PSTK_{t} - CEQ_{t})\text{,}
 $$
 
-where `at` corresponds to total assets, `che` to cash and short-term investments, `dlc` to current debt, `dltt` to long-term debt, `mib` to minority interests, `pstk` to the value of preferred stocks, and `ceq` to common equity.
-Missing values in `dlc`, `dltt`, `mib`, and `pstk` are set to zero.
-Then, net operating assets are the net operating assets of fiscal year $t$ scaled by lagged assets (`at`), i.e.,
+where AT corresponds to total assets, CHE to cash and short-term investments, DLC to current debt, DLTT to long-term debt, MIB to minority interests, PSTK to the value of preferred stocks, and CEQ to common equity.
+Missing values in DLC, DLTT, MIB, and PSTK are set to zero.
+Then, net operating assets are the net operating assets of fiscal year $t$ scaled by lagged assets (AT), i.e.,
 
 $$
 NOA_{t} = \frac{NOA^{int}_{t}}{AT_{t-12}}\text{.}
@@ -2094,8 +2085,8 @@ $$
 OA_{t} = \frac{(\Delta ACT_{t} - \Delta CHE_{t}) - (\Delta LCT_{t} - \Delta DLC_{t} - \Delta TXP_{t}) -DP_{t}}{AT_{t-12}}\text{,}
 $$
 
-where `act` is current assets, `che` cash, `lct` current liabilities, `dlc` short-term debt, `txp` taxes payable, and `dp` depreciation and amortization.
-Moreover, we replace the missing values in `dlc` and `txp` with zero.
+where ACT is current assets, CHE cash, LCT current liabilities, DLC short-term debt, TXP taxes payable, and DP depreciation and amortization.
+Moreover, we replace the missing values in DLC and TXP with zero.
 $\Delta$ represents changes over one year.
 From 1988 onwards, we measure operating accruals as
 
@@ -2103,7 +2094,7 @@ $$
 OA_{t} = \frac{NI_{t} - OANCF_{t}}{AT_{t-12}}\text{,}
 $$
 
-where `ni` is net income and `oancf` corresponds to net cash flow from operations.
+where NI is net income and OANCF corresponds to net cash flow from operations.
 
 ### Momentum
 
@@ -2123,7 +2114,7 @@ Throughout these rolling regressions, we always require 36 monthly returns.
 
 **RS - Revenue Surprise**
 
-Following @jegadeesh.2006, we measure the change in revenues per share (DRPS) from quarterly Compustat data as quarterly sales (`saleq`) scaled by the product of quarterly shares outstanding (`cshprq`) times their cumulative adjustment factor (`ajexq`), i.e.,
+Following @jegadeesh.2006, we measure the change in revenues per share (DRPS) from quarterly Compustat data as quarterly sales (SALEQ) scaled by the product of quarterly shares outstanding (CSHPRQ) times their cumulative adjustment factor (AJEXQ), i.e.,
 
 $$
 DRPS_{q}= \frac{SALEQ_{q}}{CSHPRQ_{q} \cdot AJEXQ_{q}} - \frac{SALEQ_{q-4}}{CSHPRQ_{q-4} \cdot AJEXQ_{q-4}}\text{.}
@@ -2135,7 +2126,7 @@ Finally, the earnings announcement date has to be after the fiscal quarter end d
 
 **SUE - Standardized Unexpected Earnings**
 
-Following @foster.1984, we measure unexpected earnings per share (UES) from quarterly Compustat data as the change in split-adjusted earnings (which are equal to quarterly earnings per share, `epspxq`, scaled by the correction factor for shares outstanding, `ajexq`) per share from its value four quarters ago, i.e.,
+Following @foster.1984, we measure unexpected earnings per share (UES) from quarterly Compustat data as the change in split-adjusted earnings (which are equal to quarterly earnings per share, EPSPXQ, scaled by the correction factor for shares outstanding, AJEXQ) per share from its value four quarters ago, i.e.,
 
 $$
 UES_{q} = \frac{EPSPXQ_{q}}{AJEXQ_{q}} - \frac{EPSPXQ_{q-4}}{AJEXQ_{q-4}}\text{.}
@@ -2170,13 +2161,13 @@ CBOP_{t} = &\big(REVT_{t} - COGS_{t} - XSGA_{t} + XRD_{t} \\
 &+ \Delta DRLT_{t} + \Delta AP_{t} + \Delta XACC_{t} \big) / AT_{t}\text{,}
 \end{align*}
 
-where `revt` is total revenue, `cogs` are cost of goods sold, `xsga` are selling, general, and administrative expenses, and `xrd` are R&D expenses.
-Moreover, $\Delta$ refers to one-year changes, which we measure for accounts receivable (`rect`), inventory (`invt`), prepaid expenses (`xpp`), deferred revenues (the sum of current, `drc`, and long-term, `drlt`), trade accounts payable (`ap`), and accrued expenses (`xacc`).
-We set the missing values of `xrd` and all missing changes to zero.
+where REVT is total revenue, COGS are cost of goods sold, XSGA are selling, general, and administrative expenses, and XRD are R&D expenses.
+Moreover, $\Delta$ refers to one-year changes, which we measure for accounts receivable (RECT), inventory (INVT), prepaid expenses (XPP), deferred revenues (the sum of current, DRC, and long-term, DRLT), trade accounts payable (AP), and accrued expenses (XACC).
+We set the missing values of XRD and all missing changes to zero.
 
 **GPA - Gross Profits to Assets**
 
-Following @novy-marx.2013, we measure gross profits to assets as total revenues (`revt`) minus cost of goods sold (`cogs`) scaled by current total assets (`at`), i.e.,
+Following @novy-marx.2013, we measure gross profits to assets as total revenues (REVT) minus cost of goods sold (COGS) scaled by current total assets (AT), i.e.,
 
 $$
 GPA_{t} = \frac{REVT_{t} - COGS_{t}}{AT_{t}}\text{.}
@@ -2193,7 +2184,7 @@ O_{t} = &- 1.32 - 0.407 \cdot \log(AT_{t}) + 6.03 \cdot \frac{DLC_{t} + DLTT_{t}
 &+ 0.285 \cdot \mathbf{1}_{NI_{t} < 0 \text{ and } NI_{t-12} < 0} - 0.521 \cdot \frac{NI_{t}-NI_{t-12}}{|NI_{t}| + |NI_{t-12}|}\text{,}
 \end{align*}
 
-where `at` corresponds to total assets, `dlc` to short-term debt, `dltt` to long-term debt, `act` to current assets, `lct` to current liabilities, `lt` to total liabilities, `pi` to pretax income, `dp` to depreciation and amortization, and `ni` to net income.
+where AT corresponds to total assets, DLC to short-term debt, DLTT to long-term debt, ACT to current assets, LCT to current liabilities, LT to total liabilities, PI to pretax income, DP to depreciation and amortization, and NI to net income.
 We winsorize all variables except for dummy variables at the first and 99$\text{th}$ percentile of their respective distribution.
 
 **OPE - Operating Profits to Book Equity**
@@ -2204,17 +2195,17 @@ $$
 OPE_{t} = \frac{REVT_{t} - COGS_{t} - XSGA_{t} - XINT_{t}}{BE_{t}}\text{,}
 $$
 
-where `revt` corresponds to total revenues, `cogs` to cost of goods sold, `xsga` to selling, general and administrative expenses, `xint` to interest expenses, and BE to book equity.
+where REVT corresponds to total revenues, COGS to cost of goods sold, XSGA to selling, general and administrative expenses, XINT to interest expenses, and BE to book equity.
 The definition of book equity is (a) the book equity of shareholders plus (b) deferred taxes and investment tax credit (Compustat item `txditc` or `txdb` + `itcb` if `txditc` is unavailable) minus (c) the book value of preferred stock.
 Regarding (a), the book equity of shareholders is shareholders' equity (`seq`), or the sum of common equity (`ceq`) and the par value of preferred stock (`pstk`), or, if all previous items are unavailable, total assets (`at`) minus total liabilities (`lt`).
 Regarding (b), deferred taxes (`txditc`) or investment tax credits (`txdb` plus `itcb`) if deferred taxes are unavailable.
 Regarding (c), the book value of preferred stock corresponds in the following order either to the redemption value (`pstkrv`), or the liquidation value (`pstkl`), or if all previous items are unavailable to the par value (`pstk`).
 We replace the missing values in items (b) and (c) with zero.
-Moreover, missing values in `cogs`, `xsga`, and `xint` are set to zero.
+Moreover, missing values in COGS, XSGA, and XINT are set to zero.
 
 **ROA - Return on Assets**
 
-Following @balakrishnan.2010, we measure return on assets as quarterly income before extraordinary items (`ibq`) relative to lagged quarterly total assets (`atq`), i.e.,
+Following @balakrishnan.2010, we measure return on assets as quarterly income before extraordinary items (IBQ) relative to lagged quarterly total assets (ATQ), i.e.,
 
 $$
 ROA_{q} = \frac{IBQ_{q}}{ATQ_{q-1}}\text{.}
@@ -2224,7 +2215,7 @@ Finally, the earnings announcement date must be after the fiscal quarter-end dat
 
 **ROE - Return on Equity**
 
-Following @hou.2014, we measure return on equity as quarterly income before extraordinary items (`ibq`) relative to lagged book equity (BEQ)
+Following @hou.2014, we measure return on equity as quarterly income before extraordinary items (IBQ) relative to lagged book equity (BEQ)
 
 $$
 ROE_{q} = \frac{IBQ_{q}}{BEQ_{q-1}}\text{.}
@@ -2238,7 +2229,7 @@ Finally, the earnings announcement date must be after the fiscal quarter-end dat
 
 **TBI - Taxable Income to Book Income**
 
-Following @lev.2004, we measure taxable income to book income as pretax income (`pi`) scaled by net income (`ni`)
+Following @lev.2004, we measure taxable income to book income as pretax income (PI) scaled by net income (NI)
 
 $$
 TBI_{t} = \frac{PI_{t}}{NI_{t}}\text{.}
@@ -2251,20 +2242,20 @@ We require positive pretax and net income.
 **ME - Size**
 
 Following @fama.1992, we measure size as the natural logarithm of the market equity.
-We obtain market equity data from CRSP by multiplying the shares outstanding (`shrout` \* 1,000, as they are given in thousands) with the corresponding share price (the absolute value of `altprc`), i.e.,
+We obtain market equity data from CRSP by multiplying the shares outstanding (SHROUT $\times$ 1,000, as they are given in thousands) with the corresponding share price (the absolute value of ALTPRC), i.e.,
 
 $$
-ME_{t} = \log\left(shrout_{t}*1000*|altprc_{t}|\right)\text{.}
+ME_{t} = \log\left(SHROUT_{t} \times 1000 \times |\text{ALTPRC}_{t}|\right)\text{.}
 $$
 
 ### Trading frictions
 
 **AMI - Amihud Illiquidity Measure**
 
-Following @amihud.2002, we measure the illiquidity from daily return-to-volume (RV), which is the absolute daily return (r) scaled by the daily dollar trading volume (product of `vol` and `prc`), i.e.,
+Following @amihud.2002, we measure the illiquidity from daily return-to-volume (RV), which is the absolute daily return (r) scaled by the daily dollar trading volume (product of VOL and PRC), i.e.,
 
 $$
-RV_{t} = \frac{|r_{d}|}{prc_{t} * vol_{t}}\text{.}
+RV_{t} = \frac{|r_{d}|}{PRC_{t} \times VOL_{t}}\text{.}
 $$
 
 Then, the Amihud illiquidity measure corresponds to the average return-to-volume estimate over the last six months.
@@ -2310,10 +2301,10 @@ Following @bali.2011, we measure the maximum daily (excess) return in each month
 
 **TUR - Share Turnover**
 
-Following @datar.1998, we measure the daily share turnover of each stock as the number of shares traded (`vol`) scaled by the number of shares outstanding (`shrout`), i.e.,
+Following @datar.1998, we measure the daily share turnover of each stock as the number of shares traded (VOL) scaled by the number of shares outstanding (SHROUT), i.e.,
 
 $$
-T_{t} = \frac{vol}{shrout}\text{.}
+T_{t} = \frac{VOL}{SHROUT}\text{.}
 $$
 
 Then, the share turnover for each firm in each month $t$ is the average daily share turnover over the previous six months (with at least 50 observations).
@@ -2337,7 +2328,7 @@ We replace the missing values in items (b) and (c) with zero.
 
 **CFM - Cash Flow to Market Equity**
 
-Following @lakonishok.1994, we measure the cash-flow-to-price ratio as income before extraordinary items (`ib`) plus depreciation (`dp`) scaled by market equity from CRSP (i.e., the fiscal-year end's shares outstanding, `shrout`, times the absolute value of their price, `altprc`, in million USD), i.e.,
+Following @lakonishok.1994, we measure the cash-flow-to-price ratio as income before extraordinary items (IB) plus depreciation (DP) scaled by market equity from CRSP (i.e., the fiscal-year end's shares outstanding, `shrout`, times the absolute value of their price, `altprc`, in million USD), i.e.,
 
 $$
 CFM_{t} = \frac{IB_{t} + DP_{t}}{ME_{t}}\text{.}
@@ -2347,13 +2338,13 @@ We exclude all stocks with negative cash flows.
 
 **DM - Debt to Market Equity**
 
-Following @bhandari.1988, we measure the debt-to-market ratio as short-term debt (`dlc`) plus long-term debt (`dltt`) from Compustat divided by market equity from CRSP (i.e., the fiscal-year end's shares outstanding, `shrout`, times the absolute value of their price, `altprc`, in million USD), i.e.,
+Following @bhandari.1988, we measure the debt-to-market ratio as short-term debt (DLC) plus long-term debt (DLTT) from Compustat divided by market equity from CRSP (i.e., the fiscal-year end's shares outstanding, `shrout`, times the absolute value of their price, `altprc`, in million USD), i.e.,
 
 $$
 DM_{t} = \frac{DLC_{t} + DLTT_{t}}{ME_{t}}\text{.}
 $$
 
-We exclude stocks with missing `dlc` and `dltt` observations.
+We exclude stocks with missing DLC and DLTT observations.
 
 **EBM - Enterprise Book Equity to Market Equity**
 
@@ -2363,14 +2354,14 @@ $$
 EBM_{t} = \frac{(DLTT_{t} + DLC_{t} + PSTK_{t} + DVPA_{t} - TSTKP_{t}) - CHE_{t} + BE_{t}}{(DLTT_{t} + DLC_{t} + PSTK_{t} + DVPA_{t} - TSTKP_{t}) - CHE_{t} + ME_{t}}\text{,}
 $$
 
-where `dltt` corresponds to long-term debt, `dlc` to current debt, `pstk` to the value of preferred stock, `dvpa` to preferred dividends in arrears, `tstkp` to preferred treasury stock, `che` to cash and short-term investments, and ME to the market equity from CRSP (i.e., the fiscal-year end's shares outstanding, `shrout`, times the absolute value of their price, `altprc`, in million USD).
-Lastly, in this case, book equity BE is computed as common equity (`ceq`) plus `tstkp` minus `dvpa`.
-Missing observations in `dvpa` and `tstkp` are set to zero.
+where DLTT corresponds to long-term debt, DLC to current debt, PSTK to the value of preferred stock, DVPA to preferred dividends in arrears, TSTKP to preferred treasury stock, CHE to cash and short-term investments, and ME to the market equity from CRSP (i.e., the fiscal-year end's shares outstanding, `shrout`, times the absolute value of their price, `altprc`, in million USD).
+Lastly, in this case, book equity BE is computed as common equity (`ceq`) plus TSTKP minus DVPA.
+Missing observations in DVPA and TSTKP are set to zero.
 Additionally, we require that the sum of net debt and book equity, as well as the sum of net debt plus market equity, is positive.
 
 **EM - Earnings to Market Equity**
 
-Following @basu.1983, we measure the earnings-to-price ratio as income before extraordinary items (`ib`) from Compustat divided by market equity from CRSP (i.e., the fiscal-year end's shares outstanding, `shrout`, times the absolute value of their price, `altprc`, in million USD), i.e.,
+Following @basu.1983, we measure the earnings-to-price ratio as income before extraordinary items (IB) from Compustat divided by market equity from CRSP (i.e., the fiscal-year end's shares outstanding, `shrout`, times the absolute value of their price, `altprc`, in million USD), i.e.,
 
 $$
 EM_{t} = \frac{IB_{t}}{ME_{t}}\text{.}
@@ -2386,8 +2377,8 @@ $$
 NDM_{t} = \frac{(DLTT_{t} + DLC_{t} + PSTK_{t} + DVPA_{t} - TSTKP_{t}) - CHE_{t}}{ME_{t}}\text{,}
 $$
 
-where `dltt` corresponds to long-term debt, `dlc` to current debt, `pstk` to the value of preferred stock, `dvpa` to preferred dividends in arrears, `tstkp` to preferred treasury stock, and `che` to cash and short-term investments.
-Lastly, missing observations in `dvpa` and `tstkp` are set to zero.
+where DLTT corresponds to long-term debt, DLC to current debt, PSTK to the value of preferred stock, DVPA to preferred dividends in arrears, TSTKP to preferred treasury stock, and CHE to cash and short-term investments.
+Lastly, missing observations in DVPA and TSTKP are set to zero.
 
 **NPY - Net Payout Yield**
 
@@ -2398,8 +2389,8 @@ NPY_{t} = &\big[(DVC_{t} + PRSTKC_{t} + \Delta PSTKRV_{t} \cdot {1}_{\Delta PSTK
 &- (SSTK_{t} - \Delta PSTKRV_{t} \cdot {1}_{\Delta PSTKRV >0})\big] / ME_{t}\text{,}
 \end{align*}
 
-where `dvc` are dividends from common stock, `prstkc` is the purchase of common and preferred stock, `pstkrv` is the value of the net number of preferred stocks outstanding, and `sstk` reflects the sale of common and preferred stocks.
-${1}_{\Delta PSTKRV <0}$ is a dummy variable that is one if the annual change in `pstkrv` is negative and zero otherwise.
+where DVC are dividends from common stock, PRSTKC is the purchase of common and preferred stock, PSTKRV is the value of the net number of preferred stocks outstanding, and SSTK reflects the sale of common and preferred stocks.
+${1}_{\Delta PSTKRV <0}$ is a dummy variable that is one if the annual change in PSTKRV is negative and zero otherwise.
 Moreover, we exclude stocks with negative net payouts.
 
 **OCM - Operating Cash Flow to Market Equity**
@@ -2416,7 +2407,7 @@ Moreover, we exclude firms with negative operating cash flows.
 
 **SM - Sales to Market Equity**
 
-Following @barbee.1996, we measure the sales-to-price ratio (SM) as sales (`sale`) from Compustat divided by the market equity from CRSP (i.e., the fiscal-year end's shares outstanding, `shrout`, times the absolute value of their price, `altprc`, in million USD), i.e.,
+Following @barbee.1996, we measure the sales-to-price ratio (SM) as sales (SALE) from Compustat divided by the market equity from CRSP (i.e., the fiscal-year end's shares outstanding, `shrout`, times the absolute value of their price, `altprc`, in million USD), i.e.,
 
 $$
 SM_{t} = \frac{SALE_{t}}{ME_{t}}\text{.}
