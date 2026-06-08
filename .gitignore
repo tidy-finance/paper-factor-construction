@@ -1,3 +1,5 @@
 .Renviron
 submission/
 make-submission.R
+jss-manuscript_cache/
+jss-manuscript_files/
