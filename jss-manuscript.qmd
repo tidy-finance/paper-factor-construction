@@ -10,6 +10,7 @@ format:
         colorlinks: false
 header-includes:
   - |
+    \usepackage{needspace}
     \setlength{\parskip}{0.7ex plus0.1ex minus0.1ex}
     \setlength{\parindent}{0em}
     \ifPDFTeX
@@ -65,7 +66,7 @@ journal:
   type: article
 
 execute:
-  cache: true
+  cache: false
 
 knitr:
   opts_chunk:
@@ -312,9 +313,9 @@ The empirical asset pricing workflow decomposes into three stages: data acquisit
 [tidyfinance]{.pkg} exposes one interface, `download_data()`, to `{r} format(nrow(tidyfinance::list_supported_datasets()), big.mark = ",")` datasets: equity returns, fixed-income transactions, macroeconomic predictors, index constituents, and more. @tbl-data-sources lists all available sources. `list_supported_datasets()` returns the full catalog programmatically. The companion [Python]{.proglang} package [tidyfinance]{.pkg}, hosted on [PyPI](https://pypi.org/project/tidyfinance/), exposes the same `download_data()` interface, with identical signatures and dataset identifiers, so analyses can be ported between the two languages without changes to the data layer.
 
 ```{=latex}
-\begingroup
-\renewcommand{\arraystretch}{1.2}
+\begingroup\small
 \setlength{\tabcolsep}{4pt}
+\renewcommand{\arraystretch}{1.0}
 ```
 +----------------+------------------------------------+-----------------------------------------+
 | Source         | Description                        | Example                                 |
@@ -384,7 +385,7 @@ The empirical asset pricing workflow decomposes into three stages: data acquisit
 +----------------+------------------------------------+-----------------------------------------+
 | Factor Library | Precomputed factor returns         | ```                                     |
 |                | across construction choices        | download_data(                          |
-|                | (see below)                        |   domain = "tidyfinance",               |
+|                | (see Section @sec-library)         |   domain = "tidyfinance",               |
 |                |                                    |   dataset = "factor_library",           |
 |                |                                    |   sorting_variable = "ag"               |
 |                |                                    | )                                       |
@@ -1201,6 +1202,7 @@ yearly_stats <- sorting_variable_data |>
 
 ```{r}
 #| label: tbl-ag-summary
+#| tbl-pos: "H"
 #| tbl-cap: !expr 'paste0("Cross-sectional summary statistics for asset growth (winsorized at the 1st and 99th percentiles). The ''Pooled'' column reports the statistic computed on the entire firm-year sample. The ''Yearly'' columns summarize the time series of statistic values computed cross-sectionally year by year, taking the average, minimum, and maximum across calendar years. N is the count of firm-year observations (pooled) or per-year observations (yearly columns). Sample: ", sample_years(drop_na(sorting_variable_data, asset_growth)), ".")'
 #| echo: false
 stat_cols <- c("n", "mean", "sd", "q10", "q25", "q50", "q75", "q90")
@@ -1316,7 +1318,7 @@ ggplot(plot_data, aes(x = date, y = asset_growth, color = quantile)) +
 
 With the sorting variable constructed and merged onto the monthly stock panel, we now turn to portfolio sorts, the mechanism that translates firm-level characteristics into tradable factor returns.
 
-### Portfolio sorts {#sec-portfolio-sorts}
+### Portfolio sorting {#sec-portfolio-sorts}
 
 In portfolio sorts, stocks are ranked each period by their sorting variable and divided into quantile portfolios. Portfolio returns are equal-weighted or value-weighted averages of constituent stock returns. The long-short factor return is the difference between the extreme portfolios. For asset growth, the relevant spread is bottom minus top, reflecting the negative premium documented by @cooper.2008. The construction involves several methodological choices: which stocks enter the universe, how many portfolios to form, which exchange determines the breakpoints, the weighting scheme, and the rebalancing frequency.
 
@@ -1570,6 +1572,10 @@ customized_comparison_table |>
 
 Researchers who want finer-grained control can call the lower-level portfolio-sorting functions in @tbl-functions directly. They share signatures and semantics with `implement_portfolio_sort()`, so an analysis prototyped against the wrapper can be unrolled into its components without rewriting the pipeline. This separation matters when custom logic applies at one stage only, for example, computing breakpoints separately within each industry, or from a trailing window of past data rather than the contemporaneous cross-section.
 
+```{=latex}
+\needspace{5\baselineskip}
+```
+
 #### Asset pricing tests {#sec-fama-macbeth}
  
 A long-short return is one summary of whether asset growth predicts the cross-section of returns. A complementary view comes from Fama-MacBeth regressions [@fama.1973], which estimate the average risk premium associated with a characteristic after running cross-sectional regressions period by period. [tidyfinance]{.pkg} implements the standard procedure in `estimate_fama_macbeth()`, which takes a panel and a model formula, fits one cross-sectional ordinary least squares (OLS) regression per period, and aggregates the period-level coefficients into average risk premia with Newey-West standard errors with automatic lag selection.
@@ -1640,6 +1646,12 @@ The library is constructed by running each combination of the choices in @tbl-so
 
 @tbl-sorting-decisions lists the preprocessing choices that vary across the library. Italic values mark the default for each choice; non-italic values are the alternatives we run.
 
+```{=latex}
+\begingroup\small
+\setlength{\tabcolsep}{4pt}
+\renewcommand{\arraystretch}{1.0}
+```
+
 ```{r}
 #| label: tbl-sorting-decisions
 #| echo: false
@@ -1675,15 +1687,13 @@ tibble::tribble(
   )
 ```
 
+```{=latex}
+\endgroup
+```
+
 The factor library covers `{r} format(nrow(sorting_variable_information), big.mark = ",")` sorting variables. The selection follows @jensen.2023. @tbl-sorting-variables lists all variables with their long-short direction and primary reference; @sec-variable-details in the Appendix documents the construction of each variable. Each variable runs through every valid combination of the choices in @tbl-sorting-decisions, producing `{r} format(nrow(portfolio_sort_grid), big.mark = ",")` factor return series in total.[^valid-grid]
 
 [^valid-grid]: Crossing every choice in @tbl-sorting-decisions across the `{r} format(nrow(sorting_variable_information), big.mark = ",")` sorting variables defines `{r} format(n_specifications_candidate, big.mark = ",")` candidate specifications, once the secondary size dimension is collapsed for univariate sorts, where it does not apply. Two variable-specific restrictions account for the remaining gap. Market Equity is excluded from the two bivariate sorts because size already serves as the secondary sort variable, and Earnings-to-Market is excluded from specifications that retain firms with negative earnings because a negative denominator inverts the characteristic's ranking. The result is the `{r} format(nrow(portfolio_sort_grid), big.mark = ",")` valid series reported here.
-
-```{=latex}
-\begingroup\small
-\setlength{\tabcolsep}{4pt}
-\renewcommand{\arraystretch}{1.0}
-```
 
 ```{=latex}
 \begingroup\small
@@ -1715,10 +1725,6 @@ tab <- sorting_variable_information |>
 
 tab[1] <- sub("llll", "lp{5.5cm}lp{6.5cm}", tab[1], fixed = TRUE)
 tab
-```
-
-```{=latex}
-\endgroup
 ```
 
 ```{=latex}
@@ -1762,7 +1768,7 @@ ag_data <- download_data(
 
 The call returns `{r} format(nrow(ag_data), big.mark = ",")` rows, covering `{r} format(nrow(ag_data|>count(id)), big.mark = ",")` combinations of the choices in @tbl-sorting-decisions that match the supplied filters. The `id` column encodes the construction choices for each specification; the `date` and `ret` columns give the monthly factor returns for that specification.
 
-For finer control, `download_data()` accepts two additional argument patterns. `domain = "tidyfinance"` and `dataset="factor_library_grid"` returns the full table of factor construction specifications hosted on our Hugging Face repository; `domain = "tidyfinance"`, `dataset = "factor_library"`, `ids = selected_ids` retrieves returns for a specific vector `selected_ids` of precomputed specification IDs. Researchers who want to iterate over a custom subset of specifications rather than filter by parameter value will prefer this route.
+For finer control, `download_data()` accepts two additional argument patterns. `domain = "tidyfinance"` and `dataset = "factor_library_grid"` returns the full table of factor construction specifications hosted on our Hugging Face repository; `domain = "tidyfinance"`, `dataset = "factor_library"`, `ids = selected_ids` retrieves returns for a specific vector `selected_ids` of precomputed specification IDs. Researchers who want to iterate over a custom subset of specifications rather than filter by parameter value will prefer this route.
 
 The example below pins one canonical specification (univariate monthly rebalancing, ten value-weighted NYSE portfolios, six-month signal lag, 20\% size threshold, no industry or earnings exclusions) and then downloads the resulting monthly return series for all `{r} format(nrow(sorting_variable_information), big.mark = ",")` sorting variables in the library through a single `download_data()` call.
 
@@ -1935,7 +1941,6 @@ We replace missing values of DLC and DLTT with zero. The sum of DLC and DLTT mus
 **CSI - Composite Share Issuance**
 
 Following @daniel.2006, we measure composite share issuance from CRSP data as the difference between the change in market equity (ME) (i.e., the shares outstanding, `shrout`, times the absolute value of their price, `altprc`, in million USD) and the cumulative log return (where $r$ is a simple return) in each month from $t$ to $t-60$, i.e.,
-
 $$
 CSI_t = \log(ME_t / ME_{t-60}) - \sum^t_{\tau = t-59}\log(1 + r_{\tau})\text{.}
 $$
@@ -2442,7 +2447,6 @@ Moreover, we exclude stocks with negative net payouts.
 **OCM - Operating Cash Flow to Market Equity**
 
 Following @desai.2004, we measure the ratio of operating cash flows to price as operating cash flows (OC) from Compustat divided by the market equity from CRSP (i.e., the fiscal-year end's shares outstanding, `shrout`, times the absolute value of their price, `altprc`, in million USD), i.e.,
-
 $$
 OCM_{t} = \frac{OC_{t}}{ME_{t}}\text{.}
 $$
