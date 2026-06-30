@@ -92,8 +92,6 @@ format_pretty_date <- function(d) {
   }
   paste0(format(d, "%B "), day, suffix, ", ", format(d, "%Y"))
 }
-# Sample period actually covered by a panel, after filtering and lagging may
-# have moved the first usable date past the nominal download start.
 sample_years <- function(data) {
   paste0(format(min(data$date), "%Y"), "--", format(max(data$date), "%Y"))
 }
@@ -105,7 +103,7 @@ Factor returns enter empirical asset pricing tests, optimal portfolio allocation
 
 No widely adopted tool covers this upstream workflow. The most popular factor sources publish *series* without the code that produced them: Ken French's Data Library [@fama.2023] supplies the Fama-French three- and five-factor returns and dozens of sorted portfolios. Some other projects provide code: the Open Source Bond Asset Pricing project [@dickerson.2023], available at [openbondassetpricing.com](https://openbondassetpricing.com/), covers fixed income; the Open Source Cross-Sectional Asset Pricing repository [@chen.2022] reproduces 213+ published anomalies, and @jensen.2023 provide a global factor library spanning hundreds of long-short signals across many countries. None of these sources, however, exposes the preprocessing pipeline as configurable code that researchers can modify. Many individual authors also host their own published factors, with transparency about construction choices varying widely. @walter.2024 and @soebhag.2024 show that these choices significantly affect the outcome of portfolio sorts. Existing \proglang{R} packages for quantitative finance operate downstream of factor construction, i.e., on price and return panels that the user must already have. Between raw data and standard asset-pricing tests sits an opaque layer, where construction choices accumulate silently.
 
-This paper introduces \pkg{tidyfinance}, an \proglang{R} package on CRAN that exposes each stage of the pipeline as configurable code. The package addresses each stage with a dedicated interface. A unified `download_data()` function cleans, aligns, and harmonizes panels from Wharton Research Data Services (WRDS), Ken French's Data Library, Federal Reserve Economic Data (FRED), and seven other providers, including current constituents for `r format(nrow(tidyfinance::list_supported_indexes()), big.mark = ",")` major equity indexes; Table \@ref(tab:data-sources) catalogs the full set. The WRDS panels cover CRSP, Compustat, the Trade Reporting and Compliance Engine (TRACE), and the Mergent Fixed Income Securities Database (FISD). Composable helpers then automate fiscal-year lagging, breakpoint computation, and portfolio aggregation. Every construction choice is exposed as a function argument with a default that follows established convention (for instance, value-weights and the Fama-French fiscal-year lag). A default call reproduces standard practice; overriding any default takes one argument.
+This paper introduces \CRANpkg{tidyfinance}, an \proglang{R} package on CRAN that exposes each stage of the pipeline as configurable code. The package addresses each stage with a dedicated interface. A unified `download_data()` function cleans, aligns, and harmonizes panels from Wharton Research Data Services (WRDS), Ken French's Data Library, Federal Reserve Economic Data (FRED), and seven other providers, including current constituents for `r format(nrow(tidyfinance::list_supported_indexes()), big.mark = ",")` major equity indexes; Table \@ref(tab:data-sources) catalogs the full set. The WRDS panels cover CRSP, Compustat, the Trade Reporting and Compliance Engine (TRACE), and the Mergent Fixed Income Securities Database (FISD). Composable helpers then automate fiscal-year lagging, breakpoint computation, and portfolio aggregation. Every construction choice is exposed as a function argument with a default that follows established convention (for instance, value-weights and the Fama-French fiscal-year lag). A default call reproduces standard practice; overriding any default takes one argument.
 
 We illustrate the package by reproducing a version of the asset growth factor of @cooper.2008 end-to-end from raw CRSP and Compustat data, then varying any construction choice with a single-argument change. The package operationalizes the workflow developed in the open-access textbook *Tidy Finance with \proglang{R}* [@scheuch.2023], which presents each step in tutorial form with inline scripts. The contribution of this paper is \pkg{tidyfinance} itself: a unified, configurable, tested, and versioned \proglang{R} package for this workflow. Where the books teach a reader how to assemble the pipeline from scratch, the package supplies it as a single dependency that researchers can call, audit, and reuse without rebuilding the underlying code.
 
@@ -113,9 +111,9 @@ We illustrate the package by reproducing a version of the asset growth factor of
 
 The \proglang{R} ecosystem for empirical asset pricing splits cleanly into three groups. Each addresses one slice of the workflow and leaves the rest to the user.
 
-**Data-acquisition packages.** Several \proglang{R} packages retrieve specific data sources commonly used in asset pricing. \pkg{frenchdata} [@frenchdata.2021] downloads and parses the zip archives from Ken French's Data Library into long data frames; it does not touch WRDS and does not implement any construction step beyond reading the published factor series. \pkg{quantmod} [@ryan.2025] and \pkg{tidyquant} [@dancho.2026] cover Yahoo Finance, FRED, and Tiingo, returning daily open, high, low, and close price series and a small set of derived return helpers; neither connects to WRDS, and neither covers factor-construction logic. \pkg{Rblpapi} [@armstrong.Rblpapi] queries the Bloomberg terminal for subscribers; the returned series leave the same factor-construction gap unfilled as the packages above. None of these packages covers the WRDS-CRSP-Compustat panel or the cleaning, alignment, and survivorship conventions the asset-pricing literature requires.
+**Data-acquisition packages.** Several \proglang{R} packages retrieve specific data sources commonly used in asset pricing. \CRANpkg{frenchdata} [@frenchdata.2021] downloads and parses the zip archives from Ken French's Data Library into long data frames; it does not touch WRDS and does not implement any construction step beyond reading the published factor series. \CRANpkg{quantmod} [@ryan.2025] and \CRANpkg{tidyquant} [@dancho.2026] cover Yahoo Finance, FRED, and Tiingo, returning daily open, high, low, and close price series and a small set of derived return helpers; neither connects to WRDS, and neither covers factor-construction logic. \CRANpkg{Rblpapi} [@armstrong.Rblpapi] queries the Bloomberg terminal for subscribers; the returned series leave the same factor-construction gap unfilled as the packages above. None of these packages covers the WRDS-CRSP-Compustat panel or the cleaning, alignment, and survivorship conventions the asset-pricing literature requires.
 
-**Downstream analysis packages.** Once a cleaned panel is in hand, several packages support analysis. \pkg{PerformanceAnalytics} [@peterson.2026] computes performance and risk metrics for return series. \pkg{fPortfolio} [@wuertz.fPortfolio] covers portfolio optimization. \pkg{RQuantLib} [@eddelbuettel.RQuantLib] interfaces with QuantLib for derivative pricing. \pkg{highfrequency} [@boudt.highfrequency] cleans intraday trade-and-quote panels and implements microstructure-volatility estimators. Each of these tools assumes that the panel of returns and factors is already constructed; none implements a factor-construction layer.
+**Downstream analysis packages.** Once a cleaned panel is in hand, several packages support analysis. \CRANpkg{PerformanceAnalytics} [@peterson.2026] computes performance and risk metrics for return series. \CRANpkg{fPortfolio} [@wuertz.fPortfolio] covers portfolio optimization. \CRANpkg{RQuantLib} [@eddelbuettel.RQuantLib] interfaces with QuantLib for derivative pricing. \CRANpkg{highfrequency} [@boudt.highfrequency] cleans intraday trade-and-quote panels and implements microstructure-volatility estimators. Each of these tools assumes that the panel of returns and factors is already constructed; none implements a factor-construction layer.
 
 **Factor data releases.** A group of projects publishes *factor return series* directly. Ken French's Data Library [@fama.2023] supplies the canonical @fama.1993 three- and five-factor returns and dozens of sorted portfolios, but documents construction in prose only and provide no associated code. @akey.2026 show that these series change retroactively as the underlying method is silently revised, so that the factor returns a researcher obtains depend on *when* they were downloaded, with material effects on mutual-fund performance and cross-sectional asset pricing tests. A transparent, code-first pipeline removes precisely this opacity. Three more recent projects pair the published factor data with the construction script that produced it. @hou.2020 replicate 452 cross-sectional anomalies and document that most fail out-of-sample, attributing the failures in part to undocumented construction variation across studies. The Open Source Cross-Sectional Asset Pricing repository [@chen.2022] responds by publishing per-anomaly construction scripts alongside the resulting 213+ long-short returns. The Open Source Bond Asset Pricing project [@dickerson.2023] does the same for corporate bond factors. @jensen.2023 provide the Global Factor Data of hundreds of long-short signals across many countries, together with the construction code in \proglang{Python}. These projects represent a substantial move toward transparency: a reader can inspect exactly how each factor was built and reproduce its returns. Two limitations remain. First, none exposes the pipeline as a callable API. A user who wants the asset growth factor rebalanced in January instead of July, or formed on NYSE-plus-NASDAQ breakpoints, or computed on a different fiscal-year lag, must fork the published script and edit it by hand. The script is not a function with named arguments. Second, the factor returns are frozen at the release date, with no in-workflow path to refresh them as new observations arrive or as a researcher's design choices evolve.
 
@@ -131,7 +129,7 @@ You can install the released version of \pkg{tidyfinance} [from CRAN](https://cr
 install.packages("tidyfinance")
 ```
 
-To install the development version of \pkg{tidyfinance} from [GitHub](https://github.com/tidy-finance/r-tidyfinance), first install \pkg{pak}, then run:
+To install the development version of \pkg{tidyfinance} from [GitHub](https://github.com/tidy-finance/r-tidyfinance), first install \CRANpkg{pak}, then run:
 
 ```{r install-tidyfinance-dev, eval=FALSE, purl=FALSE}
 install.packages("pak")
@@ -391,10 +389,8 @@ The second mode, enabled by `ff_adjustment = TRUE` and shown in Panel B of Figur
 ts <- 0.94
 corner <- unit(4, "pt")
 
-# Extra padding so the dashed box extends slightly beyond the tiles
 win_pad <- 0.15
 
-# Extend data back by one month (Nov Y-2) so Year T-2 has a real bracket span
 month_labels <- month.abb[c(11, 12, 1:12, 1:7)]
 n <- length(month_labels)
 
@@ -403,49 +399,43 @@ x_ff <- 0.55
 x_std <- 3.0
 
 obs_pattern <- c(
-  FALSE, #  1  Nov Y-2
-  TRUE, #  2  Dec Y-2  (fiscal year-end Y-2)
-  FALSE, #  3  Jan Y-1
-  FALSE, #  4  Feb Y-1
-  FALSE, #  5  Mar Y-1
-  FALSE, #  6  Apr Y-1
-  TRUE, #  7  May Y-1
-  FALSE, #  8  Jun Y-1
-  FALSE, #  9  Jul Y-1
-  TRUE, # 10  Aug Y-1
-  FALSE, # 11  Sep Y-1
-  TRUE, # 12  Oct Y-1
-  FALSE, # 13  Nov Y-1
-  TRUE, # 14  Dec Y-1  (fiscal year-end Y-1)
-  TRUE, # 15  Jan Y
-  FALSE, # 16  Feb Y
-  TRUE, # 17  Mar Y
-  FALSE, # 18  Apr Y
-  TRUE, # 19  May Y
-  FALSE, # 20  Jun Y
-  TRUE # 21  Jul Y
+  FALSE,
+  TRUE,
+  FALSE,
+  FALSE,
+  FALSE,
+  FALSE,
+  TRUE,
+  FALSE,
+  FALSE,
+  TRUE,
+  FALSE,
+  TRUE,
+  FALSE,
+  TRUE,
+  TRUE,
+  FALSE,
+  TRUE,
+  FALSE,
+  TRUE,
+  FALSE,
+  TRUE
 )
 
 df_data <- data.frame(
   y = 1:n,
   label = month_labels,
   observed = obs_pattern,
-  # Data recency: older months fade toward transparent, newer ones solid
   alpha = 0.35 + 0.65 * ((1:n) / n)
 )
 
 obs <- df_data[df_data$observed, ]
 miss <- df_data[!df_data$observed, ]
 
-# Target is Jul Y (position 21). With lag = months(7), max_lag = months(18):
-# Search window = [target - max_lag, target - lag] = [3, 14] = Jan Y-1 to Dec Y-1
-# Note: Nov Y-2 (pos 1) and Dec Y-2 (pos 2) are OUTSIDE the window.
 std_win_left <- 3
 std_win_right <- 14
 target <- 21
 
-# Standard: most recent observed in [3, 14]
-# Observed in window: 7, 10, 12, 14 -> most recent = 14 (Dec Y-1)
 std_matched <- 14
 
 ff_win_left <- 3
@@ -476,34 +466,17 @@ miss1_poly <- tiles(miss, x_std, grp_miss1)
 obs2_poly <- tiles(obs, x_ff, grp_obs2)
 miss2_poly <- tiles(miss, x_ff, grp_miss2)
 
-# --- Standard grey arrows ----------------------------------------------------
-# For each target t in 12..20, find most recent observed in [t-18, t-7]
-# Observed positions: 2, 7, 10, 12, 14, 15, 17, 19, 21
-# t=20: window [2,13], obs in window: 2,7,10,12   -> 12
-# t=19: window [1,12], obs in window: 2,7,10,12   -> 12
-# t=18: window [1,11], obs in window: 2,7,10      -> 10
-# t=17: window [1,10], obs in window: 2,7,10      -> 10
-# t=16: window [1,9],  obs in window: 2,7         -> 7
-# t=15: window [1,8],  obs in window: 2,7         -> 7
-# t=14: window [1,7],  obs in window: 2,7         -> 7
-# t=13: window [1,6],  obs in window: 2           -> 2
-# t=12: window [1,5],  obs in window: 2           -> 2
 std_grey <- data.frame(
   y = c(20, 19, 18, 17, 16, 15, 14, 13, 12),
   yend = c(12, 12, 10, 10, 7, 7, 7, 2, 2)
 )
 
-# --- FF grey arrows ----------------------------------------------------------
-# FF candidates (last observed per year): Dec Y-2 (pos 2), Dec Y-1 (pos 14)
-# For targets before Jul Y, only Dec Y-2 is in range -> all point to pos 2.
-# Jul Y (target) is the first month where Dec Y-1 enters the window -> pos 14.
 ff_grey <- data.frame(
   y = c(20, 19, 18, 17, 16, 15, 14, 13, 12),
   yend = c(2, 2, 2, 2, 2, 2, 2, 2, 2)
 )
 
 ggplot() +
-  # Month timeline: horizontal line with tick marks
   annotate(
     "segment",
     x = x_labels,
@@ -522,7 +495,6 @@ ggplot() +
     color = "grey40",
     linewidth = 0.4
   ) +
-  # Month labels: thinned to highlight fiscal-year ends and key markers
   geom_text(
     data = df_data[df_data$y %in% c(2, 5, 8, 11, 14, 17, 20, 21), ],
     aes(x = x_labels - 0.2, y = y, label = label),
@@ -530,7 +502,6 @@ ggplot() +
     color = "grey40",
     hjust = 0.5
   ) +
-  # --- Standard column: observed ---------------------------------------------
   geom_shape(
     data = obs1_poly,
     aes(x = x, y = y, group = group, alpha = alpha),
@@ -555,7 +526,6 @@ ggplot() +
     color = "grey65",
     fontface = "italic"
   ) +
-  # --- FF column: observed ---------------------------------------------------
   geom_shape(
     data = obs2_poly,
     aes(x = x, y = y, group = group, alpha = alpha),
@@ -580,7 +550,6 @@ ggplot() +
     color = "grey65",
     fontface = "italic"
   ) +
-  # --- Standard grey arrows --------------------------------------------------
   geom_curve(
     data = data.frame(
       x = x_std + ts / 2,
@@ -595,7 +564,6 @@ ggplot() +
     arrow = arrow(length = unit(0.08, "cm"), type = "closed"),
     linewidth = 0.35
   ) +
-  # Standard search window
   annotate(
     "rect",
     xmin = x_std - ts / 2 - win_pad,
@@ -618,7 +586,6 @@ ggplot() +
     hjust = -0.2,
     vjust = 0.5
   ) +
-  # Standard highlighted arrow: Jul Y -> Dec Y-1
   annotate(
     "curve",
     x = x_std + ts / 2,
@@ -630,7 +597,6 @@ ggplot() +
     linewidth = 0.9,
     arrow = arrow(length = unit(0.14, "cm"), type = "closed")
   ) +
-  # --- FF grey arrows --------------------------------------------------------
   geom_curve(
     data = data.frame(
       x = x_ff + ts / 2,
@@ -645,7 +611,6 @@ ggplot() +
     arrow = arrow(length = unit(0.08, "cm"), type = "closed"),
     linewidth = 0.35
   ) +
-  # FF search window
   annotate(
     "rect",
     xmin = x_ff - ts / 2 - win_pad,
@@ -668,7 +633,6 @@ ggplot() +
     hjust = -0.2,
     vjust = 0.5
   ) +
-  # FF highlighted arrow: Jul Y -> Dec Y-1
   annotate(
     "curve",
     x = x_ff + ts / 2,
@@ -680,7 +644,6 @@ ggplot() +
     linewidth = 0.9,
     arrow = arrow(length = unit(0.14, "cm"), type = "closed")
   ) +
-  # --- Main title (bold) -----------------------------------------------------
   annotate(
     "text",
     x = max(x_std, x_ff) + ts / 2 + 1.0,
@@ -692,7 +655,6 @@ ggplot() +
     fontface = "bold",
     hjust = 0.5
   ) +
-  # --- Panel headers (above each panel of tiles) -----------------------------
   annotate(
     "text",
     x = x_std + ts / 2 + 0.35,
@@ -713,8 +675,6 @@ ggplot() +
     fontface = "bold",
     hjust = 0
   ) +
-  # --- Panel labels (left margin, rotated, bold) -----------------------------
-  # Inner labels: TRUE / FALSE for each panel
   annotate(
     "text",
     x = x_std,
@@ -741,7 +701,6 @@ ggplot() +
     hjust = 0.5,
     vjust = 0.5
   ) +
-  # Outer label spanning both panels
   annotate(
     "text",
     x = (x_std + x_ff) / 2,
@@ -755,12 +714,6 @@ ggplot() +
     hjust = 0.5,
     vjust = 0.5
   ) +
-  # --- Year-change dashed lines (SHORTENED) ----------------------------------
-  # Now stop at the right edge of the yellow search window rather than extending
-  # all the way across to the title area. This removes the long dashes cluttering
-  # the top of the figure.
-  # Between Dec Y-2 (pos 2) and Jan Y-1 (pos 3): line at 2.5
-  # Between Dec Y-1 (pos 14) and Jan Y (pos 15): line at 14.5
   annotate(
     "segment",
     x = x_labels - 0.55,
@@ -781,10 +734,6 @@ ggplot() +
     linewidth = 0.5,
     linetype = "dashed"
   ) +
-  # --- Year span brackets ----------------------------------------------------
-  # Year T-2:  pos 1 to 2   (Nov-Dec Y-2)
-  # Year T-1:  pos 3 to 14  (Jan-Dec Y-1)
-  # Year T:    pos 15 to 21 (Jan-Jul Y)
   annotate(
     "segment",
     x = x_labels - 0.55,
@@ -794,7 +743,6 @@ ggplot() +
     color = "grey30",
     linewidth = 0.4
   ) +
-  # Bracket end caps
   annotate(
     "segment",
     x = x_labels - 0.50,
@@ -804,10 +752,6 @@ ggplot() +
     color = "grey30",
     linewidth = 0.4
   ) +
-  # Year labels at midpoints:
-  # Year T-2: midpoint of [1, 2] = 1.5
-  # Year T-1: midpoint of [3, 14] = 8.5
-  # Year T:   midpoint of [15, 21] = 18
   annotate(
     "text",
     x = x_labels - 0.75,
@@ -851,18 +795,14 @@ set.seed(3010)
 n <- 1000
 rho <- 0.6
 
-# shared signal
 f <- rnorm(n)
 
-# independent noise
 e1 <- rnorm(n)
 e2 <- rnorm(n)
 
-# construct correlated latent variables
 x1 <- f + sqrt(1 - rho^2) * e1
 x2 <- f + sqrt(1 - rho^2) * e2
 
-# map to (0,1)
 asset_growth <- pnorm(x1)
 mktcap_lag <- pnorm(x2)
 
@@ -971,7 +911,7 @@ For users who want the full pipeline in a single call, `implement_portfolio_sort
 
 We walk through the construction of the asset growth factor from raw CRSP and Compustat data to long-short portfolio returns, applying each stage of Table \@ref(tab:functions) in turn.
 
-Load \pkg{tidyfinance} together with a minimal set of supporting packages: \pkg{dplyr} [@dplyr] for data manipulation, \pkg{tidyr} [@tidyr] for reshaping between long and wide formats, and \pkg{lubridate} [@lubridate] for date arithmetic.
+Load \pkg{tidyfinance} together with a minimal set of supporting packages: \CRANpkg{dplyr} [@dplyr] for data manipulation, \CRANpkg{tidyr} [@tidyr] for reshaping between long and wide formats, and \CRANpkg{lubridate} [@lubridate] for date arithmetic.
 
 ```{r load-package, message=FALSE, warning=FALSE, cache=FALSE}
 library("tidyfinance")
@@ -1168,7 +1108,7 @@ plot_data <- sorting_data |>
 label_data <- plot_data |>
   group_by(quantile) |>
   slice_max(date, n = 1) |>
-  mutate(date = date %m+% months(6)) |> # Nudge labels right of the last observation
+  mutate(date = date %m+% months(6)) |>
   ungroup()
 
 ggplot(plot_data, aes(x = date, y = asset_growth, color = quantile)) +
@@ -1508,7 +1448,7 @@ pkg_version <- function(pkg) {
 r_version <- renv_lock$R$Version
 ```
 
-We obtained the results in this paper using \proglang{R} `r r_version` with the following packages: \pkg{tidyfinance} `r pkg_version("tidyfinance")`, \pkg{dplyr} `r pkg_version("dplyr")` [@dplyr], \pkg{tidyr} `r pkg_version("tidyr")` [@tidyr], \pkg{ggplot2} `r pkg_version("ggplot2")` [@ggplot2], and \pkg{lubridate} `r pkg_version("lubridate")` [@lubridate]. We install development versions of \pkg{tidyfinance} with \pkg{pak} `r pkg_version("pak")` [@pak]. Figures additionally use \pkg{ggforce} `r pkg_version("ggforce")` [@ggforce], \pkg{scales} `r pkg_version("scales")` [@scales], and \pkg{patchwork} `r pkg_version("patchwork")` [@patchwork]. CRAN hosts \proglang{R} and all packages at [https://CRAN.R-project.org/](https://CRAN.R-project.org/). \pkg{renv} `r pkg_version("renv")` [@renv] ensures full reproducibility of the computational environment. Reproducing the factor return data requires an institutional subscription to WRDS, as the underlying CRSP and Compustat data are proprietary and cannot be redistributed. A pseudo-data path with identical schema is available via `download_data(domain = "pseudo", ...)` for readers without WRDS access; see Section \@ref(sec:data-download).
+We obtained the results in this paper using \proglang{R} `r r_version` with the following packages: \pkg{tidyfinance} `r pkg_version("tidyfinance")`, \pkg{dplyr} `r pkg_version("dplyr")` [@dplyr], \pkg{tidyr} `r pkg_version("tidyr")` [@tidyr], \CRANpkg{ggplot2} `r pkg_version("ggplot2")` [@ggplot2], and \pkg{lubridate} `r pkg_version("lubridate")` [@lubridate]. We install development versions of \pkg{tidyfinance} with \pkg{pak} `r pkg_version("pak")` [@pak]. Figures additionally use \CRANpkg{ggforce} `r pkg_version("ggforce")` [@ggforce], \CRANpkg{scales} `r pkg_version("scales")` [@scales], and \CRANpkg{patchwork} `r pkg_version("patchwork")` [@patchwork]. CRAN hosts \proglang{R} and all packages at [https://CRAN.R-project.org/](https://CRAN.R-project.org/). \CRANpkg{renv} `r pkg_version("renv")` [@renv] ensures full reproducibility of the computational environment. Reproducing the factor return data requires an institutional subscription to WRDS, as the underlying CRSP and Compustat data are proprietary and cannot be redistributed. A pseudo-data path with identical schema is available via `download_data(domain = "pseudo", ...)` for readers without WRDS access; see Section \@ref(sec:data-download).
 
 Reproducing this manuscript takes about 15 minutes: `rmarkdown::render("tidyfinance.Rmd")` uses the WRDS subset described in Section \@ref(sec:data-download), or pseudo data of identical schema for readers without WRDS access. Timings reported here are obtained on `r sessionInfo()$running` with a `r parallel::detectCores()`-core processor running \proglang{R} `r r_version`; WRDS extracts are not pre-cached, so the 15-minute figure includes the time to download the underlying CRSP and Compustat panels.
 
