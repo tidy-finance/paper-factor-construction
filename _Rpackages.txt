@@ -1,0 +1,14 @@
+dplyr
+ggforce
+ggplot2
+jsonlite
+knitr
+lubridate
+pak
+patchwork
+renv
+rjtools
+rmarkdown
+scales
+tidyfinance
+tidyr
