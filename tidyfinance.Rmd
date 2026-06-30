@@ -1,0 +1,1599 @@
+---
+title: "tidyfinance: Transparent Factor Construction for Empirical Asset Pricing"
+abstract: >
+  The R package tidyfinance provides research infrastructure for the empirical
+  asset pricing data workflow, which turns raw accounting and return data into
+  factor portfolios for asset pricing tests, portfolio allocation, and the
+  design of trading strategies. The package exposes every construction decision
+  as a configurable parameter with a documented default. A unified
+  download_data() interface covers Wharton Research Data Services (CRSP and
+  Compustat), Ken French's Data Library, the Federal Reserve Economic Data, and
+  other providers, applying provider-specific cleaning. Modular functions
+  automate fiscal-year lagging, breakpoint computation, and portfolio
+  aggregation, so that a default call reproduces standard practice while
+  overriding any default takes a single argument. We illustrate the package by
+  reproducing the asset growth factor of Cooper, Gulen, and Schill (2008) end to
+  end from raw data, and by varying construction choices to show how they move
+  the resulting premium.
+draft: true
+author:
+  - name: Christoph Frey
+    affiliation: Lancaster University
+    address:
+    - Management School, Bailrigg
+    - Lancaster LA1 4YX, United Kingdom
+    orcid: 0000-0002-9937-0903
+    email: christoph.frey@gmail.com
+  - name: Christoph Scheuch
+    affiliation: Humboldt University of Berlin
+    address:
+    - School of Business and Economics, Dorotheenstraße 1
+    - 10099 Berlin, Germany
+    orcid: 0009-0004-0423-6819
+    email: christoph.scheuch@hu-berlin.de
+  - name: Stefan Voigt
+    affiliation:
+    - University of Copenhagen
+    - Danish Finance Institute
+    address:
+    - Department of Economics, Øster Farimagsgade 5
+    - 1353 Copenhagen K, Denmark
+    orcid: 0000-0001-5619-3161
+    email: stefan.voigt@econ.ku.dk
+  - name: Patrick Weiss
+    affiliation: Reykjavík University
+    address:
+    - Department of Business and Economics, Menntavegur 1
+    - 102 Reykjavík, Iceland
+    orcid: 0000-0002-9282-5872
+    email: patrickw@ru.is
+type: package
+output:
+  rjtools::rjournal_article:
+    self_contained: yes
+    toc: no
+bibliography: bibliography.bib
+date: "2026-06-30"
+keywords: [financial risk factors, reproducible research, asset pricing]
+
+---
+
+```{r setup, include=FALSE, echo=FALSE, message=FALSE, cache=FALSE}
+library("ggforce")
+library("ggplot2")
+library("scales")
+library("patchwork")
+
+tf_yellow <- "#EBCC2AFF"
+tf_dark_blue <- "#3B9AB2FF"
+pal <- grDevices::colorRampPalette(list(
+  tf_dark_blue,
+  "#78B7C5",
+  tf_yellow,
+  "#E1AF00FF",
+  "#F21A00"
+))
+
+scale_colour_discrete <- function(...) {
+  discrete_scale("colour", palette = pal, ...)
+}
+
+ggplot2::theme_set(
+  ggplot2::theme_bw() + ggplot2::theme(legend.position = "none")
+)
+
+format_pretty_date <- function(d) {
+  d <- as.Date(d)
+  day <- as.integer(format(d, "%d"))
+  suffix <- if (day %% 100 %in% 11:13) {
+    "th"
+  } else {
+    switch(as.character(day %% 10), "1" = "st", "2" = "nd", "3" = "rd", "th")
+  }
+  paste0(format(d, "%B "), day, suffix, ", ", format(d, "%Y"))
+}
+# Sample period actually covered by a panel, after filtering and lagging may
+# have moved the first usable date past the nominal download start.
+sample_years <- function(data) {
+  paste0(format(min(data$date), "%Y"), "--", format(max(data$date), "%Y"))
+}
+```
+
+```{r read-in-summary-information, echo=FALSE}
+sorting_variable_information <- tibble::tribble(
+  ~sorting_variable , ~full_name                                , ~direction         , ~citation                         ,
+  "mom"             , "Momentum"                                , "top_minus_bottom" , "\\cite{fama.1996}"               ,
+  "rmom"            , "Residual Momentum"                       , "top_minus_bottom" , "\\cite{blitz.2011}"              ,
+  "rs"              , "Relative Strength"                       , "top_minus_bottom" , "\\cite{jegadeesh.2006}"          ,
+  "sue"             , "Standardized Unexpected Earnings"        , "top_minus_bottom" , "\\cite{foster.1984}"             ,
+  "52w"             , "52-Week High"                            , "top_minus_bottom" , "\\cite{george.2004}"             ,
+  "me"              , "Market Equity"                           , "bottom_minus_top" , "\\cite{banz.1981}"               ,
+  "cbop"            , "Cash-Based Operating Profitability"      , "top_minus_bottom" , "\\cite{ball.2016}"               ,
+  "gpa"             , "Gross Profits to Assets"                 , "top_minus_bottom" , "\\cite{novy-marx.2013}"          ,
+  "o"               , "O-Score"                                 , "bottom_minus_top" , "\\cite{ohlson.1980,dichev.1998}" ,
+  "ope"             , "Operating Efficiency"                    , "top_minus_bottom" , "\\cite{fama.2015}"               ,
+  "roa"             , "Return on Assets"                        , "top_minus_bottom" , "\\cite{balakrishnan.2010}"       ,
+  "roe"             , "Return on Equity"                        , "top_minus_bottom" , "\\cite{hou.2014}"                ,
+  "tbi"             , "Taxable Income to Book Income"           , "bottom_minus_top" , "\\cite{lev.2004}"                ,
+  "bm"              , "Book-to-Market"                          , "top_minus_bottom" , "\\cite{daniel.2006}"             ,
+  "cfm"             , "Cash Flow to Market"                     , "top_minus_bottom" , "\\cite{lakonishok.1994}"         ,
+  "dm"              , "Debt to Market"                          , "top_minus_bottom" , "\\cite{bhandari.1988}"           ,
+  "ebm"             , "Enterprise Book to Market"               , "top_minus_bottom" , "\\cite{penman.2007}"             ,
+  "em"              , "Earnings to Market"                      , "top_minus_bottom" , "\\cite{basu.1983}"               ,
+  "ndm"             , "Net Debt to Market"                      , "bottom_minus_top" , "\\cite{penman.2007}"             ,
+  "npy"             , "Net Payout Yield"                        , "top_minus_bottom" , "\\cite{boudoukh.2007}"           ,
+  "ocm"             , "Operating Cash Flow to Market"           , "top_minus_bottom" , "\\cite{desai.2004}"              ,
+  "rev"             , "Long-Term Reversal"                      , "bottom_minus_top" , "\\cite{debondt.1985}"            ,
+  "sm"              , "Sales to Market"                         , "top_minus_bottom" , "\\cite{barbee.1996}"             ,
+  "aci"             , "Abnormal Corporate Investment"           , "bottom_minus_top" , "\\cite{titman.2004}"             ,
+  "ag"              , "Asset Growth"                            , "bottom_minus_top" , "\\cite{cooper.2008}"             ,
+  "dinv"            , "Inventory Changes"                       , "bottom_minus_top" , "\\cite{thomas.2002}"             ,
+  "dnoa"            , "Change in Net Operating Assets"          , "bottom_minus_top" , "\\cite{hirshleifer.2004}"        ,
+  "dpia"            , "Change in PPE and Intangibles"           , "bottom_minus_top" , "\\cite{lyandres.2008}"           ,
+  "dwc"             , "Change in Working Capital"               , "bottom_minus_top" , "\\cite{richardson.2005}"         ,
+  "ig"              , "Investment Growth"                       , "bottom_minus_top" , "\\cite{xing.2008}"               ,
+  "noa"             , "Net Operating Assets"                    , "bottom_minus_top" , "\\cite{hirshleifer.2004}"        ,
+  "oa"              , "Operating Accruals"                      , "bottom_minus_top" , "\\cite{sloan.1996}"              ,
+  "cdi"             , "Composite Debt Issuance"                 , "bottom_minus_top" , "\\cite{lyandres.2008}"           ,
+  "csi"             , "Composite Share Issuance"                , "bottom_minus_top" , "\\cite{daniel.2006}"             ,
+  "dbe"             , "Change in Common Equity"                 , "bottom_minus_top" , "\\cite{richardson.2005}"         ,
+  "dcol"            , "Change in Current Operating Liabilities" , "bottom_minus_top" , "\\cite{richardson.2005}"         ,
+  "dfnl"            , "Change in Financial Liabilities"         , "bottom_minus_top" , "\\cite{richardson.2005}"         ,
+  "ndf"             , "Net Debt Financing"                      , "bottom_minus_top" , "\\cite{baker.2006}"              ,
+  "nef"             , "Net Equity Financing"                    , "bottom_minus_top" , "\\cite{baker.2006}"              ,
+  "nxf"             , "Net External Financing"                  , "bottom_minus_top" , "\\cite{baker.2006}"              ,
+  "hr"              , "Hiring Rate"                             , "bottom_minus_top" , "\\cite{belo.2014}"               ,
+  "ol"              , "Operating Leverage"                      , "top_minus_bottom" , "\\cite{novy-marx.2011}"          ,
+  "rer"             , "Real-Estate Ratio"                       , "top_minus_bottom" , "\\cite{titman.2004}"             ,
+  "ami"             , "Amihud Illiquidity"                      , "top_minus_bottom" , "\\cite{amihud.2002}"             ,
+  "beta"            , "Beta"                                    , "top_minus_bottom" , "\\cite{fama.1973}"               ,
+  "dtv"             , "Dollar Trading Volume"                   , "bottom_minus_top" , "\\cite{brennan.1998}"            ,
+  "iskew"           , "Idiosyncratic Skewness"                  , "bottom_minus_top" , "\\cite{bali.2016}"               ,
+  "ivol"            , "Idiosyncratic Volatility"                , "bottom_minus_top" , "\\cite{ang.2006}"                ,
+  "mdr"             , "Maximum Daily Return"                    , "bottom_minus_top" , "\\cite{bali.2011}"               ,
+  "tur"             , "Share Turnover"                          , "bottom_minus_top" , "\\cite{datar.1998}"
+)
+portfolio_sort_grid <- tidyfinance::download_data(
+  "tidyfinance",
+  "factor_library_grid"
+)
+
+n_specifications_candidate <- portfolio_sort_grid |>
+  dplyr::count(sorting_variable) |>
+  dplyr::pull(n) |>
+  max() *
+  nrow(sorting_variable_information)
+```
+
+# Introduction {#sec:intro}
+
+Factor returns enter empirical asset pricing tests, optimal portfolio allocation, and risk-management decisions. Constructing them typically involves a three-stage pipeline: data acquisition, usually downloading and cleaning raw return and accounting data from the Center for Research in Security Prices (CRSP) and Compustat; variable construction, including appropriate lags to avoid look-ahead bias; and portfolio sorting, where securities are assigned to portfolios based on characteristics. Each stage involves consequential design choices such as how to handle delistings, which fiscal-year lag to apply, where to set breakpoints, and whether portfolios should be equal- or value-weighted. Few pipelines are standardized, and fewer still ship with executable code. Therefore, reproducing or extending a factor series often starts with reconstructing the pipeline from scratch, with no way to verify that the result matches the original approach.
+
+No widely adopted tool covers this upstream workflow. The most popular factor sources publish *series* without the code that produced them: Ken French's Data Library [@fama.2023] supplies the Fama-French three- and five-factor returns and dozens of sorted portfolios. Some other projects provide code: the Open Source Bond Asset Pricing project [@dickerson.2023], available at [openbondassetpricing.com](https://openbondassetpricing.com/), covers fixed income; the Open Source Cross-Sectional Asset Pricing repository [@chen.2022] reproduces 213+ published anomalies, and @jensen.2023 provide a global factor library spanning hundreds of long-short signals across many countries. None of these sources, however, exposes the preprocessing pipeline as configurable code that researchers can modify. Many individual authors also host their own published factors, with transparency about construction choices varying widely. @walter.2024 and @soebhag.2024 show that these choices significantly affect the outcome of portfolio sorts. Existing \proglang{R} packages for quantitative finance operate downstream of factor construction, i.e., on price and return panels that the user must already have. Between raw data and standard asset-pricing tests sits an opaque layer, where construction choices accumulate silently.
+
+This paper introduces \pkg{tidyfinance}, an \proglang{R} package on CRAN that exposes each stage of the pipeline as configurable code. The package addresses each stage with a dedicated interface. A unified `download_data()` function cleans, aligns, and harmonizes panels from Wharton Research Data Services (WRDS), Ken French's Data Library, Federal Reserve Economic Data (FRED), and seven other providers, including current constituents for `r format(nrow(tidyfinance::list_supported_indexes()), big.mark = ",")` major equity indexes; Table \@ref(tab:data-sources) catalogs the full set. The WRDS panels cover CRSP, Compustat, the Trade Reporting and Compliance Engine (TRACE), and the Mergent Fixed Income Securities Database (FISD). Composable helpers then automate fiscal-year lagging, breakpoint computation, and portfolio aggregation. Every construction choice is exposed as a function argument with a default that follows established convention (for instance, value-weights and the Fama-French fiscal-year lag). A default call reproduces standard practice; overriding any default takes one argument.
+
+We illustrate the package by reproducing a version of the asset growth factor of @cooper.2008 end-to-end from raw CRSP and Compustat data, then varying any construction choice with a single-argument change. To spare researchers the work of rebuilding the pipeline, we run \pkg{tidyfinance} across many defensible combinations and publish the results as a factor library of `r format(nrow(sorting_variable_information), big.mark = ",")` sorting variables across `r format(nrow(portfolio_sort_grid), big.mark = ",")` specifications. The library is available through a single `download_data()` call or an interactive dashboard at [factors.tidy-finance.org](https://factors.tidy-finance.org). The package operationalizes the workflow developed in the open-access textbook *Tidy Finance with \proglang{R}* [@scheuch.2023], which presents each step in tutorial form with inline scripts. The contribution of this paper is \pkg{tidyfinance} itself: a unified, configurable, tested, and versioned \proglang{R} package for this workflow. Where the books teach a reader how to assemble the pipeline from scratch, the package supplies it as a single dependency that researchers can call, audit, and reuse without rebuilding the underlying code.
+
+# Background and related work {#sec:background}
+
+The \proglang{R} ecosystem for empirical asset pricing splits cleanly into three groups. Each addresses one slice of the workflow and leaves the rest to the user.
+
+**Data-acquisition packages.** Several \proglang{R} packages retrieve specific data sources commonly used in asset pricing. \pkg{frenchdata} [@frenchdata.2021] downloads and parses the zip archives from Ken French's Data Library into long data frames; it does not touch WRDS and does not implement any construction step beyond reading the published factor series. \pkg{quantmod} [@ryan.2025] and \pkg{tidyquant} [@dancho.2026] cover Yahoo Finance, FRED, and Tiingo, returning daily open, high, low, and close price series and a small set of derived return helpers; neither connects to WRDS, and neither covers factor-construction logic. \pkg{Rblpapi} [@armstrong.Rblpapi] queries the Bloomberg terminal for subscribers; the returned series leave the same factor-construction gap unfilled as the packages above. None of these packages covers the WRDS-CRSP-Compustat panel or the cleaning, alignment, and survivorship conventions the asset-pricing literature requires.
+
+**Downstream analysis packages.** Once a cleaned panel is in hand, several packages support analysis. \pkg{PerformanceAnalytics} [@peterson.2026] computes performance and risk metrics for return series. \pkg{fPortfolio} [@wuertz.fPortfolio] covers portfolio optimization. \pkg{RQuantLib} [@eddelbuettel.RQuantLib] interfaces with QuantLib for derivative pricing. \pkg{highfrequency} [@boudt.highfrequency] cleans intraday trade-and-quote panels and implements microstructure-volatility estimators. Each of these tools assumes that the panel of returns and factors is already constructed; none implements a factor-construction layer.
+
+**Factor data releases.** A group of projects publishes *factor return series* directly. Ken French's Data Library [@fama.2023] supplies the canonical @fama.1993 three- and five-factor returns and dozens of sorted portfolios, but documents construction in prose only and provide no associated code. @akey.2026 show that these series change retroactively as the underlying method is silently revised, so that the factor returns a researcher obtains depend on *when* they were downloaded, with material effects on mutual-fund performance and cross-sectional asset pricing tests. A transparent, code-first pipeline removes precisely this opacity. Three more recent projects pair the published factor data with the construction script that produced it. @hou.2020 replicate 452 cross-sectional anomalies and document that most fail out-of-sample, attributing the failures in part to undocumented construction variation across studies. The Open Source Cross-Sectional Asset Pricing repository [@chen.2022] responds by publishing per-anomaly construction scripts alongside the resulting 213+ long-short returns. The Open Source Bond Asset Pricing project [@dickerson.2023] does the same for corporate bond factors. @jensen.2023 provide the Global Factor Data of hundreds of long-short signals across many countries, together with the construction code in \proglang{Python}. These projects represent a substantial move toward transparency: a reader can inspect exactly how each factor was built and reproduce its returns. Two limitations remain. First, none exposes the pipeline as a callable API. A user who wants the asset growth factor rebalanced in January instead of July, or formed on NYSE-plus-NASDAQ breakpoints, or computed on a different fiscal-year lag, must fork the published script and edit it by hand. The script is not a function with named arguments. Second, the factor returns are frozen at the release date, with no in-workflow path to refresh them as new observations arrive or as a researcher's design choices evolve.
+
+**\pkg{tidyfinance} fills the missing gap:** the package supplies the cleaned WRDS-CRSP-Compustat panel that data-acquisition packages do not produce and exposes the factor-construction pipeline that downstream analysis packages assume to be in hand. One `download_data()` call returns a cleaned WRDS-CRSP-Compustat panel; further functions implement the full factor-construction pipeline (fiscal-year lagging, breakpoint computation, portfolio sorting, long-short aggregation) as a chain of composable steps whose arguments cover the construction choices that vary across studies in the literature above. Two design principles, both inherited from @scheuch.2023, guide the API. First, each construction decision is *transparent*: it appears as a configurable parameter with a documented default, in line with the tidy tools principles of @wickham.2023. Second, the pipeline is *modular* by construction: each construction step is implemented as a narrowly scoped function with clearly defined inputs and outputs. Researchers can therefore either chain these functions into a complete factor-construction workflow or reuse individual components within their own pipelines. \pkg{tidyfinance} additionally covers asset pricing tests and optimal portfolio choice; this paper focuses on factor construction and defers the remaining functionality to dedicated treatments.
+
+# Package overview {#sec:overview}
+
+## Installation and setup {#sec:installation}
+
+You can install the released version of \pkg{tidyfinance} [from CRAN](https://cran.r-project.org/package=tidyfinance) via:
+
+```{r install-tidyfinance-cran, eval=FALSE, purl=FALSE}
+install.packages("tidyfinance")
+```
+
+To install the development version of \pkg{tidyfinance} from [GitHub](https://github.com/tidy-finance/r-tidyfinance), first install \pkg{pak}, then run:
+
+```{r install-tidyfinance-dev, eval=FALSE, purl=FALSE}
+install.packages("pak")
+pak::pak("tidy-finance/r-tidyfinance")
+```
+
+Once installed, load the package with: 
+```{r load-tidyfinance-initial}
+library("tidyfinance")
+```
+
+## Design and workflow {#sec:design}
+
+The empirical asset pricing workflow decomposes into three stages: data acquisition, variable construction, and portfolio sorting. Each stage involves dozens of small decisions: sample filters, cleaning rules, rebalancing conventions, and breakpoint definitions. Table \@ref(tab:functions) catalogs the user-facing functions exported by \pkg{tidyfinance}, grouped by workflow stage. The remainder of this section walks through them in narrative order.
+
+```{=latex}
+\begingroup\small
+\setlength{\tabcolsep}{4pt}
+\renewcommand{\arraystretch}{1.0}
+```
++------------------------------------------+---------------------------------------------------------------------+
+| Function                                 | Purpose                                                             |
++==========================================+=====================================================================+
+| *Data acquisition*                       |                                                                     |
++------------------------------------------+---------------------------------------------------------------------+
+| `download_data()`                        | Retrieves and cleans a panel from supported data providers.         |
++------------------------------------------+---------------------------------------------------------------------+
+| `set_wrds_credentials()`                 | Stores WRDS username and password in `.Renviron` for subsequent     |
+|                                          | calls.                                                              |
++------------------------------------------+---------------------------------------------------------------------+
+| *Variable construction*                  |                                                                     |
++------------------------------------------+---------------------------------------------------------------------+
+| `add_lagged_columns()`                   | Attaches the most recent observed value within a configurable       |
+|                                          | look-back window, with optional Fama-French timing.                 |
++------------------------------------------+---------------------------------------------------------------------+
+| `join_lagged_values()`                   | Merges lagged values from a source panel into a target panel using  |
+|                                          | the same windowing logic.                                           |
++------------------------------------------+---------------------------------------------------------------------+
+| `winsorize()`                            | Replaces values outside the $q$-th and $(1-q)$-th percentiles with  |
+|                                          | the corresponding quantile.                                         |
++------------------------------------------+---------------------------------------------------------------------+
+| `trim()`                                 | Sets values outside the $q$-th and $(1-q)$-th percentiles to `NA`.  |
++------------------------------------------+---------------------------------------------------------------------+
+| `compute_rolling_value()`                | Applies an aggregation function over a calendar-time rolling        |
+|                                          | window.                                                             |
++------------------------------------------+---------------------------------------------------------------------+
+| `filter_sorting_data()`                  | Applies the sample filters bundled in `filter_options()`.           |
++------------------------------------------+---------------------------------------------------------------------+
+| *Portfolio sorting*                      |                                                                     |
++------------------------------------------+---------------------------------------------------------------------+
+| `compute_breakpoints()`                  | Computes quantile cutoffs from a cross-section, optionally          |
+|                                          | restricted by exchange or by minimum market-cap quantile.           |
++------------------------------------------+---------------------------------------------------------------------+
+| `assign_portfolio()`                     | Maps each observation to a portfolio integer using supplied or      |
+|                                          | computed breakpoints.                                               |
++------------------------------------------+---------------------------------------------------------------------+
+| `compute_portfolio_returns()`            | Forms portfolios period by period and returns equal-, value-, and   |
+|                                          | capped-value-weighted return panels.                                |
++------------------------------------------+---------------------------------------------------------------------+
+| `compute_long_short_returns()`           | Computes the top-minus-bottom (or bottom-minus-top) spread from     |
+|                                          | the output of `compute_portfolio_returns()`.                        |
++------------------------------------------+---------------------------------------------------------------------+
+| `implement_portfolio_sort()`             | Wraps filtering, breakpoint computation, assignment, and            |
+|                                          | aggregation into a single call for univariate and bivariate sorts.  |
++------------------------------------------+---------------------------------------------------------------------+
+| *Asset pricing tests*                    |                                                                     |
++------------------------------------------+---------------------------------------------------------------------+
+| `estimate_fama_macbeth()`                | Runs cross-sectional ordinary least squares (OLS) regressions each  |
+|                                          | period and aggregates into average risk premia with @newey.1987     |
+|                                          | standard errors.                                                    |
++------------------------------------------+---------------------------------------------------------------------+
+| `estimate_betas()`                       | Estimates rolling-window CAPM betas for each asset.                 |
++------------------------------------------+---------------------------------------------------------------------+
+| `estimate_model()`                       | Fits a linear model from a formula string and returns its           |
+|                                          | coefficients as a single-row data frame, one column per coefficient.|
++------------------------------------------+---------------------------------------------------------------------+
+
+Table: (\#tab:functions) User-facing functions in \pkg{tidyfinance}, grouped by workflow stage. Functions whose first argument is a panel chain naturally via the native pipe `|>`; `filter_options()`, `breakpoint_options()`, `portfolio_sort_options()`, and `data_options()` (explained in detail below) bundle the configurable arguments for the sorting helpers.
+```{=latex}
+\endgroup
+```
+
+## Data acquisition {#sec:data-access}
+
+\pkg{tidyfinance} exposes one interface, `download_data()`, to `r format(nrow(tidyfinance::list_supported_datasets()), big.mark = ",")` datasets: equity returns, fixed-income transactions, macroeconomic predictors, index constituents, and more. Table \@ref(tab:data-sources) lists all available sources. `list_supported_datasets()` returns the full catalog programmatically.
+
+```{=latex}
+\begingroup\small
+\setlength{\tabcolsep}{4pt}
+\renewcommand{\arraystretch}{1.0}
+```
++----------------+------------------------------------+-----------------------------------------+
+| Source         | Description                        | Example                                 |
++================+====================================+=========================================+
+| *Public data sources*                                                                         |
++----------------+------------------------------------+-----------------------------------------+
+| Ken French's   | Fama-French 169+ factor            | ```                                     |
+| Data Library   | models, portfolios, industry       | download_data(                          |
+|                | classifications                    |   domain = "factors_ff",                |
+|                |                                    |   dataset = "Fama/French 3 Factors")    |
+|                |                                    | ```                                     |
++----------------+------------------------------------+-----------------------------------------+
+| Global Q       | @hou.2021 q5 factor model          | ```                                     |
+|                | (market, size, investment, ROE,    | download_data(                          |
+|                | expected growth) at multiple       |   domain = "globalq",                   |
+|                | frequencies                        |   dataset = "factors_q5_monthly"        |
+|                |                                    | )                                       |
+|                |                                    | ```                                     |
++----------------+------------------------------------+-----------------------------------------+
+| Goyal-Welch    | Macroeconomic return predictors    | ```                                     |
+| Predictors     |                                    | download_data(                          |
+|                |                                    |   domain = "macro_predictors",          |
+|                |                                    |   dataset = "monthly"                   |
+|                |                                    | )                                       |
+|                |                                    | ```                                     |
++----------------+------------------------------------+-----------------------------------------+
+| FRED           | St. Louis Fed economic time        | ```                                     |
+|                | series (GDP, CPI, etc.)            | download_data(                          |
+|                |                                    |   domain = "fred",                      |
+|                |                                    |   series = "GDP"                        |
+|                |                                    | )                                       |
+|                |                                    | ```                                     |
++----------------+------------------------------------+-----------------------------------------+
+| Yahoo Finance  | Historical price data with         | ```                                     |
+|                | adjusted close for any ticker      | download_data(                          |
+|                |                                    |   domain = "stock_prices",              |
+|                |                                    |   symbols = "AAPL"                      |
+|                |                                    | )                                       |
+|                |                                    | ```                                     |
++----------------+------------------------------------+-----------------------------------------+
+| Index          | Current members of major           | ```                                     |
+| Constituents   | equity indexes (S&P 500,           | download_data(                          |
+|                | Russell, etc.)                     |   domain = "constituents",              |
+|                |                                    |   index = "DAX"                         |
+|                |                                    | )                                       |
+|                |                                    | ```                                     |
++----------------+------------------------------------+-----------------------------------------+
+| Open Source    | 213+ monthly asset pricing         | ```                                     |
+| Asset Pricing  | signals and anomalies              | download_data(                          |
+|                |                                    |   domain = "osap"                       |
+|                |                                    | )                                       |
+|                |                                    | ```                                     |
++----------------+------------------------------------+-----------------------------------------+
+| High-Frequency | 5-second frequency data            | ```                                     |
+|                | for S&P 500 constituents           | download_data(                          |
+|                | constructed by @menkveld.2026      |   domain = "tidyfinance",               |
+|                |                                    |   dataset = "high_frequency_sp500"      |
+|                |                                    | )                                       |
+|                |                                    | ```                                     |
++----------------+------------------------------------+-----------------------------------------+
+| Risk-Free Rate | Daily and monthly risk-free        | ```                                     |
+|                | rates (derived from FRED           | download_data(                          |
+|                | T-bill series by                   |   domain = "tidyfinance",               |
+|                | \pkg{tidyfinance})               |   dataset = "risk_free"                 |
+|                |                                    | )                                       |
+|                |                                    | ```                                     |
++----------------+------------------------------------+-----------------------------------------+
+| Factor Library | Precomputed factor returns         | ```                                     |
+|                | across construction choices        | download_data(                          |
+|                | hosted on Hugging Face Hub         |   domain = "tidyfinance",               |
+|                |                                    |   dataset = "factor_library",           |
+|                |                                    |   sorting_variable = "ag"               |
+|                |                                    | )                                       |
+|                |                                    | ```                                     |
++----------------+------------------------------------+-----------------------------------------+
+| *WRDS (subscription required)*                                                                |
++----------------+------------------------------------+-----------------------------------------+
+| CRSP           | Daily and monthly stock returns,   | ```                                     |
+|                | market cap, listing exchange,      | download_data(                          |
+|                | industry information               |   domain = "wrds",                      |
+|                |                                    |   dataset = "crsp_monthly"              |
+|                |                                    | )                                       |
+|                |                                    | ```                                     |
++----------------+------------------------------------+-----------------------------------------+
+| Compustat      | Annual and quarterly financial     | ```                                     |
+|                | statements                         | download_data(                          |
+|                |                                    |   domain = "wrds",                      |
+|                |                                    |   dataset = "compustat_annual"          |
+|                |                                    | )                                       |
+|                |                                    | ```                                     |
++----------------+------------------------------------+-----------------------------------------+
+| CCM Links      | CRSP-Compustat linking table       | ```                                     |
+|                | (`permno` to `gvkey`)              | download_data(                          |
+|                |                                    |   domain = "wrds",                      |
+|                |                                    |   dataset = "ccm_links"                 |
+|                |                                    | )                                       |
+|                |                                    | ```                                     |
++----------------+------------------------------------+-----------------------------------------+
+| FISD           | Mergent Fixed Income               | ```                                     |
+|                | Securities Database                | download_data(                          |
+|                |                                    |   domain = "wrds",                      |
+|                |                                    |   dataset = "fisd"                      |
+|                |                                    | )                                       |
+|                |                                    | ```                                     |
++----------------+------------------------------------+-----------------------------------------+
+| TRACE          | Corporate bond transactions        | ```                                     |
+|                | @dicknielsen.2009 cleaned          | download_data(                          |
+|                |                                    |   domain = "wrds",                      |
+|                |                                    |   dataset = "trace_enhanced",           |
+|                |                                    |   cusips = "655844CJ5"                  |
+|                |                                    | )                                       |
+|                |                                    | ```                                     |
++----------------+------------------------------------+-----------------------------------------+
+Table: (\#tab:data-sources) Data sources available via `download_data()` in \pkg{tidyfinance}. For every dataset with a time dimension, the same `start_date` and `end_date` arguments subset the returned panel to a user-specified window.
+```{=latex}
+\endgroup
+```
+
+A first illustration uses only public data sources. We retrieve the current constituents of the Dow Jones Industrial Average and then download daily prices from Yahoo!Finance for those tickers over a chosen window. `list_supported_indexes()` returns the full set of equity indexes available through the `"constituents"` domain.
+
+```{r example-dow-constituents, message=FALSE}
+dow_constituents <- download_data(
+  domain = "constituents",
+  index = "Dow Jones Industrial Average"
+)
+download_data(
+  domain = "stock_prices",
+  symbols = dow_constituents$symbol,
+  start_date = "2020-01-01",
+  end_date = "2024-12-31"
+)
+```
+
+Similarly, we can fetch the Fama-French three-factor data from Ken French's Data Library with a single call to download and parse the published archives:
+```{r example-ff-factors}
+ff_factors <- download_data(
+  domain = "factors_ff",
+  dataset = "Fama/French 3 Factors",
+  start_date = "1972-01-01",
+  end_date = "2024-12-31"
+)
+```
+
+The `start_date` and `end_date` arguments generalize across every dataset type in Table \@ref(tab:data-sources) that supports a time dimension.
+
+Public data still requires nontrivial cleaning. The @goyal.2008 macroeconomic predictors are a typical case: `download_data(domain = "macro_predictors", dataset = "monthly")` fetches the raw spreadsheet at the requested frequency (set `dataset` to `monthly`, `quarterly`, or `annual`), parses dates, strips comma thousand separators, and coerces character columns to numeric. It then constructs the standard predictors used in the equity-premium prediction literature: the log dividend-price ratio (`dp`), dividend yield (`dy`), earnings-price ratio (`ep`), dividend-payout ratio (`de`), the forward equity risk premium (`rp_div`), the term spread (`tms`), and the default-yield spread (`dfy`). The output is the cleaned panel filtered to the requested date range.
+
+For empirical asset pricing work, WRDS is the common source of return and accounting panels. WRDS data are proprietary and require an institutional subscription and credentials. \pkg{tidyfinance} handles this setup once. `set_wrds_credentials()` prompts for the username and password and stores them in a project-specific or global `.Renviron` file, and prompts the user to add `.Renviron` to `.gitignore` to prevent credential leakage. Subsequent `download_data()` calls open the database connection automatically. Depending on the user's WRDS account settings, `download_data()` may also trigger a two-factor authentication (2FA) challenge that WRDS sends to the registered device; once approved, the connection proceeds normally.
+
+`download_data()` applies standard cleaning conventions following @bali.2016 and @scheuch.2023 automatically. For CRSP monthly data, the function restricts the universe to common equity securities listed on NYSE, AMEX (now NYSE American), or NASDAQ. It computes market capitalization as shares outstanding times price, constructs a one-month market capitalization lag for portfolio weights, and maps listing exchange codes and Standard Industrial Classification (SIC) codes to readable labels. Excess returns are raw returns minus a risk-free rate that \pkg{tidyfinance} constructs from FRED by splicing the 3-month Treasury bill secondary-market rate (pre-2001) with the 4-week Treasury bill secondary-market rate (from 2001 onward); the spliced series is hosted on Hugging Face and refreshed monthly by a scheduled GitHub Actions workflow. The function drops observations with missing returns or market capitalization, and incorporates delisting returns directly, eliminating the need for a separate adjustment. The function defaults to the CRSP 2.0 (CIZ) layout first introduced in July 2022. Alternatively, passing `version = "v1"` returns the legacy (SIZ) layout, which ends in December 2024. @schwarz.2026 document that the move to CIZ rewrites a non-trivial share of historical monthly returns through a changed dividend reinvestment assumption, yet find that average premia and their significance are largely unaffected.
+
+For Compustat annual data, `download_data()` restricts to industrial-format consolidated statements and retains only the most recent observation per firm-year. Following @fama.1992, it constructs book equity in priority order: stockholders' equity when available, else common equity plus preferred stock, else total assets minus total liabilities. The function adds back deferred taxes and investment tax credits, and subtracts the book value of preferred stock.
+
+For TRACE corporate bond transactions, `download_data()` applies the Dick-Nielsen cleaning protocol [@dicknielsen.2009] to remove cancellations, corrections, and reversals before returning the trade panel.
+
+Across `download_data()`, every returned panel exposes a single `date` column of `<date>` type, regardless of source. Joining observations from different providers therefore reduces to an equality join on `date` without manual format conversion. The convention is the same across frequencies: daily observations return the trading date, monthly observations the first calendar day of the reference month (regardless of whether it was a trading day), and quarterly and annual observations the first day of the fiscal period-end month as reported by the original source. For Compustat, the latter is the firm's fiscal period-end (`datadate`). Macroeconomic series from FRED keep their original release dates. Where the underlying source uses an internal date that differs from this convention, \pkg{tidyfinance} preserves it as an auxiliary column: CRSP 2.0 monthly returns, for example, retain the trading-date `mthcaldt` as `calculation_date` alongside the harmonized `date`. Cross-frequency joins, such as merging monthly returns with annual fundamentals, require the lagging logic described in Section \@ref(sec:variable-construction).
+
+## Variable construction {#sec:variable-construction}
+
+Most predictive variables in asset pricing studies use lagged information so that, for example, portfolio formation in month $t$ uses only data observable at the end of month $t-1$. `add_lagged_columns()` automates the required lagging procedure. For each row in the data, it looks back over a configurable window and attaches the most recent observed value of the chosen columns. Figure \@ref(fig:lagging-illustration) illustrates the two modes the function supports. By default (`ff_adjustment = FALSE`), shown in Panel A, the window is bounded by `lag` (the minimum delay between observation and use) and `max_lag` (the maximum delay before a stale value is treated as missing). Within this window (the dashed rectangle), the function picks the most recent non-missing value; if no observation falls in the window, the lagged column takes `NA`.
+
+The second mode, enabled by `ff_adjustment = TRUE` and shown in Panel B of Figure \@ref(fig:lagging-illustration), implements the Fama-French convention [@fama.1993]. The convention assumes accounting variables for fiscal year $t-1$ become public information by June of year $t$, then uses them for portfolio formation from July of $t$ through June of $t+1$. This timing produces a step-function lag that updates once per year at the June/July boundary, regardless of the underlying fiscal year-end: all months from July through June share the value locked in at the previous rebalancing.
+
+`join_lagged_values()` is a related helper that merges lagged values from one data frame into another using the same windowing logic. It is useful when the target panel and the source panel are at different frequencies, for example, when joining monthly accounting data into a quarterly target panel. The function takes the same `ff_adjustment` argument as `add_lagged_columns()`, so the Fama-French convention can be applied at the join step rather than as a separate transformation.
+
+```{r lagging-illustration, fig.alt="Diagram comparing the two lagging modes of add_lagged_columns(). Panel A returns the most recent observed value within a window bounded by the lag and max_lag arguments; Panel B implements the Fama-French convention, in which the lagged value updates only at the June/July boundary and is held constant for twelve months.", fig.cap="Two lagging mechanisms in `add_lagged_columns()`. Each row represents a data series with observed (filled) and missing (hollow) cells. The dashed rectangle marks the search window from the perspective of the most recent observation (the top row); arrows show which value gets matched to each target month. Panel A (`ff_adjustment = FALSE`) returns the most recent observed value within a window bounded by `lag` and `max_lag`. Panel B (`ff_adjustment = TRUE`) implements the Fama-French convention, where the lagged value updates only at the June/July boundary and is held constant for the next twelve months.", fig.width=6.5, fig.height=4, out.width="100%", echo=FALSE}
+ts <- 0.94
+corner <- unit(4, "pt")
+
+
+# Extra padding so the dashed box extends slightly beyond the tiles
+win_pad <- 0.15
+
+# Extend data back by one month (Nov Y-2) so Year T-2 has a real bracket span
+month_labels <- month.abb[c(11, 12, 1:12, 1:7)]
+n <- length(month_labels)
+
+x_labels <- -0.8
+x_ff <- 0.55
+x_std <- 3.0
+
+obs_pattern <- c(
+  FALSE, #  1  Nov Y-2
+  TRUE, #  2  Dec Y-2  (fiscal year-end Y-2)
+  FALSE, #  3  Jan Y-1
+  FALSE, #  4  Feb Y-1
+  FALSE, #  5  Mar Y-1
+  FALSE, #  6  Apr Y-1
+  TRUE, #  7  May Y-1
+  FALSE, #  8  Jun Y-1
+  FALSE, #  9  Jul Y-1
+  TRUE, # 10  Aug Y-1
+  FALSE, # 11  Sep Y-1
+  TRUE, # 12  Oct Y-1
+  FALSE, # 13  Nov Y-1
+  TRUE, # 14  Dec Y-1  (fiscal year-end Y-1)
+  TRUE, # 15  Jan Y
+  FALSE, # 16  Feb Y
+  TRUE, # 17  Mar Y
+  FALSE, # 18  Apr Y
+  TRUE, # 19  May Y
+  FALSE, # 20  Jun Y
+  TRUE # 21  Jul Y
+)
+
+df_data <- data.frame(
+  y = 1:n,
+  label = month_labels,
+  observed = obs_pattern,
+  # Data recency: older months fade toward transparent, newer ones solid
+  alpha = 0.35 + 0.65 * ((1:n) / n)
+)
+
+obs <- df_data[df_data$observed, ]
+miss <- df_data[!df_data$observed, ]
+
+# Target is Jul Y (position 21). With lag = months(7), max_lag = months(18):
+# Search window = [target - max_lag, target - lag] = [3, 14] = Jan Y-1 to Dec Y-1
+# Note: Nov Y-2 (pos 1) and Dec Y-2 (pos 2) are OUTSIDE the window.
+std_win_left <- 3
+std_win_right <- 14
+target <- 21
+
+# Standard: most recent observed in [3, 14]
+# Observed in window: 7, 10, 12, 14 -> most recent = 14 (Dec Y-1)
+std_matched <- 14
+
+ff_win_left <- 3
+ff_win_right <- 14
+ff_matched <- 14
+
+tiles <- function(rows, cx, grp_offset = 0, xsize = ts) {
+  do.call(
+    rbind,
+    lapply(seq_len(nrow(rows)), function(i) {
+      data.frame(
+        x = cx + c(-1, 1, 1, -1) * xsize / 2,
+        y = rows$y[i] + c(-1, -1, 1, 1) * ts / 2,
+        group = grp_offset + i,
+        alpha = if ("alpha" %in% names(rows)) rows$alpha[i] else NA_real_
+      )
+    })
+  )
+}
+
+grp_obs1 <- n
+grp_miss1 <- n + nrow(obs)
+grp_obs2 <- n + nrow(obs) + nrow(miss)
+grp_miss2 <- n + nrow(obs) + nrow(miss) + nrow(obs)
+
+obs1_poly <- tiles(obs, x_std, grp_obs1)
+miss1_poly <- tiles(miss, x_std, grp_miss1)
+obs2_poly <- tiles(obs, x_ff, grp_obs2)
+miss2_poly <- tiles(miss, x_ff, grp_miss2)
+
+# --- Standard grey arrows ----------------------------------------------------
+# For each target t in 12..20, find most recent observed in [t-18, t-7]
+# Observed positions: 2, 7, 10, 12, 14, 15, 17, 19, 21
+# t=20: window [2,13], obs in window: 2,7,10,12   -> 12
+# t=19: window [1,12], obs in window: 2,7,10,12   -> 12
+# t=18: window [1,11], obs in window: 2,7,10      -> 10
+# t=17: window [1,10], obs in window: 2,7,10      -> 10
+# t=16: window [1,9],  obs in window: 2,7         -> 7
+# t=15: window [1,8],  obs in window: 2,7         -> 7
+# t=14: window [1,7],  obs in window: 2,7         -> 7
+# t=13: window [1,6],  obs in window: 2           -> 2
+# t=12: window [1,5],  obs in window: 2           -> 2
+std_grey <- data.frame(
+  y = c(20, 19, 18, 17, 16, 15, 14, 13, 12),
+  yend = c(12, 12, 10, 10, 7, 7, 7, 2, 2)
+)
+
+# --- FF grey arrows ----------------------------------------------------------
+# FF candidates (last observed per year): Dec Y-2 (pos 2), Dec Y-1 (pos 14)
+# For targets before Jul Y, only Dec Y-2 is in range -> all point to pos 2.
+# Jul Y (target) is the first month where Dec Y-1 enters the window -> pos 14.
+ff_grey <- data.frame(
+  y = c(20, 19, 18, 17, 16, 15, 14, 13, 12),
+  yend = c(2, 2, 2, 2, 2, 2, 2, 2, 2)
+)
+
+ggplot() +
+  # Month timeline: horizontal line with tick marks
+  annotate(
+    "segment",
+    x = x_labels,
+    xend = x_labels,
+    y = 0.5,
+    yend = n + 0.5,
+    color = "grey40",
+    linewidth = 0.5
+  ) +
+  annotate(
+    "segment",
+    x = x_labels - 0.08,
+    xend = x_labels + 0.08,
+    y = 1:n,
+    yend = 1:n,
+    color = "grey40",
+    linewidth = 0.4
+  ) +
+  # Month labels: thinned to highlight fiscal-year ends and key markers
+  geom_text(
+    data = df_data[df_data$y %in% c(2, 5, 8, 11, 14, 17, 20, 21), ],
+    aes(x = x_labels - 0.2, y = y, label = label),
+    size = 4,
+    color = "grey40",
+    hjust = 0.5
+  ) +
+  # --- Standard column: observed ---------------------------------------------
+  geom_shape(
+    data = obs1_poly,
+    aes(x = x, y = y, group = group, alpha = alpha),
+    fill = tf_dark_blue,
+    color = "white",
+    linewidth = 0.8,
+    radius = corner
+  ) +
+  geom_shape(
+    data = miss1_poly,
+    aes(x = x, y = y, group = group),
+    fill = "grey97",
+    color = "grey80",
+    linewidth = 0.8,
+    radius = corner
+  ) +
+  geom_text(
+    data = miss,
+    aes(x = x_std, y = y),
+    label = "NA",
+    size = 3.2,
+    color = "grey65",
+    fontface = "italic"
+  ) +
+  # --- FF column: observed ---------------------------------------------------
+  geom_shape(
+    data = obs2_poly,
+    aes(x = x, y = y, group = group, alpha = alpha),
+    fill = tf_dark_blue,
+    color = "white",
+    linewidth = 0.8,
+    radius = corner
+  ) +
+  geom_shape(
+    data = miss2_poly,
+    aes(x = x, y = y, group = group),
+    fill = "grey97",
+    color = "grey80",
+    linewidth = 0.8,
+    radius = corner
+  ) +
+  geom_text(
+    data = miss,
+    aes(x = x_ff, y = y),
+    label = "NA",
+    size = 3.2,
+    color = "grey65",
+    fontface = "italic"
+  ) +
+  # --- Standard grey arrows --------------------------------------------------
+  geom_curve(
+    data = data.frame(
+      x = x_std + ts / 2,
+      xend = x_std + ts / 2,
+      y = std_grey$y,
+      yend = std_grey$yend + 0.15
+    ),
+    aes(x = x, y = y, xend = xend, yend = yend),
+    curvature = -0.2,
+    color = "grey70",
+    alpha = 0.5,
+    arrow = arrow(length = unit(0.08, "cm"), type = "closed"),
+    linewidth = 0.35
+  ) +
+  # Standard search window
+  annotate(
+    "rect",
+    xmin = x_std - ts / 2 - win_pad,
+    xmax = x_std + ts / 2 + win_pad,
+    ymin = std_win_left - ts / 2 - win_pad,
+    ymax = std_win_right + ts / 2 + win_pad,
+    fill = NA,
+    color = tf_yellow,
+    linewidth = 0.9,
+    linetype = "dashed"
+  ) +
+  annotate(
+    "text",
+    x = x_std - ts / 2 - win_pad - 0.2,
+    y = c(std_win_left - ts / 2 - win_pad, std_win_right + ts / 2 + win_pad),
+    label = c("max_lag", "lag"),
+    color = tf_yellow,
+    size = 3.4,
+    fontface = "italic",
+    hjust = -0.2,
+    vjust = 0.5
+  ) +
+  # Standard highlighted arrow: Jul Y -> Dec Y-1
+  annotate(
+    "curve",
+    x = x_std + ts / 2,
+    xend = x_std + ts / 2,
+    y = target,
+    yend = std_matched + 0.2,
+    curvature = -0.2,
+    color = tf_dark_blue,
+    linewidth = 0.9,
+    arrow = arrow(length = unit(0.14, "cm"), type = "closed")
+  ) +
+  # --- FF grey arrows --------------------------------------------------------
+  geom_curve(
+    data = data.frame(
+      x = x_ff + ts / 2,
+      xend = x_ff + ts / 2,
+      y = ff_grey$y,
+      yend = ff_grey$yend + 0.15
+    ),
+    aes(x = x, y = y, xend = xend, yend = yend),
+    curvature = -0.2,
+    color = "grey70",
+    alpha = 0.5,
+    arrow = arrow(length = unit(0.08, "cm"), type = "closed"),
+    linewidth = 0.35
+  ) +
+  # FF search window
+  annotate(
+    "rect",
+    xmin = x_ff - ts / 2 - win_pad,
+    xmax = x_ff + ts / 2 + win_pad,
+    ymin = ff_win_left - ts / 2 - win_pad,
+    ymax = ff_win_right + ts / 2 + win_pad,
+    fill = NA,
+    color = tf_yellow,
+    linewidth = 0.9,
+    linetype = "dashed"
+  ) +
+  annotate(
+    "text",
+    x = x_ff - ts / 2 - win_pad - 0.2,
+    y = c(ff_win_left - ts / 2 - win_pad, ff_win_right + ts / 2 + win_pad),
+    label = c("max_lag", "lag"),
+    color = tf_yellow,
+    size = 3.4,
+    fontface = "italic",
+    hjust = -0.2,
+    vjust = 0.5
+  ) +
+  # FF highlighted arrow: Jul Y -> Dec Y-1
+  annotate(
+    "curve",
+    x = x_ff + ts / 2,
+    xend = x_ff + ts / 2,
+    y = target,
+    yend = ff_matched + 0.2,
+    curvature = -0.2,
+    color = tf_dark_blue,
+    linewidth = 0.9,
+    arrow = arrow(length = unit(0.14, "cm"), type = "closed")
+  ) +
+  # --- Main title (bold) -----------------------------------------------------
+  annotate(
+    "text",
+    x = max(x_std, x_ff) + ts / 2 + 1.0,
+    y = n / 2,
+    label = "data |> add_lagged_columns(lag = months(7), max_lag = months(18))",
+    color = "black",
+    size = 3.2,
+    family = "mono",
+    fontface = "bold",
+    hjust = 0.5
+  ) +
+  # --- Panel headers (above each panel of tiles) -----------------------------
+  annotate(
+    "text",
+    x = x_std + ts / 2 + 0.35,
+    y = 0.1,
+    label = "Panel A",
+    color = "grey30",
+    size = 3.6,
+    fontface = "bold",
+    hjust = 0
+  ) +
+  annotate(
+    "text",
+    x = x_ff + ts / 2 + 0.35,
+    y = 0.1,
+    label = "Panel B",
+    color = "grey30",
+    size = 3.6,
+    fontface = "bold",
+    hjust = 0
+  ) +
+  # --- Panel labels (left margin, rotated, bold) -----------------------------
+  # Inner labels: TRUE / FALSE for each panel
+  annotate(
+    "text",
+    x = x_std,
+    y = -0.1,
+    label = "FALSE",
+    color = "grey30",
+    size = 4.0,
+    family = "mono",
+    fontface = "bold",
+    angle = 90,
+    hjust = 0.5,
+    vjust = 0.5
+  ) +
+  annotate(
+    "text",
+    x = x_ff,
+    y = -0.1,
+    label = "TRUE",
+    color = "grey30",
+    size = 4.0,
+    family = "mono",
+    fontface = "bold",
+    angle = 90,
+    hjust = 0.5,
+    vjust = 0.5
+  ) +
+  # Outer label spanning both panels
+  annotate(
+    "text",
+    x = (x_std + x_ff) / 2,
+    y = -0.8,
+    label = "ff_adjustment",
+    color = "grey30",
+    size = 4.0,
+    family = "mono",
+    fontface = "bold",
+    angle = 90,
+    hjust = 0.5,
+    vjust = 0.5
+  ) +
+  # --- Year-change dashed lines (SHORTENED) ----------------------------------
+  # Now stop at the right edge of the yellow search window rather than extending
+  # all the way across to the title area. This removes the long dashes cluttering
+  # the top of the figure.
+  # Between Dec Y-2 (pos 2) and Jan Y-1 (pos 3): line at 2.5
+  # Between Dec Y-1 (pos 14) and Jan Y (pos 15): line at 14.5
+  annotate(
+    "segment",
+    x = x_labels - 0.55,
+    xend = x_std + ts / 2 + 0.7,
+    y = 2.5,
+    yend = 2.5,
+    color = "grey30",
+    linewidth = 0.5,
+    linetype = "dashed"
+  ) +
+  annotate(
+    "segment",
+    x = x_labels - 0.55,
+    xend = x_std + ts / 2 + 0.7,
+    y = 14.5,
+    yend = 14.5,
+    color = "grey30",
+    linewidth = 0.5,
+    linetype = "dashed"
+  ) +
+  # --- Year span brackets ----------------------------------------------------
+  # Year T-2:  pos 1 to 2   (Nov-Dec Y-2)
+  # Year T-1:  pos 3 to 14  (Jan-Dec Y-1)
+  # Year T:    pos 15 to 21 (Jan-Jul Y)
+  annotate(
+    "segment",
+    x = x_labels - 0.55,
+    xend = x_labels - 0.55,
+    y = c(1, 3, 15),
+    yend = c(2, 14, 21),
+    color = "grey30",
+    linewidth = 0.4
+  ) +
+  # Bracket end caps
+  annotate(
+    "segment",
+    x = x_labels - 0.50,
+    xend = x_labels - 0.60,
+    y = c(1, 2, 3, 14, 15, 21),
+    yend = c(1, 2, 3, 14, 15, 21),
+    color = "grey30",
+    linewidth = 0.4
+  ) +
+  # Year labels at midpoints:
+  # Year T-2: midpoint of [1, 2] = 1.5
+  # Year T-1: midpoint of [3, 14] = 8.5
+  # Year T:   midpoint of [15, 21] = 18
+  annotate(
+    "text",
+    x = x_labels - 0.75,
+    y = c(1.5, 8.5, 18),
+    label = c("Year T-2", "Year T-1", "Year T"),
+    color = "grey30",
+    size = 4.0,
+    fontface = "bold"
+  ) +
+  scale_alpha_identity() +
+  scale_x_continuous(
+    limits = c(x_labels - 1.15, max(x_std, x_ff) + ts / 2 + 1.3),
+    expand = c(0, 0)
+  ) +
+  scale_y_continuous(
+    limits = c(-1.0, n + 0.55),
+    expand = c(0, 0)
+  ) +
+  coord_flip() +
+  theme_void() +
+  theme(plot.margin = margin(5, 10, 5, 10))
+```
+
+A handful of additional helpers cover routine operations that recur across empirical studies. `winsorize()` and `trim()` handle outliers in cross-sectional variables: the former symmetrically replaces values below the $q$-th and above the $(1-q)$-th percentile with the corresponding quantile values, while the latter sets them to `NA`. `estimate_model()` fits a linear model from a formula string and returns the coefficients as a tidy one-row data frame, which composes naturally with `group_by()` for grouped or rolling regressions such as estimating time-series factor exposures stock by stock via `estimate_betas()`. `compute_rolling_value()` applies an arbitrary aggregation function over a rolling window defined in calendar time rather than row counts, accommodating irregular observation frequencies and missing periods. `filter_sorting_data()` screens a panel before sorting, dropping observations that fail the sample filters bundled in a `filter_options()` object, such as financial or utility firms or stocks below a minimum price or size; by default it reports how many observations each filter removes, which `quiet = TRUE` suppresses. 
+
+## Portfolio sorting {#sec:portfolio-sorting}
+
+A portfolio sort groups stocks each period into ordered portfolios according to the level of a sorting variable. The boundaries between portfolios are called *breakpoints*: numeric cutoffs of the sorting variable that determine which portfolio a stock joins. A quintile sort on size, for instance, has four breakpoints at the 20th, 40th, 60th, and 80th percentiles of the cross-sectional market-capitalization distribution. Common sorting variables include size (measured as market capitalization), beta, book-to-market, and momentum. The long-short return between the extreme portfolios is interpreted as a factor-mimicking strategy and serves as the basis for tests of whether the sorting variable forecasts future returns. Portfolio sorts are among the most widely used tools in empirical asset pricing [@bali.2016]. We expose the procedure through four composable building blocks plus a one-call wrapper.
+
+`compute_breakpoints()` takes a cross-section and a sorting variable and returns the numeric cutoffs that define the portfolio boundaries. The user supplies either a number of portfolios (for example, five for quintiles) or an explicit vector of percentiles, but not both. A `breakpoints_exchanges` argument restricts the universe used to compute breakpoints. The standard convention is NYSE-listed stocks only, which prevents the large cross-section of small NASDAQ-listed firms from dominating the breakpoints [@jensen.2023]. A related `breakpoints_min_size_threshold` argument excludes stocks below a market-cap quantile from the breakpoint computation, which size-related sorts often require because microcaps would otherwise distort the cutoffs. A `smooth_bunching` flag handles cases where the sorting variable takes the same value for many observations at the bottom or top of the distribution, so that the lowest (or highest) quantile breakpoints coincide. Without intervention, all tied observations would land in a single boundary portfolio while neighboring portfolios remain empty. When `smooth_bunching = TRUE`, the function assigns the bunched observations to the boundary portfolio and recomputes the remaining breakpoints on the subset of observations strictly inside the boundary value, restoring well-defined cutoffs for the interior portfolios.
+
+`assign_portfolio()` maps each observation to a portfolio integer and uses breakpoints supplied either directly or via a breakpoint-computing function (defaulting to `compute_breakpoints()`). In practice, `assign_portfolio()` is called separately for each rebalancing date, so that portfolios are reformed each period rather than fixed once for the whole sample.
+
+`compute_portfolio_returns()` ties the lower-level pieces together. Given a panel of stock data, one or two sorting variables, a sorting method, and `breakpoint_options`, it handles rebalancing, breakpoint computation, portfolio assignment, and return aggregation. It then returns a complete panel of portfolio returns. For each portfolio-date the function reports three return measures: equal-weighted, value-weighted using `mktcap_lag` as the weight, and capped value-weighted [@jensen.2023]. The capped version pulls weights above the `cap_weight` percentile (default `0.8` corresponds to $80\%$) back to that cap, which prevents a few megacap firms from dominating the portfolio. A `min_portfolio_size` argument sets the minimum number of constituents below which the corresponding return is set to `NA`. An optional `rebalancing_month` argument switches from period-by-period rebalancing to annual rebalancing in the specified month. Portfolios formed in that month are then held constant for the following twelve months.
+
+The function supports three sorting schemes, illustrated in Figure \@ref(fig:illustrate-portfolio-helper). A *univariate* sort uses a single variable. An *independent bivariate* sort computes breakpoints on each variable separately and intersects the resulting bins to produce a two-way grid. A *dependent bivariate* sort first partitions the cross-section by the secondary (control) variable and then re-sorts within each bucket on the main variable, which is the appropriate choice when the second variable is treated as a control rather than as an independent dimension of variation. For bivariate sorts, returns are averaged over the secondary variable so that only the main-variable portfolios are returned.
+
+```{r simulate-portfolio-helper, echo=FALSE}
+set.seed(3010)
+
+n <- 1000
+rho <- 0.6
+
+# shared signal
+f <- rnorm(n)
+
+# independent noise
+e1 <- rnorm(n)
+e2 <- rnorm(n)
+
+# construct correlated latent variables
+x1 <- f + sqrt(1 - rho^2) * e1
+x2 <- f + sqrt(1 - rho^2) * e2
+
+# map to (0,1)
+asset_growth <- pnorm(x1)
+mktcap_lag <- pnorm(x2)
+
+cross_section <- data.frame(asset_growth, mktcap_lag)
+n_portfolio <- 2
+
+breakpoints_ag <- cross_section |>
+  compute_breakpoints(
+    "asset_growth",
+    breakpoint_options = breakpoint_options(n_portfolios = n_portfolio)
+  )
+
+portfolios_univariate <- cross_section |>
+  dplyr::mutate(
+    ag_portfolio = assign_portfolio(
+      pick(everything()),
+      "asset_growth",
+      breakpoint_options = breakpoint_options(n_portfolios = n_portfolio)
+    )
+  )
+
+portfolios_independent <- cross_section |>
+  dplyr::mutate(
+    ag_portfolio = assign_portfolio(
+      pick(everything()),
+      "asset_growth",
+      breakpoint_options = breakpoint_options(n_portfolios = n_portfolio)
+    ),
+    size_portfolio = assign_portfolio(
+      dplyr::pick(everything()),
+      "mktcap_lag",
+      breakpoint_options = breakpoint_options(n_portfolios = n_portfolio)
+    ),
+    portfolio_cell = paste0(ag_portfolio, "-", size_portfolio)
+  )
+
+portfolios_dependent <- cross_section |>
+  dplyr::mutate(
+    size_portfolio = assign_portfolio(
+      dplyr::pick(everything()),
+      "mktcap_lag",
+      breakpoint_options = breakpoint_options(n_portfolios = n_portfolio)
+    )
+  ) |>
+  dplyr::group_by(size_portfolio) |>
+  dplyr::mutate(
+    ag_portfolio = assign_portfolio(
+      dplyr::pick(everything()),
+      "asset_growth",
+      breakpoint_options = breakpoint_options(n_portfolios = n_portfolio)
+    ),
+    portfolio_cell = paste0(ag_portfolio, "-", size_portfolio)
+  ) |>
+  dplyr::ungroup()
+```
+
+```{r illustrate-portfolio-helper, fig.alt="Three scatterplots of a simulated cross-section showing univariate, independent bivariate, and dependent bivariate portfolio assignments, with asset-growth rank on the horizontal axis and size rank on the vertical axis.", echo=FALSE, fig.cap=paste0("Portfolio sort approaches illustrated on a simulated cross-section. Each panel plots simulated observations assigned to ", n_portfolio, " × ", n_portfolio, " portfolios based on asset growth rank (x-axis) and size rank (y-axis), both expressed as percentiles. Colors indicate portfolio cell assignment. The univariate sort (left) assigns portfolios on asset growth alone; the independent bivariate sort (center) assigns each dimension independently; the dependent bivariate sort (right) sorts on size first, then on asset growth within size groups."), fig.width=6.5, out.width="100%"}
+common_theme <- list(
+  scale_x_continuous(
+    labels = scales::percent,
+    breaks = breakpoints_ag,
+    expand = c(0.01, 0)
+  ),
+  scale_y_continuous(labels = scales::percent, expand = c(0.01, 0)),
+  labs(x = "Asset growth rank", y = "Size rank"),
+  theme(
+    panel.grid = element_blank(),
+    plot.title = element_text(hjust = 0),
+    plot.title.position = "plot"
+  )
+)
+
+p1 <- portfolios_univariate |>
+  ggplot(aes(
+    x = asset_growth,
+    y = mktcap_lag,
+    color = as.factor(ag_portfolio)
+  )) +
+  geom_point(alpha = 0.4, size = 0.8) +
+  labs(title = "Univariate sort") +
+  common_theme
+
+p2 <- portfolios_independent |>
+  ggplot(aes(x = asset_growth, y = mktcap_lag, color = portfolio_cell)) +
+  geom_point(alpha = 0.4, size = 0.8) +
+  labs(title = "Independent\nbivariate sort") +
+  common_theme
+
+p3 <- portfolios_dependent |>
+  ggplot(aes(x = asset_growth, y = mktcap_lag, color = portfolio_cell)) +
+  geom_point(alpha = 0.4, size = 0.8) +
+  labs(title = "Dependent\nbivariate sort") +
+  common_theme
+
+p1 +
+  p2 +
+  p3 +
+  plot_layout(guides = "collect", axes = "collect_y")
+```
+
+`compute_long_short_returns()` takes the output of `compute_portfolio_returns()` and computes the spread between the top and bottom portfolios. A `direction` argument controls the sign and defaults to `"top_minus_bottom"`. The function returns one long-short series per return measure available in the input, so the equal-weighted, value-weighted, and capped value-weighted spreads are produced together. This long-short return is the factor-mimicking spread that the asset-pricing literature typically takes as the object of interest.
+
+For users who want the full pipeline in a single call, `implement_portfolio_sort()` wraps the four functions above. It takes a panel of stock data, one or two sorting variables, a sorting method, and a configuration object, and returns the long-short factor return series alongside the underlying portfolio returns. The lower-level functions remain available for custom workflows that need finer control over breakpoints, weighting, or rebalancing.
+
+# A case study in factor construction {#sec:ag}
+
+We walk through the construction of the asset growth factor from raw CRSP and Compustat data to long-short portfolio returns, applying each stage of Table \@ref(tab:functions) in turn.
+
+Load \pkg{tidyfinance} together with a minimal set of supporting packages: \pkg{dplyr} [@dplyr] for data manipulation, \pkg{tidyr} [@tidyr] for reshaping between long and wide formats, and \pkg{lubridate} [@lubridate] for date arithmetic.
+
+```{r load-package, message=FALSE, warning=FALSE, cache=FALSE}
+library("tidyfinance")
+library("dplyr")
+library("tidyr")
+library("lubridate")
+```
+
+## Data acquisition {#sec:data-download}
+
+Constructing the asset growth factor requires two WRDS panels: annual accounting data from Compustat to compute the asset growth signal and monthly stock returns from CRSP to translate the signal into portfolio returns.
+
+CRSP and Compustat are proprietary and require a WRDS subscription. All numbers, tables, and figures in this paper are computed from the real WRDS data with `data_domain <- "wrds"`. 
+
+```{r set-data-domain}
+data_domain <- "wrds"
+```
+
+Readers without a WRDS subscription can render the entire manuscript against pseudo data of identical schema by setting `data_domain <- "pseudo"` in the chunk below. The pseudo path covers the three WRDS-sourced datasets the case study consumes: monthly CRSP returns, annual Compustat fundamentals, and the CRSP-Compustat linking table. Every `download_data()` call for one of these datasets then routes to an in-package pseudo generator rather than to WRDS, so the document compiles end-to-end without a subscription, credentials, or network access to a paid provider. The generator preserves column names, data types, missingness patterns, panel structure, and approximate scales, so the cleaning, lagging, and sorting code paths exercise the same branches they would on real data, and every figure and table in this paper renders without error. What the generator does not preserve are economic relations. Returns are independent draws around a calibrated mean, and characteristics carry no predictive content for subsequent returns; the long-short premia recovered against pseudo data are therefore noise.
+
+Two arguments to `download_data()` control the pseudo draws: `seed` fixes the random number generator so that two readers running the same chunk obtain bit-identical pseudo panels, and `n_assets` sets the size of the pseudo cross-section (default `1000L`), trading off compile speed against the realism of cross-sectional statistics. The practical implication is that every chunk in this paper can be inspected, edited, and re-rendered on a laptop with no proprietary data and no credentials; only the headline factor premia require WRDS to reproduce numerically.
+
+Before the first WRDS download, call `set_wrds_credentials()` to store WRDS credentials securely in `.Renviron`; subsequent `download_data()` calls establish the database connection automatically.
+
+```{r set-date-range}
+date_start <- as.Date("1972-01-01")
+date_end <- as.Date("2024-12-31")
+```
+
+We restrict the sample to the period from `r year(date_start)` onward because Compustat coverage is often incomplete before that date, and we end the sample at `r year(date_end)`, the most recent full calendar year at the time of writing.
+
+First, we download monthly stock returns from CRSP. Setting `add_ccm_links = TRUE` appends CRSP-Compustat linking identifiers needed to merge with financial statement data in the next step.
+
+```{r download-crsp}
+crsp_monthly <- download_data(
+  domain = data_domain,
+  dataset = "crsp_monthly",
+  version = "v2",
+  start_date = date_start,
+  end_date = date_end,
+  add_ccm_links = TRUE
+)
+```
+
+The dataset contains `r format(nrow(crsp_monthly), big.mark = ",")` stock-month observations for `r format(length(unique(crsp_monthly$permno)), big.mark = ",")` unique stocks, covering the period from `r format_pretty_date(min(crsp_monthly$date))` to `r format_pretty_date(max(crsp_monthly$calculation_date))`.
+
+Next, we download annual financial statements from Compustat.
+
+```{r download-compustat}
+compustat_annual <- download_data(
+  domain = data_domain,
+  dataset = "compustat_annual",
+  start_date = date_start,
+  end_date = date_end,
+  additional_columns = c("at", "ib"),
+  only_usd = TRUE
+) |>
+  select(gvkey, date, at, ib)
+```
+
+Annual Compustat data contain `r format(nrow(compustat_annual), big.mark = ",")` firm-year observations for `r format(length(unique(compustat_annual$gvkey)), big.mark = ",")` unique firms, covering the period from `r format_pretty_date(date_start)` to `r format_pretty_date(date_end)`. The `additional_columns` argument retrieves total assets (`at`) and income before extraordinary items (`ib`), needed for computing asset growth and applying an earnings filter in later steps. Setting `only_usd = TRUE` restricts the dataset to USD-denominated stocks.
+
+## Variable construction {#sec:data-cleaning}
+
+We illustrate data cleaning and variable construction using asset growth (AG) as our running example. Asset growth for a firm $i$ in year $t$ is the year-over-year percentage change in total assets [@cooper.2008],
+
+$$
+AG_{t,i} = (AT_{t,i} - AT_{t-1,i}) / AT_{t-1,i}\text{,}
+$$
+
+where $AT_{t,i}$ is total assets for firm $i$ in year $t$ (retrieved in column `at`).
+
+The `add_lagged_columns()` function from \pkg{tidyfinance} handles temporal alignment by creating a lagged version of total assets grouped by firm identifier (`gvkey`) with a one-year lag. Non-finite values (arising when lagged total assets are zero or missing) become `NA`.
+
+```{r compute-sorting-variables}
+sorting_variable_data <- compustat_annual |>
+  add_lagged_columns(
+    cols = "at",
+    lag = years(1),
+    by = "gvkey"
+  ) |>
+  mutate(
+    asset_growth = (at - at_lag) / at_lag,
+    asset_growth = if_else(is.finite(asset_growth), asset_growth, NA_real_)
+  ) |>
+  select(gvkey, date, asset_growth, ib)
+```
+
+The call relies on two silent defaults: `max_lag` falls back to `lag` (here one year), so only the single observation exactly one year before each row is eligible; `ff_adjustment = FALSE`, so the look-back is the plain calendar window rather than the Fama-French June/July rebalancing convention introduced in Section \@ref(sec:variable-construction).
+
+`sorting_variable_data` contains one observation per firm-year, the natural unit for cross-sectional analysis of annual accounting variables. Asset growth is heavily right-skewed: a small number of firms with dramatic balance-sheet expansions generate extreme positive values. Table \@ref(tab:ag-summary) reports the pooled cross-sectional summary alongside the time-series average, minimum, and maximum of the corresponding statistic computed cross-sectionally each year.^[The pooled count of `r format(sum(!is.na(sorting_variable_data$asset_growth)), big.mark = ",")` firm-years is below the `r format(nrow(compustat_annual), big.mark = ",")` downloaded in Section \@ref(sec:data-download) because the one-year lag in the asset-growth construction drops each firm's first observation.] We obtain both views with `create_summary_statistics()`, a \pkg{tidyfinance} helper that returns the standard set of cross-sectional summary statistics for a variable: applied to the pooled (winsorized) sample for the first column and grouped by calendar year for the next three. Table \@ref(tab:ag-summary) assembles the two computations side by side.
+
+```{r ag-summary-prep}
+pooled_stats <- sorting_variable_data |>
+  drop_na(asset_growth) |>
+  mutate(asset_growth = winsorize(asset_growth, 0.01)) |>
+  create_summary_statistics(asset_growth, detail = TRUE)
+
+yearly_stats <- sorting_variable_data |>
+  drop_na(asset_growth) |>
+  group_by(year = year(date)) |>
+  mutate(asset_growth = winsorize(asset_growth, 0.01)) |>
+  ungroup() |>
+  create_summary_statistics(asset_growth, by = year, detail = TRUE)
+```
+
+```{r ag-summary, echo=FALSE}
+stat_cols <- c("n", "mean", "sd", "q10", "q25", "q50", "q75", "q90")
+stat_labels <- c("N", "Mean", "SD", "P10", "P25", "Median", "P75", "P90")
+fmt_val <- function(col, x) {
+  if (col == "n") {
+    formatC(round(x), format = "d", big.mark = ",")
+  } else {
+    formatC(x, format = "f", digits = 3)
+  }
+}
+
+data.frame(
+  Statistic = stat_labels,
+  Pooled = vapply(
+    stat_cols,
+    function(s) fmt_val(s, pooled_stats[[s]]),
+    character(1)
+  ),
+  `Yearly avg` = vapply(
+    stat_cols,
+    function(s) fmt_val(s, mean(yearly_stats[[s]])),
+    character(1)
+  ),
+  `Yearly min` = vapply(
+    stat_cols,
+    function(s) fmt_val(s, min(yearly_stats[[s]])),
+    character(1)
+  ),
+  `Yearly max` = vapply(
+    stat_cols,
+    function(s) fmt_val(s, max(yearly_stats[[s]])),
+    character(1)
+  )
+) |>
+  knitr::kable(
+    caption = paste0("Cross-sectional summary statistics for asset growth (winsorized at the 1st and 99th percentiles). The 'Pooled' column reports the statistic computed on the entire firm-year sample. The 'Yearly' columns summarize the time series of statistic values computed cross-sectionally year by year, taking the average, minimum, and maximum across calendar years. N is the count of firm-year observations (pooled) or per-year observations (yearly columns). Sample: ", sample_years(drop_na(sorting_variable_data, asset_growth)), "."),
+    align = "lrrrr",
+    format = "latex",
+    booktabs = TRUE,
+    linesep = ""
+  )
+```
+
+The next step merges annual sorting variables onto the monthly CRSP stock panel using `join_lagged_values()`. The function aligns fiscal-year-end data with monthly observations through a configurable lag window. Setting `ff_adjustment = TRUE` implements the Fama-French convention [@fama.1993], aligning fiscal-year data from year $t$ with portfolio formation in July of year $t+1$ through a 12-to-18-month look-back window.
+
+```{r lag-sorting-variables}
+sorting_data <- crsp_monthly |>
+  join_lagged_values(
+    new_data = sorting_variable_data,
+    id_keys = "gvkey",
+    min_lag = months(7),
+    max_lag = months(18),
+    ff_adjustment = TRUE
+  ) |>
+  select(
+    date,
+    permno,
+    exchange,
+    siccd,
+    ret_excess,
+    mktcap_lag,
+    asset_growth,
+    ib
+  ) |>
+  filter(date >= date_start + months(12) + months(18))
+```
+
+The filter removes the initial year used to compute the growth rate plus an additional 18 months to avoid mechanically introduced gaps from the lagging step, leaving a panel of stock-month observations with excess returns, exchange membership, lagged market capitalization, and the lagged sorting variable. The auxiliary columns `siccd` and `ib` support the sample-construction filters in Section \@ref(sec:customized-sorts).
+
+Figure \@ref(fig:ag-percentiles) shows the 33rd, 50th, and 66th cross-sectional percentiles of asset growth over time in the resulting panel; pronounced spikes during economic expansions and contractions highlight the cyclical nature of corporate investment.
+
+```{r ag-percentiles, fig.alt="Time-series line plot of the 33rd, 50th, and 66th percentiles of cross-sectional asset growth, expressed as annual percentage growth in total assets.", fig.cap=paste0("Selected percentiles (33rd, 50th, 66th) of cross-sectional asset growth over time. The y-axis reports annual growth in total assets in percent. Sample: ", sample_years(drop_na(sorting_data)), "."), fig.width=6.5, out.width="100%", echo=FALSE}
+plot_data <- sorting_data |>
+  drop_na() |>
+  group_by(date) |>
+  summarize(
+    "33%" = quantile(asset_growth, 0.33),
+    "Median" = quantile(asset_growth, 0.50),
+    "66%" = quantile(asset_growth, 0.66),
+    .groups = "drop"
+  ) |>
+  pivot_longer(
+    cols = -date,
+    names_to = "quantile",
+    values_to = "asset_growth"
+  )
+
+label_data <- plot_data |>
+  group_by(quantile) |>
+  slice_max(date, n = 1) |>
+  mutate(date = date %m+% months(6)) |> # Nudge labels right of the last observation
+  ungroup()
+
+ggplot(plot_data, aes(x = date, y = asset_growth, color = quantile)) +
+  geom_line() +
+  geom_text(
+    data = label_data,
+    aes(label = quantile),
+    hjust = 0,
+    show.legend = FALSE
+  ) +
+  scale_x_date(expand = expansion(mult = c(0.02, 0.12))) +
+  scale_y_continuous(labels = scales::percent) +
+  labs(x = NULL, y = "Asset growth") +
+  theme(legend.position = "none")
+```
+
+With the sorting variable constructed and merged onto the monthly stock panel, we now turn to portfolio sorts, the mechanism that translates firm-level characteristics into tradable factor returns.
+
+## Portfolio sorting {#sec:portfolio-sorts}
+
+In portfolio sorts, stocks are ranked each period by their sorting variable and divided into quantile portfolios. Portfolio returns are equal-weighted or value-weighted averages of constituent stock returns. The long-short factor return is the difference between the extreme portfolios. For asset growth, the relevant spread is bottom minus top, reflecting the negative premium documented by @cooper.2008. The construction involves several methodological choices: which stocks enter the universe, how many portfolios to form, which exchange determines the breakpoints, the weighting scheme, and the rebalancing frequency.
+
+`implement_portfolio_sort()` exposes all of these choices through a single function call. The function takes the panel data, one or two sorting variables, a sorting method, and a `portfolio_sort_options` object that bundles two configuration layers: `filter_options()` controls which observations enter the breakpoint and return computation (for example, excluding financial firms or stocks below a minimum price), and `breakpoint_options()` controls how portfolios are formed (number of portfolios, exchange universe, bunching). Internally, the function applies the sample filters and then calls `compute_portfolio_returns()`, which produces the time series of portfolio returns. A subsequent call to `compute_long_short_returns()` constructs the long-short portfolio.
+
+`compute_portfolio_returns()` itself rests on two lower-level helpers, `compute_breakpoints()` for quantile cutoffs and `assign_portfolio()` for mapping each stock-month to a portfolio number. Both are exported, so researchers who need finer control can call them directly rather than through the wrapper. The two examples below use `implement_portfolio_sort()` throughout.
+
+### Baseline specification (univariate sorts) {#sec:baseline-sorts}
+
+The simplest call to `implement_portfolio_sort()` requires only a `portfolio_sort_options` object that specifies how to form the breakpoints. In a univariate sort, stocks are ranked on a single characteristic. We illustrate using asset growth as the sorting variable, forming quintile portfolios with breakpoints computed from NYSE-listed stocks only, and rebalancing annually in July.
+
+```{r baseline-options}
+options_baseline <- portfolio_sort_options(
+  breakpoint_options_main = breakpoint_options(
+    n_portfolios = 5,
+    breakpoints_exchanges = "NYSE"
+  )
+)
+```
+
+The `breakpoint_options()` call specifies that breakpoints come only from NYSE-listed stocks, a common convention that avoids the influence of small AMEX and NASDAQ firms on portfolio cutoffs. We then pass these options to `implement_portfolio_sort()`.
+
+```{r baseline-sort}
+portfolio_returns <- implement_portfolio_sort(
+  data = sorting_data,
+  sorting_variables = "asset_growth",
+  sorting_method = "univariate",
+  rebalancing_month = 7,
+  portfolio_sort_options = options_baseline
+)
+```
+
+Apart from setting `rebalancing_month = 7`, every other choice point falls back to the package default: a cap-weight cutoff at the 80th percentile of market capitalization for the capped value-weighted return, no minimum portfolio size, and no smooth bunching. The standard CRSP/Compustat column names (`permno`, `date`, `ret_excess`, `mktcap_lag`, `exchange`) are picked up automatically through the default `data_options()`. Setting `rebalancing_month = 7` reforms the portfolios each July and holds them for the following twelve months, in line with the standard Fama-French rebalancing convention. This schedule pairs with `ff_adjustment = TRUE` in `join_lagged_values()`: the signal is locked in at the June/July boundary, so July is the first month in which a fresh fiscal-year update is available.
+
+`compute_portfolio_returns()`, called internally, returns a long data frame with one row per portfolio-month and the three weighting columns introduced in Section \@ref(sec:portfolio-sorting): `ret_excess_vw` (value-weighted, VW), `ret_excess_ew` (equal-weighted, EW), and `ret_excess_vw_capped` (capped value-weighted, VWC). Piping the result through `compute_long_short_returns()` gives the long-short portfolio. The `direction = "bottom_minus_top"` argument means the factor is long low-AG stocks and short high-AG stocks.
+
+```{r long-short-ag}
+factor_returns_ag <- portfolio_returns |>
+  compute_long_short_returns(direction = "bottom_minus_top")
+```
+
+Table \@ref(tab:univariate-sort-ag) summarizes the time series of each quintile across all three weighting schemes, with the long-short portfolio appended as the final row.
+
+```{r univariate-sort-ag-stats}
+return_summary <- function(data) {
+  data |>
+    drop_na() |>
+    summarize(
+      across(
+        c(ret_excess_vw, ret_excess_ew, ret_excess_vw_capped),
+        list(
+          mean = \(x) mean(x) * 12,
+          tstat = \(x) mean(x) / (sd(x) / sqrt(n()))
+        ),
+        .names = "{.col}_{.fn}"
+      ),
+      .groups = "drop"
+    )
+}
+univariate_sort_table <- bind_rows(
+  portfolio_returns |>
+    group_by(portfolio) |>
+    return_summary() |>
+    mutate(portfolio = as.character(portfolio)),
+  factor_returns_ag |>
+    return_summary() |>
+    mutate(portfolio = "L/S")
+)
+```
+
+```{=latex}
+\begingroup
+\small
+```
+
+```{r univariate-sort-ag, echo=FALSE}
+group_header <- paste0(
+  " & \\multicolumn{2}{c}{Value-weighted} & ",
+  "\\multicolumn{2}{c}{Equal-weighted} & ",
+  "\\multicolumn{2}{c}{Capped value-weighted} \\\\\n",
+  "\\cmidrule(lr){2-3} \\cmidrule(lr){4-5} \\cmidrule(lr){6-7}\n"
+)
+
+raw_table <- univariate_sort_table |>
+  knitr::kable(
+    caption = paste0("Time-series averages of annualized monthly excess returns for asset growth quintile portfolios. Portfolios are formed annually in July using NYSE breakpoints. Means are annualized (multiplied by 12). The $t$~statistic tests whether the mean monthly excess return differs from zero. Capped value-weighted pulls weights above the 80th percentile back to that cap. The L/S row is the long-short portfolio (bottom minus top quintile). Sample: ", sample_years(drop_na(portfolio_returns)), "."),
+    digits = 3,
+    escape = FALSE,
+    format = "latex",
+    booktabs = TRUE,
+    linesep = "",
+    col.names = c(
+      "Portfolio",
+      "Mean",
+      "$t$~statistic",
+      "Mean",
+      "$t$~statistic",
+      "Mean",
+      "$t$~statistic"
+    )
+  )
+
+structure(
+  sub(
+    "\\toprule\n",
+    paste0("\\toprule\n", group_header),
+    raw_table,
+    fixed = TRUE
+  ),
+  format = attr(raw_table, "format"),
+  class = class(raw_table)
+)
+```
+
+```{=latex}
+\endgroup
+```
+
+The value-weighted long-short portfolio earns `r round(mean(factor_returns_ag$ret_excess_vw, na.rm = TRUE) * 12 * 100, 1)`% per year ($t$~statistic of `r round(mean(factor_returns_ag$ret_excess_vw, na.rm = TRUE) / (sd(factor_returns_ag$ret_excess_vw, na.rm = TRUE) / sqrt(sum(!is.na(factor_returns_ag$ret_excess_vw)))), 2)`), consistent with the premium documented by @cooper.2008. The equal-weighted spread is larger, as expected for characteristics that correlate with size. The monotone decline of value-weighted means across quintiles confirms that \pkg{tidyfinance} reproduces the literature result from raw WRDS data with a single function call.
+
+### Customized specification (bivariate sorts) {#sec:customized-sorts}
+
+The baseline specification above takes nearly every package default and runs a univariate sort to form long-short portfolios. The customized specification below changes both: it overrides several of those defaults through `portfolio_sort_options` and moves from sorting on one variable to sorting on two.
+
+We adopt a specification that combines, in a single call to `implement_portfolio_sort()`, the universe restrictions and breakpoint conventions used in many empirical studies: exclude financials and utilities, exclude firms with non-positive earnings, ignore the smallest 20% of NYSE-listed firms when computing breakpoints, form quintiles on AG within size buckets, use NYSE-only breakpoints, rebalance annually in July, and require at least ten constituents per portfolio.
+
+Bivariate sorts control for a second variable, typically firm size (`mktcap_lag`), when forming portfolios on the main characteristic. We use the dependent variant introduced in Section \@ref(sec:portfolio-sorting) and illustrated in Figure \@ref(fig:illustrate-portfolio-helper): stocks are first split into size buckets, then sorted into asset growth portfolios within each bucket, with returns averaged across the size dimension.
+
+```{r customized-options}
+options_customized <- portfolio_sort_options(
+  filter_options = filter_options(
+    exclude_financials = TRUE,
+    exclude_utilities = TRUE,
+    exclude_negative_earnings = TRUE
+  ),
+  breakpoint_options_main = breakpoint_options(
+    n_portfolios = 5,
+    breakpoints_exchanges = "NYSE",
+    breakpoints_min_size_threshold = 0.2
+  ),
+  breakpoint_options_secondary = breakpoint_options(
+    n_portfolios = 2,
+    breakpoints_exchanges = "NYSE"
+  )
+)
+```
+
+```{r customized-sort}
+portfolio_returns_customized <- implement_portfolio_sort(
+  data = sorting_data,
+  sorting_variables = c("asset_growth", "mktcap_lag"),
+  sorting_method = "bivariate-dependent",
+  rebalancing_month = 7,
+  portfolio_sort_options = options_customized,
+  min_portfolio_size = 10,
+  quiet = TRUE
+)
+factor_returns_customized <- portfolio_returns_customized |>
+  compute_long_short_returns(direction = "bottom_minus_top")
+```
+
+A single options object (`options_customized`) bundles every methodological choice that distinguishes this specification from the baseline; nothing in the surrounding pipeline changes. Switching from a univariate to a size-controlled dependent bivariate sort is a one-word change in `sorting_method`, and the secondary breakpoint object is supplied alongside the primary one without any additional work. Setting `quiet = TRUE` suppresses the diagnostic messages from `filter_sorting_data()`, which report how many observations each filter drops; setting `quiet = FALSE` (the default) is useful when iterating to track sample-construction effects.
+
+For comparison, we also include a bivariate-dependent sort that uses the default filters and breakpoint conventions, so the only difference from the baseline is the addition of size control. The long-short returns from that specification are appended to the customized one in Table \@ref(tab:customized-comparison).
+
+```{r bivariate-only-sort}
+options_bivariate <- portfolio_sort_options(
+  breakpoint_options_main = breakpoint_options(
+    n_portfolios = 5,
+    breakpoints_exchanges = "NYSE"
+  ),
+  breakpoint_options_secondary = breakpoint_options(
+    n_portfolios = 2,
+    breakpoints_exchanges = "NYSE"
+  )
+)
+portfolio_returns_bivariate <- implement_portfolio_sort(
+  data = sorting_data,
+  sorting_variables = c("asset_growth", "mktcap_lag"),
+  sorting_method = "bivariate-dependent",
+  rebalancing_month = 7,
+  portfolio_sort_options = options_bivariate
+)
+factor_returns_bivariate <- portfolio_returns_bivariate |>
+  compute_long_short_returns(direction = "bottom_minus_top")
+```
+
+Table \@ref(tab:customized-comparison) decomposes the customized premium into two layers. Adding the size-controlled bivariate sort alone (the bivariate-only row) lifts the annualized premium from `r round(mean(factor_returns_ag$ret_excess_vw, na.rm = TRUE) * 12 * 100, 1)`% to `r round(mean(factor_returns_bivariate$ret_excess_vw, na.rm = TRUE) * 12 * 100, 1)`%, with the $t$~statistic moving from borderline to significant at conventional levels. Controlling for size reveals that most of the AG signal in the cross-section was masked by size dispersion in the univariate sort. Layering the filter set and the 20% breakpoint threshold on top trims the magnitude back to `r round(mean(factor_returns_customized$ret_excess_vw, na.rm = TRUE) * 12 * 100, 1)`%, where the spread remains significant at conventional levels: removing financials, utilities, and loss-making firms strips out some of the firms contributing to the unfiltered spread. Across all three specifications, the spread is positive and reflects the negative AG premium reported in @cooper.2008, who finds an annual value-weighted long-short premium of about 12.6% over July 1968 to June 2003.[^cooper-deciles]
+
+[^cooper-deciles]: @cooper.2008 sorts into deciles.
+
+```{r customized-comparison-stats, echo=FALSE}
+customized_comparison_table <- bind_rows(
+  factor_returns_ag |>
+    drop_na() |>
+    summarize(
+      Specification = "Baseline (univariate, no filters)",
+      `VW mean` = mean(ret_excess_vw) * 12,
+      `VW $t$~statistic` = mean(ret_excess_vw) / (sd(ret_excess_vw) / sqrt(n()))
+    ),
+  factor_returns_bivariate |>
+    drop_na() |>
+    summarize(
+      Specification = "Bivariate only (size-controlled, no filters)",
+      `VW mean` = mean(ret_excess_vw) * 12,
+      `VW $t$~statistic` = mean(ret_excess_vw) / (sd(ret_excess_vw) / sqrt(n()))
+    ),
+  factor_returns_customized |>
+    drop_na() |>
+    summarize(
+      Specification = "Customized (size-controlled, filtered)",
+      `VW mean` = mean(ret_excess_vw) * 12,
+      `VW $t$~statistic` = mean(ret_excess_vw) / (sd(ret_excess_vw) / sqrt(n()))
+    )
+)
+```
+
+```{=latex}
+\begingroup
+\small
+```
+
+```{r customized-comparison, echo=FALSE}
+customized_comparison_table |>
+  knitr::kable(
+    caption = paste0("Comparison of long-short asset growth returns across three specifications. The baseline is a univariate sort with NYSE breakpoints and no filters. The bivariate-only specification adds a dependent bivariate sort on size to the baseline but otherwise keeps the same universe and breakpoints. The customized specification adds the filter set (financials, utilities, non-positive earnings) and a 20\\% size threshold on the breakpoints. All rows use annual July rebalancing; means are annualized value-weighted excess returns. Sample: ", sample_years(drop_na(factor_returns_ag)), "."),
+    digits = 3,
+    escape = FALSE,
+    format = "latex",
+    booktabs = TRUE,
+    linesep = ""
+  )
+```
+
+```{=latex}
+\endgroup
+```
+
+Researchers who want finer-grained control can call the lower-level portfolio-sorting functions in Table \@ref(tab:functions) directly. They share signatures and semantics with `implement_portfolio_sort()`, so an analysis prototyped against the wrapper can be unrolled into its components without rewriting the pipeline. This separation matters when custom logic applies at one stage only, for example, computing breakpoints separately within each industry, or from a trailing window of past data rather than the contemporaneous cross-section.
+
+```{=latex}
+\needspace{5\baselineskip}
+```
+
+### Asset pricing tests {#sec:fama-macbeth}
+ 
+A long-short return is one summary of whether asset growth predicts the cross-section of returns. A complementary view comes from Fama-MacBeth regressions [@fama.1973], which estimate the average risk premium associated with a characteristic after running cross-sectional regressions period by period. \pkg{tidyfinance} implements the standard procedure in `estimate_fama_macbeth()`, which takes a panel and a model formula, fits one cross-sectional ordinary least squares (OLS) regression per period, and aggregates the period-level coefficients into average risk premia with Newey-West standard errors with automatic lag selection.
+
+Here, we winsorize the AG signal at the 1st and 99th percentiles to keep extreme observations from dominating the cross-sectional regressions and pair it with log market capitalization as a size control.
+ 
+```{r fama-macbeth-data}
+fm_data <- sorting_data |>
+  drop_na(asset_growth, mktcap_lag, ret_excess) |>
+  group_by(date) |>
+  mutate(
+    asset_growth = winsorize(x = asset_growth, cut = 0.01),
+    log_mktcap = log(mktcap_lag)
+  ) |>
+  ungroup()
+```
+ 
+```{r fama-macbeth-fit}
+fm_results <- estimate_fama_macbeth(
+  data = fm_data,
+  model = "ret_excess ~ asset_growth + log_mktcap"
+)
+```
+ 
+```{r fama-macbeth, echo=FALSE}
+fm_results |>
+  mutate(
+    factor = recode(
+      factor,
+      "intercept" = "Intercept",
+      "asset_growth" = "Asset growth",
+      "log_mktcap" = "Log market cap"
+    )
+  ) |>
+  select(
+    Variable = factor,
+    `Risk premium` = risk_premium,
+    SE = standard_error,
+    `$t$~statistic` = t_statistic,
+    `N (months)` = n
+  ) |>
+  knitr::kable(
+    caption = paste0("Fama-MacBeth regression of monthly excess returns on lagged asset growth and lagged log market capitalization. Coefficients are time-series averages of monthly cross-sectional OLS estimates; standard errors are Newey and West (1987) with automatic lag selection. The intercept and slopes on the right-hand-side variables are reported on the monthly scale. Sample: ", sample_years(fm_data), "."),
+    digits = 4,
+    escape = FALSE,
+    format = "latex",
+    booktabs = TRUE,
+    linesep = ""
+  )
+```
+ 
+The negative slope on `asset_growth` in Table \@ref(tab:fama-macbeth) lines up with the long-short evidence in Table \@ref(tab:univariate-sort-ag) and Table \@ref(tab:customized-comparison): high-AG firms earn lower subsequent returns, conditional on size. As an external benchmark, @cooper.2008 [Table III, Panel A, Model 1] reports a Fama-MacBeth slope on annual asset growth of -0.0922 ($t$~statistic of -6.52). Converted to a monthly basis, their slope is approximately `r round(-0.0922 / 12, 4)` $(=-0.0922/12)$, directly comparable to the magnitude of the AG coefficient in our table.[^cooper-fm-controls] Switching to `vcov = "iid"` or supplying `vcov_options = list(lag = 6, prewhite = FALSE)` would change the standard-error treatment without altering the rest of the call, and adding additional regressors (e.g., a beta estimate from `estimate_betas()`, a profitability measure, an idiosyncratic-volatility control) is a one-line extension to the model formula. The same function therefore covers the standard cross-sectional asset-pricing test that complements the portfolio-sort evidence used throughout the rest of the paper.
+
+[^cooper-fm-controls]: @cooper.2008 additionally controls for book-to-market and 6- and 36-month past returns, both negatively correlated with AG.
+
+
+# Summary and discussion {#sec:summary}
+
+Empirical asset pricing depends on dozens of construction choices that no consensus pins down. \pkg{tidyfinance} makes those choices first-class objects in the workflow: each is an argument, each has a documented default, each can be varied without rebuilding the pipeline. Disagreements over construction become empirical questions, not implicit assumptions buried in code.
+
+We will maintain and extend the package on CRAN. At the time of writing, all functions are covered by comprehensive unit tests, with code coverage reported at 100% by [Codecov](https://app.codecov.io/gh/tidy-finance/r-tidyfinance), and each release is accompanied by passing R CMD check results across multiple operating systems, including the latest macOS, Windows, and Ubuntu environments. The companion Hugging Face artifacts (the spliced risk-free rate and the precomputed factor library) are refreshed on a scheduled GitHub Actions workflow, so the published series track new WRDS releases without manual intervention.
+
+Companion materials at [tidy-finance.org](https://tidy-finance.org) integrate \pkg{tidyfinance} into open coursework and self-study tracks for graduate finance and asset pricing in \proglang{R}. The site also hosts a reviewed channel through which researchers can publish replications and new construction routines, so the catalog of factors and conventions can grow with the literature rather than freezing at the package's release.
+
+# Computational details {-}
+
+```{r renv-versions, echo=FALSE, purl=FALSE}
+renv_lock <- jsonlite::fromJSON("renv.lock")
+pkg_version <- function(pkg) {
+  v <- renv_lock$Packages[[pkg]]$Version
+  if (is.null(v)) {
+    v <- tryCatch(
+      as.character(utils::packageVersion(pkg)),
+      error = function(e) NA_character_
+    )
+  }
+  v
+}
+r_version <- renv_lock$R$Version
+```
+
+We obtained the results in this paper using \proglang{R} `r r_version` with the following packages: \pkg{tidyfinance} `r pkg_version("tidyfinance")`, \pkg{dplyr} `r pkg_version("dplyr")` [@dplyr], \pkg{tidyr} `r pkg_version("tidyr")` [@tidyr], \pkg{ggplot2} `r pkg_version("ggplot2")` [@ggplot2], and \pkg{lubridate} `r pkg_version("lubridate")` [@lubridate]. We install development versions of \pkg{tidyfinance} with \pkg{pak} `r pkg_version("pak")` [@pak]. Figures additionally use \pkg{ggforce} `r pkg_version("ggforce")` [@ggforce], \pkg{scales} `r pkg_version("scales")` [@scales], and \pkg{patchwork} `r pkg_version("patchwork")` [@patchwork]. CRAN hosts \proglang{R} and all packages at [https://CRAN.R-project.org/](https://CRAN.R-project.org/). \pkg{renv} `r pkg_version("renv")` [@renv] ensures full reproducibility of the computational environment. Reproducing the factor return data requires an institutional subscription to WRDS, as the underlying CRSP and Compustat data are proprietary and cannot be redistributed. A pseudo-data path with identical schema is available via `download_data(domain = "pseudo", ...)` for readers without WRDS access; see Section \@ref(sec:data-download).
+
+Reproducing this manuscript takes about 15 minutes: `rmarkdown::render("tidyfinance.Rmd")` uses the WRDS subset described in Section \@ref(sec:data-download), or pseudo data of identical schema for readers without WRDS access. Timings reported here are obtained on `r sessionInfo()$running` with a `r parallel::detectCores()`-core processor running \proglang{R} `r r_version`; WRDS extracts are not pre-cached, so the 15-minute figure includes the time to download the underlying CRSP and Compustat panels.
+
+We publish all code, data workflows, and documentation at [https://github.com/tidy-finance/jss-multilingual-factor-library](https://github.com/tidy-finance/jss-multilingual-factor-library). The code is released under the MIT License, which is compatible with the GNU General Public License (GPL).
+
+```{r session-info, include=FALSE}
+sessionInfo()
+```
+
+# Acknowledgments {-}
+
+Stefan Voigt is grateful to the Danish Finance Institute for financial support. 
+
+# References {-}
+
+
