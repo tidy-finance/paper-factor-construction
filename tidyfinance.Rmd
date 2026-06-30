@@ -49,7 +49,9 @@ author:
     email: patrickw@ru.is
 type: package
 output:
-  rjtools::rjournal_article:
+  rjtools::rjournal_pdf_article:
+    toc: no
+  rjtools::rjournal_web_article:
     self_contained: yes
     toc: no
 bibliography: tidyfinance.bib
