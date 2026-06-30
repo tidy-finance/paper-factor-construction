@@ -295,8 +295,8 @@ Table: (\#tab:functions) User-facing functions in \CRANpkg{tidyfinance}, grouped
 |                |                                    | ```                                     |
 +----------------+------------------------------------+-----------------------------------------+
 | Factor Library | Precomputed factor returns         | ```                                     |
-|                | across construction choices        | download_data(                          |
-|                | hosted on Hugging Face Hub         |   domain = "tidyfinance",               |
+|                | hosted on Hugging Face Hub         | download_data(                          |
+|                |                                    |   domain = "tidyfinance",               |
 |                |                                    |   dataset = "factor_library",           |
 |                |                                    |   sorting_variable = "ag"               |
 |                |                                    | )                                       |
@@ -1459,7 +1459,7 @@ We obtained the results in this paper using \proglang{R} `r r_version` with the 
 
 Reproducing this manuscript takes about 15 minutes: `rmarkdown::render("tidyfinance.Rmd")` uses the WRDS subset described in Section \@ref(sec:data-download), or pseudo data of identical schema for readers without WRDS access. Timings reported here are obtained on `r sessionInfo()$running` with a `r parallel::detectCores()`-core processor running \proglang{R} `r r_version`; WRDS extracts are not pre-cached, so the 15-minute figure includes the time to download the underlying CRSP and Compustat panels.
 
-We publish all code, data workflows, and documentation at [https://github.com/tidy-finance/jss-multilingual-factor-library](https://github.com/tidy-finance/jss-multilingual-factor-library). The code is released under the MIT License, which is compatible with the GNU General Public License (GPL).
+We publish all code, data workflows, and documentation at [https://github.com/tidy-finance/paper-factor-construction](https://github.com/tidy-finance/paper-factor-construction). The code is released under the MIT License, which is compatible with the GNU General Public License (GPL).
 
 ```{r session-info, include=FALSE}
 sessionInfo()
