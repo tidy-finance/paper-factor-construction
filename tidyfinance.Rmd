@@ -59,6 +59,7 @@ date: "2026-06-30"
 keywords: [financial risk factors, reproducible research, asset pricing]
 header-includes:
   - '\providecommand{\proglang}[1]{\textsf{#1}}'
+  - '\usepackage{multirow}'
 
 ---
 
