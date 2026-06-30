@@ -1428,10 +1428,6 @@ customized_comparison_table |>
 
 Researchers who want finer-grained control can call the lower-level portfolio-sorting functions in Table \@ref(tab:functions) directly. They share signatures and semantics with `implement_portfolio_sort()`, so an analysis prototyped against the wrapper can be unrolled into its components without rewriting the pipeline. This separation matters when custom logic applies at one stage only, for example, computing breakpoints separately within each industry, or from a trailing window of past data rather than the contemporaneous cross-section.
 
-```{=latex}
-\needspace{5\baselineskip}
-```
-
 ### Asset pricing tests {#sec:fama-macbeth}
  
 A long-short return is one summary of whether asset growth predicts the cross-section of returns. A complementary view comes from Fama-MacBeth regressions [@fama.1973], which estimate the average risk premium associated with a characteristic after running cross-sectional regressions period by period. \pkg{tidyfinance} implements the standard procedure in `estimate_fama_macbeth()`, which takes a panel and a model formula, fits one cross-sectional ordinary least squares (OLS) regression per period, and aggregates the period-level coefficients into average risk premia with Newey-West standard errors with automatic lag selection.

@@ -5,3 +5,11 @@ jss-manuscript_cache/
 jss-manuscript_files/
 config.yaml
 _render-test*
+_rt.*
+RJwrapper.*
+figure/
+_render-test_files/
+*.aux
+*.bbl
+*.blg
+*.brf
