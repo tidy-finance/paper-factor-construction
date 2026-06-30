@@ -57,6 +57,8 @@ output:
 bibliography: tidyfinance.bib
 date: "2026-06-30"
 keywords: [financial risk factors, reproducible research, asset pricing]
+header-includes:
+  - '\providecommand{\proglang}[1]{\textsf{#1}}'
 
 ---
 
@@ -65,6 +67,8 @@ library("ggforce")
 library("ggplot2")
 library("scales")
 library("patchwork")
+
+options(cli.unicode = FALSE)
 
 tf_yellow <- "#EBCC2AFF"
 tf_dark_blue <- "#3B9AB2FF"
@@ -107,7 +111,7 @@ No widely adopted tool covers this upstream workflow. The most popular factor so
 
 This paper introduces \CRANpkg{tidyfinance}, an \proglang{R} package on CRAN that exposes each stage of the pipeline as configurable code. The package addresses each stage with a dedicated interface. A unified `download_data()` function cleans, aligns, and harmonizes panels from Wharton Research Data Services (WRDS), Ken French's Data Library, Federal Reserve Economic Data (FRED), and seven other providers, including current constituents for `r format(nrow(tidyfinance::list_supported_indexes()), big.mark = ",")` major equity indexes; Table \@ref(tab:data-sources) catalogs the full set. The WRDS panels cover CRSP, Compustat, the Trade Reporting and Compliance Engine (TRACE), and the Mergent Fixed Income Securities Database (FISD). Composable helpers then automate fiscal-year lagging, breakpoint computation, and portfolio aggregation. Every construction choice is exposed as a function argument with a default that follows established convention (for instance, value-weights and the Fama-French fiscal-year lag). A default call reproduces standard practice; overriding any default takes one argument.
 
-We illustrate the package by reproducing a version of the asset growth factor of @cooper.2008 end-to-end from raw CRSP and Compustat data, then varying any construction choice with a single-argument change. The package operationalizes the workflow developed in the open-access textbook *Tidy Finance with \proglang{R}* [@scheuch.2023], which presents each step in tutorial form with inline scripts. The contribution of this paper is \pkg{tidyfinance} itself: a unified, configurable, tested, and versioned \proglang{R} package for this workflow. Where the books teach a reader how to assemble the pipeline from scratch, the package supplies it as a single dependency that researchers can call, audit, and reuse without rebuilding the underlying code.
+We illustrate the package by reproducing a version of the asset growth factor of @cooper.2008 end-to-end from raw CRSP and Compustat data, then varying any construction choice with a single-argument change. The package operationalizes the workflow developed in the open-access textbook *Tidy Finance with \proglang{R}* [@scheuch.2023], which presents each step in tutorial form with inline scripts. The contribution of this paper is \CRANpkg{tidyfinance} itself: a unified, configurable, tested, and versioned \proglang{R} package for this workflow. Where the books teach a reader how to assemble the pipeline from scratch, the package supplies it as a single dependency that researchers can call, audit, and reuse without rebuilding the underlying code.
 
 # Background and related work {#sec:background}
 
@@ -119,19 +123,19 @@ The \proglang{R} ecosystem for empirical asset pricing splits cleanly into three
 
 **Factor data releases.** A group of projects publishes *factor return series* directly. Ken French's Data Library [@fama.2023] supplies the canonical @fama.1993 three- and five-factor returns and dozens of sorted portfolios, but documents construction in prose only and provide no associated code. @akey.2026 show that these series change retroactively as the underlying method is silently revised, so that the factor returns a researcher obtains depend on *when* they were downloaded, with material effects on mutual-fund performance and cross-sectional asset pricing tests. A transparent, code-first pipeline removes precisely this opacity. Three more recent projects pair the published factor data with the construction script that produced it. @hou.2020 replicate 452 cross-sectional anomalies and document that most fail out-of-sample, attributing the failures in part to undocumented construction variation across studies. The Open Source Cross-Sectional Asset Pricing repository [@chen.2022] responds by publishing per-anomaly construction scripts alongside the resulting 213+ long-short returns. The Open Source Bond Asset Pricing project [@dickerson.2023] does the same for corporate bond factors. @jensen.2023 provide the Global Factor Data of hundreds of long-short signals across many countries, together with the construction code in \proglang{Python}. These projects represent a substantial move toward transparency: a reader can inspect exactly how each factor was built and reproduce its returns. Two limitations remain. First, none exposes the pipeline as a callable API. A user who wants the asset growth factor rebalanced in January instead of July, or formed on NYSE-plus-NASDAQ breakpoints, or computed on a different fiscal-year lag, must fork the published script and edit it by hand. The script is not a function with named arguments. Second, the factor returns are frozen at the release date, with no in-workflow path to refresh them as new observations arrive or as a researcher's design choices evolve.
 
-**\pkg{tidyfinance} fills the missing gap:** the package supplies the cleaned WRDS-CRSP-Compustat panel that data-acquisition packages do not produce and exposes the factor-construction pipeline that downstream analysis packages assume to be in hand. One `download_data()` call returns a cleaned WRDS-CRSP-Compustat panel; further functions implement the full factor-construction pipeline (fiscal-year lagging, breakpoint computation, portfolio sorting, long-short aggregation) as a chain of composable steps whose arguments cover the construction choices that vary across studies in the literature above. Two design principles, both inherited from @scheuch.2023, guide the API. First, each construction decision is *transparent*: it appears as a configurable parameter with a documented default, in line with the tidy tools principles of @wickham.2023. Second, the pipeline is *modular* by construction: each construction step is implemented as a narrowly scoped function with clearly defined inputs and outputs. Researchers can therefore either chain these functions into a complete factor-construction workflow or reuse individual components within their own pipelines. \pkg{tidyfinance} additionally covers asset pricing tests and optimal portfolio choice; this paper focuses on factor construction and defers the remaining functionality to dedicated treatments.
+**\CRANpkg{tidyfinance} fills the missing gap:** the package supplies the cleaned WRDS-CRSP-Compustat panel that data-acquisition packages do not produce and exposes the factor-construction pipeline that downstream analysis packages assume to be in hand. One `download_data()` call returns a cleaned WRDS-CRSP-Compustat panel; further functions implement the full factor-construction pipeline (fiscal-year lagging, breakpoint computation, portfolio sorting, long-short aggregation) as a chain of composable steps whose arguments cover the construction choices that vary across studies in the literature above. Two design principles, both inherited from @scheuch.2023, guide the API. First, each construction decision is *transparent*: it appears as a configurable parameter with a documented default, in line with the tidy tools principles of @wickham.2023. Second, the pipeline is *modular* by construction: each construction step is implemented as a narrowly scoped function with clearly defined inputs and outputs. Researchers can therefore either chain these functions into a complete factor-construction workflow or reuse individual components within their own pipelines. \CRANpkg{tidyfinance} additionally covers asset pricing tests and optimal portfolio choice; this paper focuses on factor construction and defers the remaining functionality to dedicated treatments.
 
 # Package overview {#sec:overview}
 
 ## Installation and setup {#sec:installation}
 
-You can install the released version of \pkg{tidyfinance} [from CRAN](https://cran.r-project.org/package=tidyfinance) via:
+You can install the released version of \CRANpkg{tidyfinance} [from CRAN](https://cran.r-project.org/package=tidyfinance) via:
 
 ```{r install-tidyfinance-cran, eval=FALSE, purl=FALSE}
 install.packages("tidyfinance")
 ```
 
-To install the development version of \pkg{tidyfinance} from [GitHub](https://github.com/tidy-finance/r-tidyfinance), first install \CRANpkg{pak}, then run:
+To install the development version of \CRANpkg{tidyfinance} from [GitHub](https://github.com/tidy-finance/r-tidyfinance), first install \CRANpkg{pak}, then run:
 
 ```{r install-tidyfinance-dev, eval=FALSE, purl=FALSE}
 install.packages("pak")
@@ -145,7 +149,7 @@ library("tidyfinance")
 
 ## Design and workflow {#sec:design}
 
-The empirical asset pricing workflow decomposes into three stages: data acquisition, variable construction, and portfolio sorting. Each stage involves dozens of small decisions: sample filters, cleaning rules, rebalancing conventions, and breakpoint definitions. Table \@ref(tab:functions) catalogs the user-facing functions exported by \pkg{tidyfinance}, grouped by workflow stage. The remainder of this section walks through them in narrative order.
+The empirical asset pricing workflow decomposes into three stages: data acquisition, variable construction, and portfolio sorting. Each stage involves dozens of small decisions: sample filters, cleaning rules, rebalancing conventions, and breakpoint definitions. Table \@ref(tab:functions) catalogs the user-facing functions exported by \CRANpkg{tidyfinance}, grouped by workflow stage. The remainder of this section walks through them in narrative order.
 
 ```{=latex}
 \begingroup\small
@@ -209,14 +213,14 @@ The empirical asset pricing workflow decomposes into three stages: data acquisit
 |                                          | coefficients as a single-row data frame, one column per coefficient.|
 +------------------------------------------+---------------------------------------------------------------------+
 
-Table: (\#tab:functions) User-facing functions in \pkg{tidyfinance}, grouped by workflow stage. Functions whose first argument is a panel chain naturally via the native pipe `|>`; `filter_options()`, `breakpoint_options()`, `portfolio_sort_options()`, and `data_options()` (explained in detail below) bundle the configurable arguments for the sorting helpers.
+Table: (\#tab:functions) User-facing functions in \CRANpkg{tidyfinance}, grouped by workflow stage. Functions whose first argument is a panel chain naturally via the native pipe `|>`; `filter_options()`, `breakpoint_options()`, `portfolio_sort_options()`, and `data_options()` (explained in detail below) bundle the configurable arguments for the sorting helpers.
 ```{=latex}
 \endgroup
 ```
 
 ## Data acquisition {#sec:data-access}
 
-\pkg{tidyfinance} exposes one interface, `download_data()`, to `r format(nrow(tidyfinance::list_supported_datasets()), big.mark = ",")` datasets: equity returns, fixed-income transactions, macroeconomic predictors, index constituents, and more. Table \@ref(tab:data-sources) lists all available sources. `list_supported_datasets()` returns the full catalog programmatically.
+\CRANpkg{tidyfinance} exposes one interface, `download_data()`, to `r format(nrow(tidyfinance::list_supported_datasets()), big.mark = ",")` datasets: equity returns, fixed-income transactions, macroeconomic predictors, index constituents, and more. Table \@ref(tab:data-sources) lists all available sources. `list_supported_datasets()` returns the full catalog programmatically.
 
 ```{=latex}
 \begingroup\small
@@ -285,7 +289,7 @@ Table: (\#tab:functions) User-facing functions in \pkg{tidyfinance}, grouped by 
 | Risk-Free Rate | Daily and monthly risk-free        | ```                                     |
 |                | rates (derived from FRED           | download_data(                          |
 |                | T-bill series by                   |   domain = "tidyfinance",               |
-|                | \pkg{tidyfinance})               |   dataset = "risk_free"                 |
+|                | \CRANpkg{tidyfinance})               |   dataset = "risk_free"                 |
 |                |                                    | )                                       |
 |                |                                    | ```                                     |
 +----------------+------------------------------------+-----------------------------------------+
@@ -335,7 +339,7 @@ Table: (\#tab:functions) User-facing functions in \pkg{tidyfinance}, grouped by 
 |                |                                    | )                                       |
 |                |                                    | ```                                     |
 +----------------+------------------------------------+-----------------------------------------+
-Table: (\#tab:data-sources) Data sources available via `download_data()` in \pkg{tidyfinance}. For every dataset with a time dimension, the same `start_date` and `end_date` arguments subset the returned panel to a user-specified window.
+Table: (\#tab:data-sources) Data sources available via `download_data()` in \CRANpkg{tidyfinance}. For every dataset with a time dimension, the same `start_date` and `end_date` arguments subset the returned panel to a user-specified window.
 ```{=latex}
 \endgroup
 ```
@@ -369,15 +373,15 @@ The `start_date` and `end_date` arguments generalize across every dataset type i
 
 Public data still requires nontrivial cleaning. The @goyal.2008 macroeconomic predictors are a typical case: `download_data(domain = "macro_predictors", dataset = "monthly")` fetches the raw spreadsheet at the requested frequency (set `dataset` to `monthly`, `quarterly`, or `annual`), parses dates, strips comma thousand separators, and coerces character columns to numeric. It then constructs the standard predictors used in the equity-premium prediction literature: the log dividend-price ratio (`dp`), dividend yield (`dy`), earnings-price ratio (`ep`), dividend-payout ratio (`de`), the forward equity risk premium (`rp_div`), the term spread (`tms`), and the default-yield spread (`dfy`). The output is the cleaned panel filtered to the requested date range.
 
-For empirical asset pricing work, WRDS is the common source of return and accounting panels. WRDS data are proprietary and require an institutional subscription and credentials. \pkg{tidyfinance} handles this setup once. `set_wrds_credentials()` prompts for the username and password and stores them in a project-specific or global `.Renviron` file, and prompts the user to add `.Renviron` to `.gitignore` to prevent credential leakage. Subsequent `download_data()` calls open the database connection automatically. Depending on the user's WRDS account settings, `download_data()` may also trigger a two-factor authentication (2FA) challenge that WRDS sends to the registered device; once approved, the connection proceeds normally.
+For empirical asset pricing work, WRDS is the common source of return and accounting panels. WRDS data are proprietary and require an institutional subscription and credentials. \CRANpkg{tidyfinance} handles this setup once. `set_wrds_credentials()` prompts for the username and password and stores them in a project-specific or global `.Renviron` file, and prompts the user to add `.Renviron` to `.gitignore` to prevent credential leakage. Subsequent `download_data()` calls open the database connection automatically. Depending on the user's WRDS account settings, `download_data()` may also trigger a two-factor authentication (2FA) challenge that WRDS sends to the registered device; once approved, the connection proceeds normally.
 
-`download_data()` applies standard cleaning conventions following @bali.2016 and @scheuch.2023 automatically. For CRSP monthly data, the function restricts the universe to common equity securities listed on NYSE, AMEX (now NYSE American), or NASDAQ. It computes market capitalization as shares outstanding times price, constructs a one-month market capitalization lag for portfolio weights, and maps listing exchange codes and Standard Industrial Classification (SIC) codes to readable labels. Excess returns are raw returns minus a risk-free rate that \pkg{tidyfinance} constructs from FRED by splicing the 3-month Treasury bill secondary-market rate (pre-2001) with the 4-week Treasury bill secondary-market rate (from 2001 onward); the spliced series is hosted on Hugging Face and refreshed monthly by a scheduled GitHub Actions workflow. The function drops observations with missing returns or market capitalization, and incorporates delisting returns directly, eliminating the need for a separate adjustment. The function defaults to the CRSP 2.0 (CIZ) layout first introduced in July 2022. Alternatively, passing `version = "v1"` returns the legacy (SIZ) layout, which ends in December 2024. @schwarz.2026 document that the move to CIZ rewrites a non-trivial share of historical monthly returns through a changed dividend reinvestment assumption, yet find that average premia and their significance are largely unaffected.
+`download_data()` applies standard cleaning conventions following @bali.2016 and @scheuch.2023 automatically. For CRSP monthly data, the function restricts the universe to common equity securities listed on NYSE, AMEX (now NYSE American), or NASDAQ. It computes market capitalization as shares outstanding times price, constructs a one-month market capitalization lag for portfolio weights, and maps listing exchange codes and Standard Industrial Classification (SIC) codes to readable labels. Excess returns are raw returns minus a risk-free rate that \CRANpkg{tidyfinance} constructs from FRED by splicing the 3-month Treasury bill secondary-market rate (pre-2001) with the 4-week Treasury bill secondary-market rate (from 2001 onward); the spliced series is hosted on Hugging Face and refreshed monthly by a scheduled GitHub Actions workflow. The function drops observations with missing returns or market capitalization, and incorporates delisting returns directly, eliminating the need for a separate adjustment. The function defaults to the CRSP 2.0 (CIZ) layout first introduced in July 2022. Alternatively, passing `version = "v1"` returns the legacy (SIZ) layout, which ends in December 2024. @schwarz.2026 document that the move to CIZ rewrites a non-trivial share of historical monthly returns through a changed dividend reinvestment assumption, yet find that average premia and their significance are largely unaffected.
 
 For Compustat annual data, `download_data()` restricts to industrial-format consolidated statements and retains only the most recent observation per firm-year. Following @fama.1992, it constructs book equity in priority order: stockholders' equity when available, else common equity plus preferred stock, else total assets minus total liabilities. The function adds back deferred taxes and investment tax credits, and subtracts the book value of preferred stock.
 
 For TRACE corporate bond transactions, `download_data()` applies the Dick-Nielsen cleaning protocol [@dicknielsen.2009] to remove cancellations, corrections, and reversals before returning the trade panel.
 
-Across `download_data()`, every returned panel exposes a single `date` column of `<date>` type, regardless of source. Joining observations from different providers therefore reduces to an equality join on `date` without manual format conversion. The convention is the same across frequencies: daily observations return the trading date, monthly observations the first calendar day of the reference month (regardless of whether it was a trading day), and quarterly and annual observations the first day of the fiscal period-end month as reported by the original source. For Compustat, the latter is the firm's fiscal period-end (`datadate`). Macroeconomic series from FRED keep their original release dates. Where the underlying source uses an internal date that differs from this convention, \pkg{tidyfinance} preserves it as an auxiliary column: CRSP 2.0 monthly returns, for example, retain the trading-date `mthcaldt` as `calculation_date` alongside the harmonized `date`. Cross-frequency joins, such as merging monthly returns with annual fundamentals, require the lagging logic described in Section \@ref(sec:variable-construction).
+Across `download_data()`, every returned panel exposes a single `date` column of `<date>` type, regardless of source. Joining observations from different providers therefore reduces to an equality join on `date` without manual format conversion. The convention is the same across frequencies: daily observations return the trading date, monthly observations the first calendar day of the reference month (regardless of whether it was a trading day), and quarterly and annual observations the first day of the fiscal period-end month as reported by the original source. For Compustat, the latter is the firm's fiscal period-end (`datadate`). Macroeconomic series from FRED keep their original release dates. Where the underlying source uses an internal date that differs from this convention, \CRANpkg{tidyfinance} preserves it as an auxiliary column: CRSP 2.0 monthly returns, for example, retain the trading-date `mthcaldt` as `calculation_date` alongside the harmonized `date`. Cross-frequency joins, such as merging monthly returns with annual fundamentals, require the lagging logic described in Section \@ref(sec:variable-construction).
 
 ## Variable construction {#sec:variable-construction}
 
@@ -387,7 +391,7 @@ The second mode, enabled by `ff_adjustment = TRUE` and shown in Panel B of Figur
 
 `join_lagged_values()` is a related helper that merges lagged values from one data frame into another using the same windowing logic. It is useful when the target panel and the source panel are at different frequencies, for example, when joining monthly accounting data into a quarterly target panel. The function takes the same `ff_adjustment` argument as `add_lagged_columns()`, so the Fama-French convention can be applied at the join step rather than as a separate transformation.
 
-```{r lagging-illustration, fig.alt="Diagram comparing the two lagging modes of add_lagged_columns(). Panel A returns the most recent observed value within a window bounded by the lag and max_lag arguments; Panel B implements the Fama-French convention, in which the lagged value updates only at the June/July boundary and is held constant for twelve months.", fig.cap="Two lagging mechanisms in `add_lagged_columns()`. Each row represents a data series with observed (filled) and missing (hollow) cells. The dashed rectangle marks the search window from the perspective of the most recent observation (the top row); arrows show which value gets matched to each target month. Panel A (`ff_adjustment = FALSE`) returns the most recent observed value within a window bounded by `lag` and `max_lag`. Panel B (`ff_adjustment = TRUE`) implements the Fama-French convention, where the lagged value updates only at the June/July boundary and is held constant for the next twelve months.", fig.width=6.5, fig.height=4, out.width="100%", echo=FALSE}
+```{r lagging-illustration, fig.alt="Schematic comparing two lagging modes. Panel A returns the most recent observed value within a window bounded by the minimum and maximum lag; Panel B implements the Fama-French convention, in which the lagged value updates only at the June-to-July boundary and is held constant for twelve months.", fig.cap="Two lagging mechanisms in add\\_lagged\\_columns(). Each row represents a data series with observed (filled) and missing (hollow) cells. The dashed rectangle marks the search window from the perspective of the most recent observation (the top row); arrows show which value gets matched to each target month. Panel A (ff\\_adjustment = FALSE) returns the most recent observed value within a window bounded by lag and max\\_lag. Panel B (ff\\_adjustment = TRUE) implements the Fama-French convention, where the lagged value updates only at the June/July boundary and is held constant for the next twelve months.", fig.width=6.5, fig.height=4, out.width="100%", echo=FALSE}
 ts <- 0.94
 corner <- unit(4, "pt")
 
@@ -913,7 +917,7 @@ For users who want the full pipeline in a single call, `implement_portfolio_sort
 
 We walk through the construction of the asset growth factor from raw CRSP and Compustat data to long-short portfolio returns, applying each stage of Table \@ref(tab:functions) in turn.
 
-Load \pkg{tidyfinance} together with a minimal set of supporting packages: \CRANpkg{dplyr} [@dplyr] for data manipulation, \CRANpkg{tidyr} [@tidyr] for reshaping between long and wide formats, and \CRANpkg{lubridate} [@lubridate] for date arithmetic.
+Load \CRANpkg{tidyfinance} together with a minimal set of supporting packages: \CRANpkg{dplyr} [@dplyr] for data manipulation, \CRANpkg{tidyr} [@tidyr] for reshaping between long and wide formats, and \CRANpkg{lubridate} [@lubridate] for date arithmetic.
 
 ```{r load-package, message=FALSE, warning=FALSE, cache=FALSE}
 library("tidyfinance")
@@ -986,7 +990,7 @@ $$
 
 where $AT_{t,i}$ is total assets for firm $i$ in year $t$ (retrieved in column `at`).
 
-The `add_lagged_columns()` function from \pkg{tidyfinance} handles temporal alignment by creating a lagged version of total assets grouped by firm identifier (`gvkey`) with a one-year lag. Non-finite values (arising when lagged total assets are zero or missing) become `NA`.
+The `add_lagged_columns()` function from \CRANpkg{tidyfinance} handles temporal alignment by creating a lagged version of total assets grouped by firm identifier (`gvkey`) with a one-year lag. Non-finite values (arising when lagged total assets are zero or missing) become `NA`.
 
 ```{r compute-sorting-variables}
 sorting_variable_data <- compustat_annual |>
@@ -1004,7 +1008,7 @@ sorting_variable_data <- compustat_annual |>
 
 The call relies on two silent defaults: `max_lag` falls back to `lag` (here one year), so only the single observation exactly one year before each row is eligible; `ff_adjustment = FALSE`, so the look-back is the plain calendar window rather than the Fama-French June/July rebalancing convention introduced in Section \@ref(sec:variable-construction).
 
-`sorting_variable_data` contains one observation per firm-year, the natural unit for cross-sectional analysis of annual accounting variables. Asset growth is heavily right-skewed: a small number of firms with dramatic balance-sheet expansions generate extreme positive values. Table \@ref(tab:ag-summary) reports the pooled cross-sectional summary alongside the time-series average, minimum, and maximum of the corresponding statistic computed cross-sectionally each year.^[The pooled count of `r format(sum(!is.na(sorting_variable_data$asset_growth)), big.mark = ",")` firm-years is below the `r format(nrow(compustat_annual), big.mark = ",")` downloaded in Section \@ref(sec:data-download) because the one-year lag in the asset-growth construction drops each firm's first observation.] We obtain both views with `create_summary_statistics()`, a \pkg{tidyfinance} helper that returns the standard set of cross-sectional summary statistics for a variable: applied to the pooled (winsorized) sample for the first column and grouped by calendar year for the next three. Table \@ref(tab:ag-summary) assembles the two computations side by side.
+`sorting_variable_data` contains one observation per firm-year, the natural unit for cross-sectional analysis of annual accounting variables. Asset growth is heavily right-skewed: a small number of firms with dramatic balance-sheet expansions generate extreme positive values. Table \@ref(tab:ag-summary) reports the pooled cross-sectional summary alongside the time-series average, minimum, and maximum of the corresponding statistic computed cross-sectionally each year.^[The pooled count of `r format(sum(!is.na(sorting_variable_data$asset_growth)), big.mark = ",")` firm-years is below the `r format(nrow(compustat_annual), big.mark = ",")` downloaded in Section \@ref(sec:data-download) because the one-year lag in the asset-growth construction drops each firm's first observation.] We obtain both views with `create_summary_statistics()`, a \CRANpkg{tidyfinance} helper that returns the standard set of cross-sectional summary statistics for a variable: applied to the pooled (winsorized) sample for the first column and grouped by calendar year for the next three. Table \@ref(tab:ag-summary) assembles the two computations side by side.
 
 ```{r ag-summary-prep}
 pooled_stats <- sorting_variable_data |>
@@ -1248,7 +1252,7 @@ structure(
 \endgroup
 ```
 
-The value-weighted long-short portfolio earns `r round(mean(factor_returns_ag$ret_excess_vw, na.rm = TRUE) * 12 * 100, 1)`% per year ($t$~statistic of `r round(mean(factor_returns_ag$ret_excess_vw, na.rm = TRUE) / (sd(factor_returns_ag$ret_excess_vw, na.rm = TRUE) / sqrt(sum(!is.na(factor_returns_ag$ret_excess_vw)))), 2)`), consistent with the premium documented by @cooper.2008. The equal-weighted spread is larger, as expected for characteristics that correlate with size. The monotone decline of value-weighted means across quintiles confirms that \pkg{tidyfinance} reproduces the literature result from raw WRDS data with a single function call.
+The value-weighted long-short portfolio earns `r round(mean(factor_returns_ag$ret_excess_vw, na.rm = TRUE) * 12 * 100, 1)`% per year ($t$~statistic of `r round(mean(factor_returns_ag$ret_excess_vw, na.rm = TRUE) / (sd(factor_returns_ag$ret_excess_vw, na.rm = TRUE) / sqrt(sum(!is.na(factor_returns_ag$ret_excess_vw)))), 2)`), consistent with the premium documented by @cooper.2008. The equal-weighted spread is larger, as expected for characteristics that correlate with size. The monotone decline of value-weighted means across quintiles confirms that \CRANpkg{tidyfinance} reproduces the literature result from raw WRDS data with a single function call.
 
 ### Customized specification (bivariate sorts) {#sec:customized-sorts}
 
@@ -1372,7 +1376,7 @@ Researchers who want finer-grained control can call the lower-level portfolio-so
 
 ### Asset pricing tests {#sec:fama-macbeth}
  
-A long-short return is one summary of whether asset growth predicts the cross-section of returns. A complementary view comes from Fama-MacBeth regressions [@fama.1973], which estimate the average risk premium associated with a characteristic after running cross-sectional regressions period by period. \pkg{tidyfinance} implements the standard procedure in `estimate_fama_macbeth()`, which takes a panel and a model formula, fits one cross-sectional ordinary least squares (OLS) regression per period, and aggregates the period-level coefficients into average risk premia with Newey-West standard errors with automatic lag selection.
+A long-short return is one summary of whether asset growth predicts the cross-section of returns. A complementary view comes from Fama-MacBeth regressions [@fama.1973], which estimate the average risk premium associated with a characteristic after running cross-sectional regressions period by period. \CRANpkg{tidyfinance} implements the standard procedure in `estimate_fama_macbeth()`, which takes a panel and a model formula, fits one cross-sectional ordinary least squares (OLS) regression per period, and aggregates the period-level coefficients into average risk premia with Newey-West standard errors with automatic lag selection.
 
 Here, we winsorize the AG signal at the 1st and 99th percentiles to keep extreme observations from dominating the cross-sectional regressions and pair it with log market capitalization as a size control.
  
@@ -1427,11 +1431,11 @@ The negative slope on `asset_growth` in Table \@ref(tab:fama-macbeth) lines up w
 
 # Summary and discussion {#sec:summary}
 
-Empirical asset pricing depends on dozens of construction choices that no consensus pins down. \pkg{tidyfinance} makes those choices first-class objects in the workflow: each is an argument, each has a documented default, each can be varied without rebuilding the pipeline. Disagreements over construction become empirical questions, not implicit assumptions buried in code.
+Empirical asset pricing depends on dozens of construction choices that no consensus pins down. \CRANpkg{tidyfinance} makes those choices first-class objects in the workflow: each is an argument, each has a documented default, each can be varied without rebuilding the pipeline. Disagreements over construction become empirical questions, not implicit assumptions buried in code.
 
 We will maintain and extend the package on CRAN. At the time of writing, all functions are covered by comprehensive unit tests, with code coverage reported at 100% by [Codecov](https://app.codecov.io/gh/tidy-finance/r-tidyfinance), and each release is accompanied by passing R CMD check results across multiple operating systems, including the latest macOS, Windows, and Ubuntu environments. The companion Hugging Face artifacts (the spliced risk-free rate and the precomputed factor library) are refreshed on a scheduled GitHub Actions workflow, so the published series track new WRDS releases without manual intervention.
 
-Companion materials at [tidy-finance.org](https://tidy-finance.org) integrate \pkg{tidyfinance} into open coursework and self-study tracks for graduate finance and asset pricing in \proglang{R}. The site also hosts a reviewed channel through which researchers can publish replications and new construction routines, so the catalog of factors and conventions can grow with the literature rather than freezing at the package's release.
+Companion materials at [tidy-finance.org](https://tidy-finance.org) integrate \CRANpkg{tidyfinance} into open coursework and self-study tracks for graduate finance and asset pricing in \proglang{R}. The site also hosts a reviewed channel through which researchers can publish replications and new construction routines, so the catalog of factors and conventions can grow with the literature rather than freezing at the package's release.
 
 # Computational details {-}
 
@@ -1450,7 +1454,7 @@ pkg_version <- function(pkg) {
 r_version <- renv_lock$R$Version
 ```
 
-We obtained the results in this paper using \proglang{R} `r r_version` with the following packages: \pkg{tidyfinance} `r pkg_version("tidyfinance")`, \pkg{dplyr} `r pkg_version("dplyr")` [@dplyr], \pkg{tidyr} `r pkg_version("tidyr")` [@tidyr], \CRANpkg{ggplot2} `r pkg_version("ggplot2")` [@ggplot2], and \pkg{lubridate} `r pkg_version("lubridate")` [@lubridate]. We install development versions of \pkg{tidyfinance} with \pkg{pak} `r pkg_version("pak")` [@pak]. Figures additionally use \CRANpkg{ggforce} `r pkg_version("ggforce")` [@ggforce], \CRANpkg{scales} `r pkg_version("scales")` [@scales], and \CRANpkg{patchwork} `r pkg_version("patchwork")` [@patchwork]. CRAN hosts \proglang{R} and all packages at [https://CRAN.R-project.org/](https://CRAN.R-project.org/). \CRANpkg{renv} `r pkg_version("renv")` [@renv] ensures full reproducibility of the computational environment. Reproducing the factor return data requires an institutional subscription to WRDS, as the underlying CRSP and Compustat data are proprietary and cannot be redistributed. A pseudo-data path with identical schema is available via `download_data(domain = "pseudo", ...)` for readers without WRDS access; see Section \@ref(sec:data-download).
+We obtained the results in this paper using \proglang{R} `r r_version` with the following packages: \CRANpkg{tidyfinance} `r pkg_version("tidyfinance")`, \CRANpkg{dplyr} `r pkg_version("dplyr")` [@dplyr], \CRANpkg{tidyr} `r pkg_version("tidyr")` [@tidyr], \CRANpkg{ggplot2} `r pkg_version("ggplot2")` [@ggplot2], and \CRANpkg{lubridate} `r pkg_version("lubridate")` [@lubridate]. We install development versions of \CRANpkg{tidyfinance} with \CRANpkg{pak} `r pkg_version("pak")` [@pak]. Figures additionally use \CRANpkg{ggforce} `r pkg_version("ggforce")` [@ggforce], \CRANpkg{scales} `r pkg_version("scales")` [@scales], and \CRANpkg{patchwork} `r pkg_version("patchwork")` [@patchwork]. CRAN hosts \proglang{R} and all packages at [https://CRAN.R-project.org/](https://CRAN.R-project.org/). \CRANpkg{renv} `r pkg_version("renv")` [@renv] ensures full reproducibility of the computational environment. Reproducing the factor return data requires an institutional subscription to WRDS, as the underlying CRSP and Compustat data are proprietary and cannot be redistributed. A pseudo-data path with identical schema is available via `download_data(domain = "pseudo", ...)` for readers without WRDS access; see Section \@ref(sec:data-download).
 
 Reproducing this manuscript takes about 15 minutes: `rmarkdown::render("tidyfinance.Rmd")` uses the WRDS subset described in Section \@ref(sec:data-download), or pseudo data of identical schema for readers without WRDS access. Timings reported here are obtained on `r sessionInfo()$running` with a `r parallel::detectCores()`-core processor running \proglang{R} `r r_version`; WRDS extracts are not pre-cached, so the 15-minute figure includes the time to download the underlying CRSP and Compustat panels.
 
