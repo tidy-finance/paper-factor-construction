@@ -114,7 +114,7 @@ The manuscript was last compiled on an **Apple MacBook Air (M1, 16 GB RAM, 8 cor
 | `tidyfinance.bib`                     | BibTeX references.                                                     |
 | `RJournal.sty`                        | R Journal LaTeX style file (used when rendering the PDF).             |
 | `_Rpackages.txt`                      | List of R packages needed to reproduce the submission.                |
-| `motivation-letter/motivation-letter.md` | Cover letter accompanying the submission.                         |
+| `motivation-letter.md` | Cover letter accompanying the submission.                         |
 | `renv.lock`                           | Pins every R package to an exact version.                             |
 | `LICENSE`                             | MIT license for the code (see below).                                 |
 

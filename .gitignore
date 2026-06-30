@@ -20,3 +20,5 @@ figure/
 *.brf
 *.log
 *.out
+motivation-letter.pdf
+motivation-letter.knit.md
