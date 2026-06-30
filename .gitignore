@@ -8,6 +8,7 @@ _render-test*
 -render-test*
 _rt.*
 RJwrapper.*
+!RJwrapper.pdf
 tidyfinance.tex
 tidyfinance.pdf
 tidyfinance.R
@@ -20,6 +21,5 @@ figure/
 *.brf
 *.log
 *.out
-motivation-letter.pdf
 motivation-letter.knit.md
 *.knit.md
