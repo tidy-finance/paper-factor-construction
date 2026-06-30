@@ -26,7 +26,8 @@ package does.
 We believe the article fits The R Journal on three counts. First, it is a
 reproducibility story for a large applied community: the package turns implicit,
 hand-coded conventions into auditable, versioned, tested, and documented code,
-and it already underpins open teaching materials used in graduate finance and
+ships a vignette that walks through the complete factor-construction workflow,
+and already underpins open teaching materials used in graduate finance and
 data-science courses. Second, although the package connects to the subscription
 data (CRSP, Compustat via WRDS) that this field treats as standard, it equally
 serves the free and open sources most R users can access — Ken French's Data
