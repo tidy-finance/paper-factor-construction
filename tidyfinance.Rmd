@@ -99,72 +99,6 @@ sample_years <- function(data) {
 }
 ```
 
-```{r read-in-summary-information, echo=FALSE}
-sorting_variable_information <- tibble::tribble(
-  ~sorting_variable , ~full_name                                , ~direction         , ~citation                         ,
-  "mom"             , "Momentum"                                , "top_minus_bottom" , "\\cite{fama.1996}"               ,
-  "rmom"            , "Residual Momentum"                       , "top_minus_bottom" , "\\cite{blitz.2011}"              ,
-  "rs"              , "Relative Strength"                       , "top_minus_bottom" , "\\cite{jegadeesh.2006}"          ,
-  "sue"             , "Standardized Unexpected Earnings"        , "top_minus_bottom" , "\\cite{foster.1984}"             ,
-  "52w"             , "52-Week High"                            , "top_minus_bottom" , "\\cite{george.2004}"             ,
-  "me"              , "Market Equity"                           , "bottom_minus_top" , "\\cite{banz.1981}"               ,
-  "cbop"            , "Cash-Based Operating Profitability"      , "top_minus_bottom" , "\\cite{ball.2016}"               ,
-  "gpa"             , "Gross Profits to Assets"                 , "top_minus_bottom" , "\\cite{novy-marx.2013}"          ,
-  "o"               , "O-Score"                                 , "bottom_minus_top" , "\\cite{ohlson.1980,dichev.1998}" ,
-  "ope"             , "Operating Efficiency"                    , "top_minus_bottom" , "\\cite{fama.2015}"               ,
-  "roa"             , "Return on Assets"                        , "top_minus_bottom" , "\\cite{balakrishnan.2010}"       ,
-  "roe"             , "Return on Equity"                        , "top_minus_bottom" , "\\cite{hou.2014}"                ,
-  "tbi"             , "Taxable Income to Book Income"           , "bottom_minus_top" , "\\cite{lev.2004}"                ,
-  "bm"              , "Book-to-Market"                          , "top_minus_bottom" , "\\cite{daniel.2006}"             ,
-  "cfm"             , "Cash Flow to Market"                     , "top_minus_bottom" , "\\cite{lakonishok.1994}"         ,
-  "dm"              , "Debt to Market"                          , "top_minus_bottom" , "\\cite{bhandari.1988}"           ,
-  "ebm"             , "Enterprise Book to Market"               , "top_minus_bottom" , "\\cite{penman.2007}"             ,
-  "em"              , "Earnings to Market"                      , "top_minus_bottom" , "\\cite{basu.1983}"               ,
-  "ndm"             , "Net Debt to Market"                      , "bottom_minus_top" , "\\cite{penman.2007}"             ,
-  "npy"             , "Net Payout Yield"                        , "top_minus_bottom" , "\\cite{boudoukh.2007}"           ,
-  "ocm"             , "Operating Cash Flow to Market"           , "top_minus_bottom" , "\\cite{desai.2004}"              ,
-  "rev"             , "Long-Term Reversal"                      , "bottom_minus_top" , "\\cite{debondt.1985}"            ,
-  "sm"              , "Sales to Market"                         , "top_minus_bottom" , "\\cite{barbee.1996}"             ,
-  "aci"             , "Abnormal Corporate Investment"           , "bottom_minus_top" , "\\cite{titman.2004}"             ,
-  "ag"              , "Asset Growth"                            , "bottom_minus_top" , "\\cite{cooper.2008}"             ,
-  "dinv"            , "Inventory Changes"                       , "bottom_minus_top" , "\\cite{thomas.2002}"             ,
-  "dnoa"            , "Change in Net Operating Assets"          , "bottom_minus_top" , "\\cite{hirshleifer.2004}"        ,
-  "dpia"            , "Change in PPE and Intangibles"           , "bottom_minus_top" , "\\cite{lyandres.2008}"           ,
-  "dwc"             , "Change in Working Capital"               , "bottom_minus_top" , "\\cite{richardson.2005}"         ,
-  "ig"              , "Investment Growth"                       , "bottom_minus_top" , "\\cite{xing.2008}"               ,
-  "noa"             , "Net Operating Assets"                    , "bottom_minus_top" , "\\cite{hirshleifer.2004}"        ,
-  "oa"              , "Operating Accruals"                      , "bottom_minus_top" , "\\cite{sloan.1996}"              ,
-  "cdi"             , "Composite Debt Issuance"                 , "bottom_minus_top" , "\\cite{lyandres.2008}"           ,
-  "csi"             , "Composite Share Issuance"                , "bottom_minus_top" , "\\cite{daniel.2006}"             ,
-  "dbe"             , "Change in Common Equity"                 , "bottom_minus_top" , "\\cite{richardson.2005}"         ,
-  "dcol"            , "Change in Current Operating Liabilities" , "bottom_minus_top" , "\\cite{richardson.2005}"         ,
-  "dfnl"            , "Change in Financial Liabilities"         , "bottom_minus_top" , "\\cite{richardson.2005}"         ,
-  "ndf"             , "Net Debt Financing"                      , "bottom_minus_top" , "\\cite{baker.2006}"              ,
-  "nef"             , "Net Equity Financing"                    , "bottom_minus_top" , "\\cite{baker.2006}"              ,
-  "nxf"             , "Net External Financing"                  , "bottom_minus_top" , "\\cite{baker.2006}"              ,
-  "hr"              , "Hiring Rate"                             , "bottom_minus_top" , "\\cite{belo.2014}"               ,
-  "ol"              , "Operating Leverage"                      , "top_minus_bottom" , "\\cite{novy-marx.2011}"          ,
-  "rer"             , "Real-Estate Ratio"                       , "top_minus_bottom" , "\\cite{titman.2004}"             ,
-  "ami"             , "Amihud Illiquidity"                      , "top_minus_bottom" , "\\cite{amihud.2002}"             ,
-  "beta"            , "Beta"                                    , "top_minus_bottom" , "\\cite{fama.1973}"               ,
-  "dtv"             , "Dollar Trading Volume"                   , "bottom_minus_top" , "\\cite{brennan.1998}"            ,
-  "iskew"           , "Idiosyncratic Skewness"                  , "bottom_minus_top" , "\\cite{bali.2016}"               ,
-  "ivol"            , "Idiosyncratic Volatility"                , "bottom_minus_top" , "\\cite{ang.2006}"                ,
-  "mdr"             , "Maximum Daily Return"                    , "bottom_minus_top" , "\\cite{bali.2011}"               ,
-  "tur"             , "Share Turnover"                          , "bottom_minus_top" , "\\cite{datar.1998}"
-)
-portfolio_sort_grid <- tidyfinance::download_data(
-  "tidyfinance",
-  "factor_library_grid"
-)
-
-n_specifications_candidate <- portfolio_sort_grid |>
-  dplyr::count(sorting_variable) |>
-  dplyr::pull(n) |>
-  max() *
-  nrow(sorting_variable_information)
-```
-
 # Introduction {#sec:intro}
 
 Factor returns enter empirical asset pricing tests, optimal portfolio allocation, and risk-management decisions. Constructing them typically involves a three-stage pipeline: data acquisition, usually downloading and cleaning raw return and accounting data from the Center for Research in Security Prices (CRSP) and Compustat; variable construction, including appropriate lags to avoid look-ahead bias; and portfolio sorting, where securities are assigned to portfolios based on characteristics. Each stage involves consequential design choices such as how to handle delistings, which fiscal-year lag to apply, where to set breakpoints, and whether portfolios should be equal- or value-weighted. Few pipelines are standardized, and fewer still ship with executable code. Therefore, reproducing or extending a factor series often starts with reconstructing the pipeline from scratch, with no way to verify that the result matches the original approach.
@@ -173,7 +107,7 @@ No widely adopted tool covers this upstream workflow. The most popular factor so
 
 This paper introduces \pkg{tidyfinance}, an \proglang{R} package on CRAN that exposes each stage of the pipeline as configurable code. The package addresses each stage with a dedicated interface. A unified `download_data()` function cleans, aligns, and harmonizes panels from Wharton Research Data Services (WRDS), Ken French's Data Library, Federal Reserve Economic Data (FRED), and seven other providers, including current constituents for `r format(nrow(tidyfinance::list_supported_indexes()), big.mark = ",")` major equity indexes; Table \@ref(tab:data-sources) catalogs the full set. The WRDS panels cover CRSP, Compustat, the Trade Reporting and Compliance Engine (TRACE), and the Mergent Fixed Income Securities Database (FISD). Composable helpers then automate fiscal-year lagging, breakpoint computation, and portfolio aggregation. Every construction choice is exposed as a function argument with a default that follows established convention (for instance, value-weights and the Fama-French fiscal-year lag). A default call reproduces standard practice; overriding any default takes one argument.
 
-We illustrate the package by reproducing a version of the asset growth factor of @cooper.2008 end-to-end from raw CRSP and Compustat data, then varying any construction choice with a single-argument change. To spare researchers the work of rebuilding the pipeline, we run \pkg{tidyfinance} across many defensible combinations and publish the results as a factor library of `r format(nrow(sorting_variable_information), big.mark = ",")` sorting variables across `r format(nrow(portfolio_sort_grid), big.mark = ",")` specifications. The library is available through a single `download_data()` call or an interactive dashboard at [factors.tidy-finance.org](https://factors.tidy-finance.org). The package operationalizes the workflow developed in the open-access textbook *Tidy Finance with \proglang{R}* [@scheuch.2023], which presents each step in tutorial form with inline scripts. The contribution of this paper is \pkg{tidyfinance} itself: a unified, configurable, tested, and versioned \proglang{R} package for this workflow. Where the books teach a reader how to assemble the pipeline from scratch, the package supplies it as a single dependency that researchers can call, audit, and reuse without rebuilding the underlying code.
+We illustrate the package by reproducing a version of the asset growth factor of @cooper.2008 end-to-end from raw CRSP and Compustat data, then varying any construction choice with a single-argument change. The package operationalizes the workflow developed in the open-access textbook *Tidy Finance with \proglang{R}* [@scheuch.2023], which presents each step in tutorial form with inline scripts. The contribution of this paper is \pkg{tidyfinance} itself: a unified, configurable, tested, and versioned \proglang{R} package for this workflow. Where the books teach a reader how to assemble the pipeline from scratch, the package supplies it as a single dependency that researchers can call, audit, and reuse without rebuilding the underlying code.
 
 # Background and related work {#sec:background}
 
@@ -456,7 +390,6 @@ The second mode, enabled by `ff_adjustment = TRUE` and shown in Panel B of Figur
 ```{r lagging-illustration, fig.alt="Diagram comparing the two lagging modes of add_lagged_columns(). Panel A returns the most recent observed value within a window bounded by the lag and max_lag arguments; Panel B implements the Fama-French convention, in which the lagged value updates only at the June/July boundary and is held constant for twelve months.", fig.cap="Two lagging mechanisms in `add_lagged_columns()`. Each row represents a data series with observed (filled) and missing (hollow) cells. The dashed rectangle marks the search window from the perspective of the most recent observation (the top row); arrows show which value gets matched to each target month. Panel A (`ff_adjustment = FALSE`) returns the most recent observed value within a window bounded by `lag` and `max_lag`. Panel B (`ff_adjustment = TRUE`) implements the Fama-French convention, where the lagged value updates only at the June/July boundary and is held constant for the next twelve months.", fig.width=6.5, fig.height=4, out.width="100%", echo=FALSE}
 ts <- 0.94
 corner <- unit(4, "pt")
-
 
 # Extra padding so the dashed box extends slightly beyond the tiles
 win_pad <- 0.15
@@ -1554,7 +1487,6 @@ The negative slope on `asset_growth` in Table \@ref(tab:fama-macbeth) lines up w
 
 [^cooper-fm-controls]: @cooper.2008 additionally controls for book-to-market and 6- and 36-month past returns, both negatively correlated with AG.
 
-
 # Summary and discussion {#sec:summary}
 
 Empirical asset pricing depends on dozens of construction choices that no consensus pins down. \pkg{tidyfinance} makes those choices first-class objects in the workflow: each is an argument, each has a documented default, each can be varied without rebuilding the pipeline. Disagreements over construction become empirical questions, not implicit assumptions buried in code.
@@ -1595,5 +1527,4 @@ sessionInfo()
 Stefan Voigt is grateful to the Danish Finance Institute for financial support. 
 
 # References {-}
-
 
