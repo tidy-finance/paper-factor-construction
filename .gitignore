@@ -1,15 +1,22 @@
+# Credentials and local / IDE config
 .Renviron
-submission/
-make-submission.R
-jss-manuscript_cache/
-jss-manuscript_files/
-config.yaml
+.claude/
+.posit/
+
+# Render artifacts (regenerated from tidyfinance.Rmd)
 _render-test*
+-render-test*
 _rt.*
 RJwrapper.*
-figure/
+tidyfinance.tex
+tidyfinance.pdf
+tidyfinance.R
+tidyfinance_files/
 _render-test_files/
+figure/
 *.aux
 *.bbl
 *.blg
 *.brf
+*.log
+*.out
