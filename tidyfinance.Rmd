@@ -52,7 +52,7 @@ output:
   rjtools::rjournal_article:
     self_contained: yes
     toc: no
-bibliography: bibliography.bib
+bibliography: tidyfinance.bib
 date: "2026-06-30"
 keywords: [financial risk factors, reproducible research, asset pricing]
 
