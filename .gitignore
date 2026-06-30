@@ -22,3 +22,4 @@ figure/
 *.out
 motivation-letter.pdf
 motivation-letter.knit.md
+*.knit.md
