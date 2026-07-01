@@ -60,6 +60,8 @@ keywords: [financial risk factors, reproducible research, asset pricing]
 header-includes:
   - '\providecommand{\proglang}[1]{\textsf{#1}}'
   - '\usepackage{multirow}'
+  - '\renewcommand{\bibname}{References}'
+  - '\renewcommand{\refname}{References}'
 
 ---
 
@@ -235,68 +237,68 @@ Table: (\#tab:functions) User-facing functions in \CRANpkg{tidyfinance}, grouped
 +----------------+------------------------------------+-----------------------------------------+
 | Ken French's   | Fama-French 169+ factor            | ```                                     |
 | Data Library   | models, portfolios, industry       | download_data(                          |
-|                | classifications                    |   domain = "factors_ff",                |
+|                | classifications                    |   domain = "Fama-French",               |
 |                |                                    |   dataset = "Fama/French 3 Factors")    |
 |                |                                    | ```                                     |
 +----------------+------------------------------------+-----------------------------------------+
 | Global Q       | @hou.2021 q5 factor model          | ```                                     |
 |                | (market, size, investment, ROE,    | download_data(                          |
-|                | expected growth) at multiple       |   domain = "globalq",                   |
+|                | expected growth) at multiple       |   domain = "Global Q",                  |
 |                | frequencies                        |   dataset = "factors_q5_monthly"        |
 |                |                                    | )                                       |
 |                |                                    | ```                                     |
 +----------------+------------------------------------+-----------------------------------------+
 | Goyal-Welch    | Macroeconomic return predictors    | ```                                     |
 | Predictors     |                                    | download_data(                          |
-|                |                                    |   domain = "macro_predictors",          |
+|                |                                    |   domain = "Goyal-Welch",               |
 |                |                                    |   dataset = "monthly"                   |
 |                |                                    | )                                       |
 |                |                                    | ```                                     |
 +----------------+------------------------------------+-----------------------------------------+
 | FRED           | St. Louis Fed economic time        | ```                                     |
 |                | series (GDP, CPI, etc.)            | download_data(                          |
-|                |                                    |   domain = "fred",                      |
+|                |                                    |   domain = "FRED",                      |
 |                |                                    |   series = "GDP"                        |
 |                |                                    | )                                       |
 |                |                                    | ```                                     |
 +----------------+------------------------------------+-----------------------------------------+
 | Yahoo Finance  | Historical price data with         | ```                                     |
 |                | adjusted close for any ticker      | download_data(                          |
-|                |                                    |   domain = "stock_prices",              |
+|                |                                    |   domain = "Stock Prices",              |
 |                |                                    |   symbols = "AAPL"                      |
 |                |                                    | )                                       |
 |                |                                    | ```                                     |
 +----------------+------------------------------------+-----------------------------------------+
 | Index          | Current members of major           | ```                                     |
 | Constituents   | equity indexes (S&P 500,           | download_data(                          |
-|                | Russell, etc.)                     |   domain = "constituents",              |
+|                | Russell, etc.)                     |   domain = "Index Constituents",        |
 |                |                                    |   index = "DAX"                         |
 |                |                                    | )                                       |
 |                |                                    | ```                                     |
 +----------------+------------------------------------+-----------------------------------------+
 | Open Source    | 213+ monthly asset pricing         | ```                                     |
 | Asset Pricing  | signals and anomalies              | download_data(                          |
-|                |                                    |   domain = "osap"                       |
+|                |                                    |   domain = "Open Source Asset Pricing"  |
 |                |                                    | )                                       |
 |                |                                    | ```                                     |
 +----------------+------------------------------------+-----------------------------------------+
 | High-Frequency | 5-second frequency data            | ```                                     |
 |                | for S&P 500 constituents           | download_data(                          |
-|                | constructed by @menkveld.2026      |   domain = "tidyfinance",               |
+|                | constructed by @menkveld.2026      |   domain = "Tidy Finance",              |
 |                |                                    |   dataset = "high_frequency_sp500"      |
 |                |                                    | )                                       |
 |                |                                    | ```                                     |
 +----------------+------------------------------------+-----------------------------------------+
 | Risk-Free Rate | Daily and monthly risk-free        | ```                                     |
 |                | rates (derived from FRED           | download_data(                          |
-|                | T-bill series by                   |   domain = "tidyfinance",               |
-|                | \CRANpkg{tidyfinance})               |   dataset = "risk_free"                 |
+|                | T-bill series by                   |   domain = "Tidy Finance",              |
+|                | \CRANpkg{tidyfinance})             |   dataset = "risk_free"                 |
 |                |                                    | )                                       |
 |                |                                    | ```                                     |
 +----------------+------------------------------------+-----------------------------------------+
 | Factor Library | Precomputed factor returns         | ```                                     |
 |                | hosted on Hugging Face Hub         | download_data(                          |
-|                |                                    |   domain = "tidyfinance",               |
+|                |                                    |   domain = "Tidy Finance",              |
 |                |                                    |   dataset = "factor_library",           |
 |                |                                    |   sorting_variable = "ag"               |
 |                |                                    | )                                       |
@@ -306,35 +308,35 @@ Table: (\#tab:functions) User-facing functions in \CRANpkg{tidyfinance}, grouped
 +----------------+------------------------------------+-----------------------------------------+
 | CRSP           | Daily and monthly stock returns,   | ```                                     |
 |                | market cap, listing exchange,      | download_data(                          |
-|                | industry information               |   domain = "wrds",                      |
+|                | industry information               |   domain = "WRDS",                      |
 |                |                                    |   dataset = "crsp_monthly"              |
 |                |                                    | )                                       |
 |                |                                    | ```                                     |
 +----------------+------------------------------------+-----------------------------------------+
 | Compustat      | Annual and quarterly financial     | ```                                     |
 |                | statements                         | download_data(                          |
-|                |                                    |   domain = "wrds",                      |
+|                |                                    |   domain = "WRDS",                      |
 |                |                                    |   dataset = "compustat_annual"          |
 |                |                                    | )                                       |
 |                |                                    | ```                                     |
 +----------------+------------------------------------+-----------------------------------------+
 | CCM Links      | CRSP-Compustat linking table       | ```                                     |
 |                | (`permno` to `gvkey`)              | download_data(                          |
-|                |                                    |   domain = "wrds",                      |
+|                |                                    |   domain = "WRDS",                      |
 |                |                                    |   dataset = "ccm_links"                 |
 |                |                                    | )                                       |
 |                |                                    | ```                                     |
 +----------------+------------------------------------+-----------------------------------------+
 | FISD           | Mergent Fixed Income               | ```                                     |
 |                | Securities Database                | download_data(                          |
-|                |                                    |   domain = "wrds",                      |
+|                |                                    |   domain = "WRDS",                      |
 |                |                                    |   dataset = "fisd"                      |
 |                |                                    | )                                       |
 |                |                                    | ```                                     |
 +----------------+------------------------------------+-----------------------------------------+
 | TRACE          | Corporate bond transactions        | ```                                     |
 |                | @dicknielsen.2009 cleaned          | download_data(                          |
-|                |                                    |   domain = "wrds",                      |
+|                |                                    |   domain = "WRDS",                      |
 |                |                                    |   dataset = "trace_enhanced",           |
 |                |                                    |   cusips = "655844CJ5"                  |
 |                |                                    | )                                       |
@@ -345,15 +347,15 @@ Table: (\#tab:data-sources) Data sources available via `download_data()` in \CRA
 \endgroup
 ```
 
-A first illustration uses only public data sources. We retrieve the current constituents of the Dow Jones Industrial Average and then download daily prices from Yahoo Finance for those tickers over a chosen window. `list_supported_indexes()` returns the full set of equity indexes available through the `"constituents"` domain.
+A first illustration uses only public data sources. We retrieve the current constituents of the Dow Jones Industrial Average and then download daily prices from Yahoo Finance for those tickers over a chosen window. `list_supported_indexes()` returns the full set of equity indexes available through the `"Index Constituents"` domain.
 
 ```{r example-dow-constituents, message=FALSE}
 dow_constituents <- download_data(
-  domain = "constituents",
+  domain = "Index Constituents",
   index = "Dow Jones Industrial Average"
 )
 download_data(
-  domain = "stock_prices",
+  domain = "Stock Prices",
   symbols = dow_constituents$symbol,
   start_date = "2020-01-01",
   end_date = "2024-12-31"
@@ -363,7 +365,7 @@ download_data(
 Similarly, we can fetch the Fama-French three-factor data from Ken French's Data Library with a single call to download and parse the published archives:
 ```{r example-ff-factors}
 ff_factors <- download_data(
-  domain = "factors_ff",
+  domain = "Fama-French",
   dataset = "Fama/French 3 Factors",
   start_date = "1972-01-01",
   end_date = "2024-12-31"
@@ -372,7 +374,7 @@ ff_factors <- download_data(
 
 The `start_date` and `end_date` arguments generalize across every dataset type in Table \@ref(tab:data-sources) that supports a time dimension.
 
-Public data still requires nontrivial cleaning. The @goyal.2008 macroeconomic predictors are a typical case: `download_data(domain = "macro_predictors", dataset = "monthly")` fetches the raw spreadsheet at the requested frequency (set `dataset` to `monthly`, `quarterly`, or `annual`), parses dates, strips comma thousand separators, and coerces character columns to numeric. It then constructs the standard predictors used in the equity-premium prediction literature: the log dividend-price ratio (`dp`), dividend yield (`dy`), earnings-price ratio (`ep`), dividend-payout ratio (`de`), the forward equity risk premium (`rp_div`), the term spread (`tms`), and the default-yield spread (`dfy`). The output is the cleaned panel filtered to the requested date range.
+Public data still requires nontrivial cleaning. The @goyal.2008 macroeconomic predictors are a typical case: `download_data(domain = "Goyal-Welch", dataset = "monthly")` fetches the raw spreadsheet at the requested frequency (set `dataset` to `monthly`, `quarterly`, or `annual`), parses dates, strips comma thousand separators, and coerces character columns to numeric. It then constructs the standard predictors used in the equity-premium prediction literature: the log dividend-price ratio (`dp`), dividend yield (`dy`), earnings-price ratio (`ep`), dividend-payout ratio (`de`), the forward equity risk premium (`rp_div`), the term spread (`tms`), and the default-yield spread (`dfy`). The output is the cleaned panel filtered to the requested date range.
 
 For empirical asset pricing work, WRDS is the common source of return and accounting panels. WRDS data are proprietary and require an institutional subscription and credentials. \CRANpkg{tidyfinance} handles this setup once. `set_wrds_credentials()` prompts for the username and password and stores them in a project-specific or global `.Renviron` file, and prompts the user to add `.Renviron` to `.gitignore` to prevent credential leakage. Subsequent `download_data()` calls open the database connection automatically. Depending on the user's WRDS account settings, `download_data()` may also trigger a two-factor authentication (2FA) challenge that WRDS sends to the registered device; once approved, the connection proceeds normally.
 
@@ -931,13 +933,13 @@ library("lubridate")
 
 Constructing the asset growth factor requires two WRDS panels: annual accounting data from Compustat to compute the asset growth signal and monthly stock returns from CRSP to translate the signal into portfolio returns.
 
-CRSP and Compustat are proprietary and require a WRDS subscription. All numbers, tables, and figures in this paper are computed from the real WRDS data with `data_domain <- "wrds"`. 
+CRSP and Compustat are proprietary and require a WRDS subscription. All numbers, tables, and figures in this paper are computed from the real WRDS data with `data_domain <- "WRDS"`. 
 
 ```{r set-data-domain}
-data_domain <- "wrds"
+data_domain <- "WRDS"
 ```
 
-Readers without a WRDS subscription can render the entire manuscript against pseudo data of identical schema by setting `data_domain <- "pseudo"` in the chunk below. The pseudo path covers the three WRDS-sourced datasets the case study consumes: monthly CRSP returns, annual Compustat fundamentals, and the CRSP-Compustat linking table. Every `download_data()` call for one of these datasets then routes to an in-package pseudo generator rather than to WRDS, so the document compiles end-to-end without a subscription, credentials, or network access to a paid provider. The generator preserves column names, data types, missingness patterns, panel structure, and approximate scales, so the cleaning, lagging, and sorting code paths exercise the same branches they would on real data, and every figure and table in this paper renders without error. What the generator does not preserve are economic relations. Returns are independent draws around a calibrated mean, and characteristics carry no predictive content for subsequent returns; the long-short premia recovered against pseudo data are therefore noise.
+Readers without a WRDS subscription can render the entire manuscript against pseudo data of identical schema by setting `data_domain <- "Pseudo Data"` in the chunk below. The pseudo path covers the three WRDS-sourced datasets the case study consumes: monthly CRSP returns, annual Compustat fundamentals, and the CRSP-Compustat linking table. Every `download_data()` call for one of these datasets then routes to an in-package pseudo generator rather than to WRDS, so the document compiles end-to-end without a subscription, credentials, or network access to a paid provider. The generator preserves column names, data types, missingness patterns, panel structure, and approximate scales, so the cleaning, lagging, and sorting code paths exercise the same branches they would on real data, and every figure and table in this paper renders without error. What the generator does not preserve are economic relations. Returns are independent draws around a calibrated mean, and characteristics carry no predictive content for subsequent returns; the long-short premia recovered against pseudo data are therefore noise.
 
 Two arguments to `download_data()` control the pseudo draws: `seed` fixes the random number generator so that two readers running the same chunk obtain bit-identical pseudo panels, and `n_assets` sets the size of the pseudo cross-section (default `1000L`), trading off compile speed against the realism of cross-sectional statistics. The practical implication is that every chunk in this paper can be inspected, edited, and re-rendered on a laptop with no proprietary data and no credentials; only the headline factor premia require WRDS to reproduce numerically.
 
@@ -1455,7 +1457,7 @@ pkg_version <- function(pkg) {
 r_version <- renv_lock$R$Version
 ```
 
-We obtained the results in this paper using \proglang{R} `r r_version` with the following packages: \CRANpkg{tidyfinance} `r pkg_version("tidyfinance")`, \CRANpkg{dplyr} `r pkg_version("dplyr")` [@dplyr], \CRANpkg{tidyr} `r pkg_version("tidyr")` [@tidyr], \CRANpkg{ggplot2} `r pkg_version("ggplot2")` [@ggplot2], and \CRANpkg{lubridate} `r pkg_version("lubridate")` [@lubridate]. We install development versions of \CRANpkg{tidyfinance} with \CRANpkg{pak} `r pkg_version("pak")` [@pak]. Figures additionally use \CRANpkg{ggforce} `r pkg_version("ggforce")` [@ggforce], \CRANpkg{scales} `r pkg_version("scales")` [@scales], and \CRANpkg{patchwork} `r pkg_version("patchwork")` [@patchwork]. CRAN hosts \proglang{R} and all packages at [https://CRAN.R-project.org/](https://CRAN.R-project.org/). \CRANpkg{renv} `r pkg_version("renv")` [@renv] ensures full reproducibility of the computational environment. Reproducing the factor return data requires an institutional subscription to WRDS, as the underlying CRSP and Compustat data are proprietary and cannot be redistributed. A pseudo-data path with identical schema is available via `download_data(domain = "pseudo", ...)` for readers without WRDS access; see Section \@ref(sec:data-download).
+We obtained the results in this paper using \proglang{R} `r r_version` with the following packages: \CRANpkg{tidyfinance} `r pkg_version("tidyfinance")`, \CRANpkg{dplyr} `r pkg_version("dplyr")` [@dplyr], \CRANpkg{tidyr} `r pkg_version("tidyr")` [@tidyr], \CRANpkg{ggplot2} `r pkg_version("ggplot2")` [@ggplot2], and \CRANpkg{lubridate} `r pkg_version("lubridate")` [@lubridate]. We install development versions of \CRANpkg{tidyfinance} with \CRANpkg{pak} `r pkg_version("pak")` [@pak]. Figures additionally use \CRANpkg{ggforce} `r pkg_version("ggforce")` [@ggforce], \CRANpkg{scales} `r pkg_version("scales")` [@scales], and \CRANpkg{patchwork} `r pkg_version("patchwork")` [@patchwork]. CRAN hosts \proglang{R} and all packages at [https://CRAN.R-project.org/](https://CRAN.R-project.org/). \CRANpkg{renv} `r pkg_version("renv")` [@renv] ensures full reproducibility of the computational environment. Reproducing the factor return data requires an institutional subscription to WRDS, as the underlying CRSP and Compustat data are proprietary and cannot be redistributed. A pseudo-data path with identical schema is available via `download_data(domain = "Pseudo Data", ...)` for readers without WRDS access; see Section \@ref(sec:data-download).
 
 Reproducing this manuscript takes about 15 minutes: `rmarkdown::render("tidyfinance.Rmd")` uses the WRDS subset described in Section \@ref(sec:data-download), or pseudo data of identical schema for readers without WRDS access. Timings reported here are obtained on `r sessionInfo()$running` with a `r parallel::detectCores()`-core processor running \proglang{R} `r r_version`; WRDS extracts are not pre-cached, so the 15-minute figure includes the time to download the underlying CRSP and Compustat panels.
 
@@ -1467,7 +1469,5 @@ sessionInfo()
 
 # Acknowledgments {-}
 
-Stefan Voigt is grateful to the Danish Finance Institute for financial support. 
-
-# References {-}
+Stefan Voigt is grateful to the Danish Finance Institute for financial support.
 

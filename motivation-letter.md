@@ -24,20 +24,30 @@ asset-pricing methodology, which it covers only as far as needed to show what th
 package does.
 
 We believe the article fits The R Journal on three counts. First, it is a
-reproducibility story for a large applied community: the package turns implicit,
-hand-coded conventions into auditable, versioned, tested, and documented code,
-ships a vignette that walks through the complete factor-construction workflow,
-and already underpins open teaching materials used in graduate finance and
-data-science courses. Second, although the package connects to the subscription
-data (CRSP, Compustat via WRDS) that this field treats as standard, it equally
-serves the free and open sources most R users can access — Ken French's Data
-Library, FRED, and Yahoo Finance — and it ships a built-in pseudo-data generator,
-so the package and this manuscript are fully runnable and reproducible without
-any subscription. Third, it offers a capability existing R packages do not:
-data-acquisition packages such as *frenchdata*, *quantmod*, and *tidyquant* stop
-at raw downloads, and downstream analysis packages assume a clean panel already
-in hand, whereas *tidyfinance* exposes the construction layer in between as
-configurable, auditable code.
+package-description article that goes well beyond the package vignette: where the
+vignette demonstrates the workflow, the manuscript sets out the design rationale,
+makes the case for transparency in a pipeline the field otherwise leaves
+implicit, and reproduces a well-known asset-pricing factor end to end while
+*varying* construction choices to show how each moves the result. The package
+turns implicit, hand-coded conventions into auditable, versioned, tested, and
+documented code, and already underpins open teaching materials used in graduate
+finance and data-science courses. Second, the contribution is as much about R
+software design as about finance, and it fills a real gap in the R ecosystem: a
+unified `download_data()` interface and a set of small, composable, pipe-friendly
+functions expose every construction decision as a configurable parameter with a
+documented default, so a single default call reproduces standard practice while
+overriding any one choice takes a single argument. Data-acquisition packages such
+as *frenchdata*, *quantmod*, and *tidyquant* stop at raw downloads, and downstream
+analysis packages assume a clean panel already in hand, whereas *tidyfinance*
+exposes the construction layer in between — a design of interest to R users and
+developers beyond this application area. Third, although the package connects to
+the subscription data (CRSP, Compustat via WRDS) that this field treats as
+standard, it equally serves the free and open sources most R users can access —
+Ken French's Data Library, FRED, and Yahoo Finance — and ships a built-in
+pseudo-data generator, so the package, and this manuscript itself, are fully
+runnable and reproducible without any subscription: the paper compiles end to end
+from a single R Markdown source, and the pseudo-data path lets a reader without
+WRDS rebuild every number, table, and figure.
 
 We confirm that this work is original, has not been published previously, and is
 not under consideration for publication elsewhere. All code and data workflows

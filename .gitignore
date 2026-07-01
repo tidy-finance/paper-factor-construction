@@ -8,10 +8,10 @@ _render-test*
 -render-test*
 _rt.*
 RJwrapper.*
-!RJwrapper.pdf
 tidyfinance.tex
-tidyfinance.pdf
+tidyfinance.html
 tidyfinance.R
+# tidyfinance.pdf is the built R Journal article PDF (rjtools output) — tracked for review
 tidyfinance_files/
 _render-test_files/
 figure/
@@ -23,3 +23,7 @@ figure/
 *.out
 motivation-letter.knit.md
 *.knit.md
+
+# Submission bundle (build output for R Journal upload)
+tidyfinance-RJournal-submission.zip
+submission/
