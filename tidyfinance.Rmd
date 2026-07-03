@@ -248,6 +248,26 @@ Table: (\#tab:functions) User-facing functions in \CRANpkg{tidyfinance}, grouped
 |                |                                    | )                                       |
 |                |                                    | ```                                     |
 +----------------+------------------------------------+-----------------------------------------+
+| Stambaugh-Yuan | @stambaugh.2017 mispricing         | ```                                     |
+|                | factors (MGMT, PERF) at daily      | download_data(                          |
+|                | and monthly frequency              |   domain = "Stambaugh-Yuan",            |
+|                |                                    |   dataset = "monthly"                   |
+|                |                                    | )                                       |
+|                |                                    | ```                                     |
++----------------+------------------------------------+-----------------------------------------+
+| Pastor-        | @pastor.2003 traded and            | ```                                     |
+| Stambaugh      | non-traded liquidity factors       | download_data(                          |
+|                |                                    |   domain = "Pastor-Stambaugh"           |
+|                |                                    | )                                       |
+|                |                                    | ```                                     |
++----------------+------------------------------------+-----------------------------------------+
+| Global Factor  | @jensen.2023 hundreds of           | ```                                     |
+| Data           | long-short factors across          | download_data(                          |
+|                | many countries and asset classes   |   domain = "Global Factor Data",        |
+|                |                                    |   dataset = "factors"                   |
+|                |                                    | )                                       |
+|                |                                    | ```                                     |
++----------------+------------------------------------+-----------------------------------------+
 | Goyal-Welch    | Macroeconomic return predictors    | ```                                     |
 | Predictors     |                                    | download_data(                          |
 |                |                                    |   domain = "Goyal-Welch",               |
@@ -1062,7 +1082,11 @@ data.frame(
   )
 ) |>
   knitr::kable(
-    caption = paste0("Cross-sectional summary statistics for asset growth (winsorized at the 1st and 99th percentiles). The 'Pooled' column reports the statistic computed on the entire firm-year sample. The 'Yearly' columns summarize the time series of statistic values computed cross-sectionally year by year, taking the average, minimum, and maximum across calendar years. N is the count of firm-year observations (pooled) or per-year observations (yearly columns). Sample: ", sample_years(drop_na(sorting_variable_data, asset_growth)), "."),
+    caption = paste0(
+      "Cross-sectional summary statistics for asset growth (winsorized at the 1st and 99th percentiles). The 'Pooled' column reports the statistic computed on the entire firm-year sample. The 'Yearly' columns summarize the time series of statistic values computed cross-sectionally year by year, taking the average, minimum, and maximum across calendar years. N is the count of firm-year observations (pooled) or per-year observations (yearly columns). Sample: ",
+      sample_years(drop_na(sorting_variable_data, asset_growth)),
+      "."
+    ),
     align = "lrrrr",
     format = "latex",
     booktabs = TRUE,
@@ -1222,7 +1246,11 @@ group_header <- paste0(
 
 raw_table <- univariate_sort_table |>
   knitr::kable(
-    caption = paste0("Time-series averages of annualized monthly excess returns for asset growth quintile portfolios. Portfolios are formed annually in July using NYSE breakpoints. Means are annualized (multiplied by 12). The $t$~statistic tests whether the mean monthly excess return differs from zero. Capped value-weighted pulls weights above the 80th percentile back to that cap. The L/S row is the long-short portfolio (bottom minus top quintile). Sample: ", sample_years(drop_na(portfolio_returns)), "."),
+    caption = paste0(
+      "Time-series averages of annualized monthly excess returns for asset growth quintile portfolios. Portfolios are formed annually in July using NYSE breakpoints. Means are annualized (multiplied by 12). The $t$~statistic tests whether the mean monthly excess return differs from zero. Capped value-weighted pulls weights above the 80th percentile back to that cap. The L/S row is the long-short portfolio (bottom minus top quintile). Sample: ",
+      sample_years(drop_na(portfolio_returns)),
+      "."
+    ),
     digits = 3,
     escape = FALSE,
     format = "latex",
@@ -1362,7 +1390,11 @@ customized_comparison_table <- bind_rows(
 ```{r customized-comparison, echo=FALSE}
 customized_comparison_table |>
   knitr::kable(
-    caption = paste0("Comparison of long-short asset growth returns across three specifications. The baseline is a univariate sort with NYSE breakpoints and no filters. The bivariate-only specification adds a dependent bivariate sort on size to the baseline but otherwise keeps the same universe and breakpoints. The customized specification adds the filter set (financials, utilities, non-positive earnings) and a 20\\% size threshold on the breakpoints. All rows use annual July rebalancing; means are annualized value-weighted excess returns. Sample: ", sample_years(drop_na(factor_returns_ag)), "."),
+    caption = paste0(
+      "Comparison of long-short asset growth returns across three specifications. The baseline is a univariate sort with NYSE breakpoints and no filters. The bivariate-only specification adds a dependent bivariate sort on size to the baseline but otherwise keeps the same universe and breakpoints. The customized specification adds the filter set (financials, utilities, non-positive earnings) and a 20\\% size threshold on the breakpoints. All rows use annual July rebalancing; means are annualized value-weighted excess returns. Sample: ",
+      sample_years(drop_na(factor_returns_ag)),
+      "."
+    ),
     digits = 3,
     escape = FALSE,
     format = "latex",
@@ -1419,7 +1451,11 @@ fm_results |>
     `N (months)` = n
   ) |>
   knitr::kable(
-    caption = paste0("Fama-MacBeth regression of monthly excess returns on lagged asset growth and lagged log market capitalization. Coefficients are time-series averages of monthly cross-sectional OLS estimates; standard errors are Newey and West (1987) with automatic lag selection. The intercept and slopes on the right-hand-side variables are reported on the monthly scale. Sample: ", sample_years(fm_data), "."),
+    caption = paste0(
+      "Fama-MacBeth regression of monthly excess returns on lagged asset growth and lagged log market capitalization. Coefficients are time-series averages of monthly cross-sectional OLS estimates; standard errors are Newey and West (1987) with automatic lag selection. The intercept and slopes on the right-hand-side variables are reported on the monthly scale. Sample: ",
+      sample_years(fm_data),
+      "."
+    ),
     digits = 4,
     escape = FALSE,
     format = "latex",
@@ -1436,7 +1472,7 @@ The negative slope on `asset_growth` in Table \@ref(tab:fama-macbeth) lines up w
 
 Empirical asset pricing depends on dozens of construction choices that no consensus pins down. \CRANpkg{tidyfinance} makes those choices first-class objects in the workflow: each is an argument, each has a documented default, each can be varied without rebuilding the pipeline. Disagreements over construction become empirical questions, not implicit assumptions buried in code.
 
-We will maintain and extend the package on CRAN. At the time of writing, all functions are covered by comprehensive unit tests, with code coverage reported at 100% by [Codecov](https://app.codecov.io/gh/tidy-finance/r-tidyfinance), and each release is accompanied by passing R CMD check results across multiple operating systems, including the latest macOS, Windows, and Ubuntu environments. The companion spliced risk-free rate, hosted on Hugging Face, is refreshed on a scheduled GitHub Actions workflow, so the published series tracks new WRDS releases without manual intervention.
+We will maintain and extend the package on CRAN. At the time of writing, all functions are covered by comprehensive unit tests, with code coverage reported at 100% by [Codecov](https://app.codecov.io/gh/tidy-finance/r-tidyfinance), and each release is accompanied by passing R CMD check results across multiple operating systems, including the latest macOS, Windows, and Ubuntu environments. The companion risk-free rate, hosted on Hugging Face, is refreshed on a scheduled GitHub Actions workflow, so the published series tracks new WRDS releases without manual intervention.
 
 Companion materials at [tidy-finance.org](https://tidy-finance.org) integrate \CRANpkg{tidyfinance} into open coursework and self-study tracks for graduate finance and asset pricing in \proglang{R}. The site also hosts a reviewed channel through which researchers can publish replications and new construction routines, so the catalog of factors and conventions can grow with the literature rather than freezing at the package's release.
 
