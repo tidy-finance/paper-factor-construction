@@ -10,11 +10,14 @@ We are pleased to submit our manuscript, "tidyfinance: Transparent Factor
 Construction for Empirical Asset Pricing," for consideration as a contributed
 research article.
 
-Empirical research in finance and the quantitative social sciences depends on a
-data-preparation pipeline that is notoriously opaque: turning raw accounting and
-return data into research-ready factor portfolios involves dozens of
-consequential, undocumented choices, and results often cannot be reproduced. The
-*tidyfinance* package, available on CRAN, makes this pipeline transparent and
+Empirical research in finance and the quantitative social sciences rests on
+data-preparation pipelines that are notoriously opaque, and the resulting
+findings often cannot be reproduced. The problem is especially acute in
+empirical asset pricing, where turning raw accounting and return data into
+research-ready factor portfolios requires dozens of consequential yet
+undocumented choices.
+
+The *tidyfinance* package, available on CRAN, makes this pipeline transparent and
 reproducible. It exposes every construction decision as a configurable parameter
 with a documented default, and provides a unified `download_data()` interface and
 a set of small, composable functions for the steps in between. We illustrate the
