@@ -50,6 +50,18 @@ built-in pseudo-data generator. As a result, this manuscript compiles end to end
 from a single R Markdown source, and a reader without WRDS access can rebuild
 every number, table, and figure.
 
+One point on which we would welcome the editors' guidance concerns how the
+manuscript should be rendered. For the results reported here, we
+compile the R Markdown source against the proprietary WRDS database (with
+`data_domain <- "WRDS"` set in line 959 of `tidyfinance.Rmd`), which reproduces
+every number exactly but requires a WRDS subscription. The same source also
+compiles against the built-in pseudo-data generator (`data_domain <- "Pseudo
+Data"`), which any reader can run without a subscription. It exercises the 
+identical code paths and renders every table and figure, but the results it 
+produces are noise. We are happy to submit either version and would appreciate 
+the editors' preference on which route best fits The R Journal's reproducibility 
+standards.
+
 The package is on CRAN, with fully documented and exported functions, examples,
 unit tests, and a vignette. We confirm that this work is original, has not been
 published previously, and is not under consideration for publication elsewhere.

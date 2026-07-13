@@ -39,7 +39,7 @@ As described above, CRSP and Compustat data **cannot be made** publicly availabl
 
 #### CRSP Monthly Stock File (proprietary)
 
-The Center for Research in Security Prices (CRSP) Monthly Stock File provides US equity returns, prices, shares outstanding, and delisting information. The paper uses 1972 through 2024. Access requires an institutional WRDS subscription. Data are downloaded via `tidyfinance::download_data(domain = "wrds", dataset = "crsp_monthly")`, which wraps the WRDS PostgreSQL API and returns an R data frame. Configure WRDS credentials once with `tidyfinance::set_wrds_credentials()`. The raw extracts are not redistributed.
+The Center for Research in Security Prices (CRSP) Monthly Stock File provides US equity returns, prices, shares outstanding, and delisting information. The paper uses 1972 through 2024. Access requires an institutional WRDS subscription. Data are downloaded via `tidyfinance::download_data(domain = "WRDS", dataset = "crsp_monthly")`, which wraps the WRDS PostgreSQL API and returns an R data frame. Configure WRDS credentials once with `tidyfinance::set_wrds_credentials()`. The raw extracts are not redistributed.
 
 - Format: R data frame returned by the WRDS PostgreSQL pull
 - Access: Subscription-based; requires institutional WRDS license
@@ -48,7 +48,7 @@ The Center for Research in Security Prices (CRSP) Monthly Stock File provides US
 
 #### Compustat Fundamentals Annual (proprietary)
 
-S&P Global Compustat Fundamentals Annual provides accounting data including total assets, used to construct the asset-growth signal. Access requires WRDS, as above. Data are downloaded via `tidyfinance::download_data(domain = "wrds", dataset = "compustat_annual")`. The raw extracts are not redistributed.
+S&P Global Compustat Fundamentals Annual provides accounting data including total assets, used to construct the asset-growth signal. Access requires WRDS, as above. Data are downloaded via `tidyfinance::download_data(domain = "WRDS", dataset = "compustat_annual")`. The raw extracts are not redistributed.
 
 - Format: R data frame returned by the WRDS PostgreSQL pull
 - Access: Subscription-based; requires institutional WRDS license
@@ -76,11 +76,11 @@ No standalone codebook is bundled because all data are obtained through `tidyfin
 
 ### Software Requirements
 
-- R 4.5.2 (versions of every package are pinned in `renv.lock`)
+- R 4.6.1 (package versions are pinned in `renv.lock`)
 - `renv` package, used to restore the locked package environment
 - `rmarkdown` and `rjtools` to render the article, together with `pandoc` (bundled with RStudio, or installed separately) and a working TeX distribution (e.g., TinyTeX or TeX Live) for PDF output
 - `tidyfinance` version 0.6.0.9003, as recorded in `renv.lock`
-- An institutional WRDS account, unless rendering with `data_domain <- "pseudo"`
+- An institutional WRDS account, unless rendering with `data_domain <- "Pseudo Data"`
 
 The file `renv.lock` lists every package and the exact version used. Running `renv::restore()` once from the project root installs the full set of **R packages**. Pandoc and a TeX distribution are not R packages and must be installed separately (see "Instructions to Replicators").
 
@@ -128,7 +128,7 @@ The code is licensed under the MIT License. See [LICENSE](LICENSE) for details.
 
 ### Prerequisites (clean machine)
 
-1. Install **R 4.5.2 or later**.
+1. Install **R 4.6.1 or later**.
 2. Install **pandoc** (bundled with RStudio, or available from `https://pandoc.org`).
 3. Install a **TeX distribution** for PDF output, e.g. from R run `tinytex::install_tinytex()`.
 4. Ensure an **active internet connection** (all data are downloaded at render time).
@@ -162,16 +162,16 @@ The code is licensed under the MIT License. See [LICENSE](LICENSE) for details.
 Open `tidyfinance.Rmd`, find the `set-data-domain` chunk near the top of the case study, and change
 
 ```r
-data_domain <- "wrds"
+data_domain <- "WRDS"
 ```
 
 to
 
 ```r
-data_domain <- "pseudo"
+data_domain <- "Pseudo Data"
 ```
 
-Every chunk that would otherwise download CRSP or Compustat then dispatches to the `domain = "pseudo"` path in `tidyfinance`, which generates schema-compatible pseudo data. The workflow reproduces in full; numerical results are simulated. The `seed` and `n_assets` arguments to `download_data()` control the random draws.
+Every chunk that would otherwise download CRSP or Compustat then dispatches to the `domain = "Pseudo Data"` path in `tidyfinance`, which generates schema-compatible pseudo data. The workflow reproduces in full; numerical results are simulated. The `seed` and `n_assets` arguments to `download_data()` control the random draws.
 
 ## Notes on Reproducibility (data vintage)
 
@@ -204,7 +204,7 @@ S&P Global. 2024. *Compustat Fundamentals Annual.* Accessed via Wharton Research
 ## Related resources
 
 - R package: [tidyfinance](https://CRAN.R-project.org/package=tidyfinance) on CRAN
-- Tidy Finance textbook: [tidy-finance.org](https://tidy-finance.org)
+- Tidy Finance textbook: [tidy-finance.org](https://www.tidy-finance.org)
 
 ## Acknowledgements
 
