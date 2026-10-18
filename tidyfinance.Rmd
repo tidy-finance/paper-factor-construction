@@ -196,8 +196,8 @@ The empirical asset pricing workflow decomposes into three stages: data acquisit
 | `assign_portfolio()`                     | Maps each observation to a portfolio integer using supplied or      |
 |                                          | computed breakpoints.                                               |
 +------------------------------------------+---------------------------------------------------------------------+
-| `compute_portfolio_returns()`            | Forms portfolios period by period and returns equal-, value-, and   |
-|                                          | capped-value-weighted return panels.                                |
+| `compute_portfolio_returns()`            | Forms portfolios with monthly, annual, or staggered rebalancing and |
+|                                          | returns equal-, value-, and capped-value-weighted return panels.    |
 +------------------------------------------+---------------------------------------------------------------------+
 | `compute_long_short_returns()`           | Computes the top-minus-bottom (or bottom-minus-top) spread from     |
 |                                          | the output of `compute_portfolio_returns()`.                        |
@@ -415,7 +415,7 @@ The second mode, enabled by `ff_adjustment = TRUE` and shown in Panel B of Figur
 
 `join_lagged_values()` is a related helper that merges lagged values from one data frame into another using the same windowing logic. It is useful when the target panel and the source panel are at different frequencies, for example, when joining monthly accounting data into a quarterly target panel. The function takes the same `ff_adjustment` argument as `add_lagged_columns()`, so the Fama-French convention can be applied at the join step rather than as a separate transformation.
 
-```{r lagging-illustration, fig.alt="Schematic comparing two lagging modes. Panel A returns the most recent observed value within a window bounded by the minimum and maximum lag; Panel B implements the Fama-French convention, in which the lagged value updates only at the June-to-July boundary and is held constant for twelve months.", fig.cap="Two lagging mechanisms in add\\_lagged\\_columns(). Each row represents a data series with observed (filled) and missing (hollow) cells. The dashed rectangle marks the search window from the perspective of the most recent observation (the top row); arrows show which value gets matched to each target month. Panel A (ff\\_adjustment = FALSE) returns the most recent observed value within a window bounded by lag and max\\_lag. Panel B (ff\\_adjustment = TRUE) implements the Fama-French convention, where the lagged value updates only at the June/July boundary and is held constant for the next twelve months.", fig.width=6.5, fig.height=4, out.width="100%", echo=FALSE}
+```{r lagging-illustration, fig.alt="Schematic comparing two lagging modes. Panel A returns the most recent observed value within a window bounded by the minimum and maximum lag; Panel B implements the Fama-French convention, in which the lagged value updates only at the June-to-July boundary and is held constant for twelve months.", fig.cap="Two lagging mechanisms in add\\_lagged\\_columns(). Each row represents a data series with observed (filled) and missing (hollow) cells. The dashed rectangle marks the search window from the perspective of the most recent observation (the top row); arrows show which value gets matched to each target month. Panel A (ff\\_adjustment = FALSE) returns the most recent observed value within a window bounded by lag and max\\_lag. Panel B (ff\\_adjustment = TRUE) implements the Fama-French convention, where the lagged value updates only at the June/July boundary and is held constant for the next twelve months.", fig.width=6.5, fig.height=4, out.width="85%", echo=FALSE}
 ts <- 0.94
 corner <- unit(4, "pt")
 
@@ -815,7 +815,7 @@ A portfolio sort groups stocks each period into ordered portfolios according to 
 
 `assign_portfolio()` maps each observation to a portfolio integer and uses breakpoints supplied either directly or via a breakpoint-computing function (defaulting to `compute_breakpoints()`). In practice, `assign_portfolio()` is called separately for each rebalancing date, so that portfolios are reformed each period rather than fixed once for the whole sample.
 
-`compute_portfolio_returns()` ties the lower-level pieces together. Given a panel of stock data, one or two sorting variables, a sorting method, and `breakpoint_options`, it handles rebalancing, breakpoint computation, portfolio assignment, and return aggregation. It then returns a complete panel of portfolio returns. For each portfolio-date the function reports three return measures: equal-weighted, value-weighted using `mktcap_lag` as the weight, and capped value-weighted [@jensen.2023]. Following @jensen.2023, the capped version caps each stock's market capitalization at the `cap_weight` percentile of NYSE stocks on each date (default `0.8`, the 80th percentile), which prevents a few megacap firms from dominating the portfolio. A `min_portfolio_size` argument sets the minimum number of constituents below which the corresponding return is set to `NA`. An optional `rebalancing_month` argument switches from period-by-period rebalancing to annual rebalancing in the specified month. Portfolios formed in that month are then held constant for the following twelve months.
+`compute_portfolio_returns()` ties the lower-level pieces together. Given a panel of stock data, one or two sorting variables, a sorting method, and `breakpoint_options`, it handles rebalancing, breakpoint computation, portfolio assignment, and return aggregation. It then returns a complete panel of portfolio returns. For each portfolio-date the function reports three return measures: equal-weighted, value-weighted using `mktcap_lag` as the weight, and capped value-weighted [@jensen.2023]. Following @jensen.2023, the capped version caps each stock's market capitalization at the `cap_weight` percentile of NYSE stocks on each date (default `0.8`, the 80th percentile), which prevents a few megacap firms from dominating the portfolio. A `min_portfolio_size` argument sets the minimum number of constituents below which the corresponding return is set to `NA`. An optional `rebalancing_month` argument switches from period-by-period rebalancing to annual rebalancing in the specified month. Portfolios formed in that month are then held constant for the following twelve months. Alternatively, `holding_period` and `skip` implement staggered rebalancing: portfolios are formed every period, and each cohort is held for `holding_period` periods, starting `skip` periods after formation, so that overlapping cohorts are averaged as in @jegadeesh.1993.
 
 The function supports three sorting schemes, illustrated in Figure \@ref(fig:illustrate-portfolio-helper). A *univariate* sort uses a single variable. An *independent bivariate* sort computes breakpoints on each variable separately and intersects the resulting bins to produce a two-way grid. A *dependent bivariate* sort first partitions the cross-section by the secondary (control) variable and then re-sorts within each bucket on the main variable, which is the appropriate choice when the second variable is treated as a control rather than as an independent dimension of variation. For bivariate sorts, returns are averaged over the secondary variable so that only the main-variable portfolios are returned.
 
@@ -889,7 +889,7 @@ portfolios_dependent <- cross_section |>
   dplyr::ungroup()
 ```
 
-```{r illustrate-portfolio-helper, fig.alt="Three scatterplots of a simulated cross-section showing univariate, independent bivariate, and dependent bivariate portfolio assignments, with asset-growth rank on the horizontal axis and size rank on the vertical axis.", echo=FALSE, fig.cap=paste0("Portfolio sort approaches illustrated on a simulated cross-section. Each panel plots simulated observations assigned to ", n_portfolio, " × ", n_portfolio, " portfolios based on asset growth rank (x-axis) and size rank (y-axis), both expressed as percentiles. Colors indicate portfolio cell assignment. The univariate sort (left) assigns portfolios on asset growth alone; the independent bivariate sort (center) assigns each dimension independently; the dependent bivariate sort (right) sorts on size first, then on asset growth within size groups."), fig.width=6.5, out.width="100%"}
+```{r illustrate-portfolio-helper, fig.alt="Three scatterplots of a simulated cross-section showing univariate, independent bivariate, and dependent bivariate portfolio assignments, with asset-growth rank on the horizontal axis and size rank on the vertical axis.", echo=FALSE, fig.cap=paste0("Portfolio sort approaches illustrated on a simulated cross-section. Each panel plots simulated observations assigned to ", n_portfolio, " × ", n_portfolio, " portfolios based on asset growth rank (x-axis) and size rank (y-axis), both expressed as percentiles. Colors indicate portfolio cell assignment. The univariate sort (left) assigns portfolios on asset growth alone; the independent bivariate sort (center) assigns each dimension independently; the dependent bivariate sort (right) sorts on size first, then on asset growth within size groups."), fig.width=6.5, fig.height=3, out.width="90%"}
 common_theme <- list(
   scale_x_continuous(
     labels = scales::percent,
@@ -901,7 +901,8 @@ common_theme <- list(
   theme(
     panel.grid = element_blank(),
     plot.title = element_text(hjust = 0),
-    plot.title.position = "plot"
+    plot.title.position = "plot",
+    plot.margin = margin(5.5, 14, 5.5, 5.5)
   )
 )
 
@@ -1121,7 +1122,7 @@ The filter removes the initial year used to compute the growth rate plus an addi
 
 Figure \@ref(fig:ag-percentiles) shows the 33rd, 50th, and 66th cross-sectional percentiles of asset growth over time in the resulting panel; pronounced spikes during economic expansions and contractions highlight the cyclical nature of corporate investment.
 
-```{r ag-percentiles, fig.alt="Time-series line plot of the 33rd, 50th, and 66th percentiles of cross-sectional asset growth, expressed as annual percentage growth in total assets.", fig.cap=paste0("Selected percentiles (33rd, 50th, 66th) of cross-sectional asset growth over time. The y-axis reports annual growth in total assets in percent. Sample: ", sample_years(drop_na(sorting_data)), "."), fig.width=6.5, out.width="100%", echo=FALSE}
+```{r ag-percentiles, fig.alt="Time-series line plot of the 33rd, 50th, and 66th percentiles of cross-sectional asset growth, expressed as annual percentage growth in total assets.", fig.cap=paste0("Selected percentiles (33rd, 50th, 66th) of cross-sectional asset growth over time. The y-axis reports annual growth in total assets in percent. Sample: ", sample_years(drop_na(sorting_data)), "."), fig.width=6.5, fig.height=3, out.width="100%", echo=FALSE}
 plot_data <- sorting_data |>
   drop_na() |>
   group_by(date) |>
@@ -1325,7 +1326,7 @@ factor_returns_customized <- portfolio_returns_customized |>
   compute_long_short_returns(direction = "bottom_minus_top")
 ```
 
-A single options object (`options_customized`) bundles every methodological choice that distinguishes this specification from the baseline; nothing in the surrounding pipeline changes. Switching from a univariate to a size-controlled dependent bivariate sort is a one-word change in `sorting_method`, and the secondary breakpoint object is supplied alongside the primary one without any additional work. Setting `quiet = TRUE` suppresses the diagnostic messages from `filter_sorting_data()`, which report how many observations each filter drops; setting `quiet = FALSE` (the default) is useful when iterating to track sample-construction effects.
+A single options object (`options_customized`) bundles every methodological choice that distinguishes this specification from the baseline; nothing in the surrounding pipeline changes. Switching from a univariate to a size-controlled dependent bivariate sort is a one-word change in `sorting_method`, and the secondary breakpoint object is supplied alongside the primary one without any additional work. Setting `quiet = TRUE` suppresses the diagnostic messages from `filter_sorting_data()`, which report how many observations each filter drops; setting `quiet = FALSE` (the default) is useful when iterating to track sample-construction effects. With annual rebalancing, the screens apply in the formation month only, so a stock that, for example, reports a loss after formation keeps its returns until the portfolios are reformed. `filter_options(timing = "every_period")` applies the screens in every month instead, but this uses information that is not available at formation and the package warns about it.
 
 For comparison, we also include a bivariate-dependent sort that uses the default filters and breakpoint conventions, so the only difference from the baseline is the addition of size control. The long-short returns from that specification are appended to the customized one in Table \@ref(tab:customized-comparison).
 
@@ -1351,33 +1352,65 @@ factor_returns_bivariate <- portfolio_returns_bivariate |>
   compute_long_short_returns(direction = "bottom_minus_top")
 ```
 
+Table \@ref(tab:customized-comparison) also reports two sensitivity checks of the baseline, each a one-argument change. The first drops `ff_adjustment` and uses a plain lag window instead: each month receives the most recent fiscal-year value observed 7 to 18 months earlier, so each firm updates seven months after its own fiscal year-end rather than in July. The second caps market capitalization at the 80th percentile of all stocks instead of NYSE stocks, which only affects the capped value-weighted returns.
+
+```{r sensitivity-sorts}
+sorting_data_window <- crsp_monthly |>
+  join_lagged_values(
+    new_data = sorting_variable_data,
+    id_keys = "gvkey",
+    min_lag = months(7),
+    max_lag = months(18)
+  ) |>
+  filter(date >= date_start + months(12) + months(18))
+
+factor_returns_window <- implement_portfolio_sort(
+  data = sorting_data_window,
+  sorting_variables = "asset_growth",
+  sorting_method = "univariate",
+  rebalancing_month = 7,
+  portfolio_sort_options = options_baseline
+) |>
+  compute_long_short_returns(direction = "bottom_minus_top")
+
+factor_returns_all_cap <- implement_portfolio_sort(
+  data = sorting_data,
+  sorting_variables = "asset_growth",
+  sorting_method = "univariate",
+  rebalancing_month = 7,
+  portfolio_sort_options = options_baseline,
+  cap_weight_exchanges = NULL
+) |>
+  compute_long_short_returns(direction = "bottom_minus_top")
+```
+
 ```{r customized-comparison-stats, echo=FALSE}
-customized_comparison_table <- bind_rows(
-  factor_returns_ag |>
+summarize_spread <- function(data, specification) {
+  data |>
     drop_na() |>
     summarize(
-      Specification = "Baseline (univariate, no filters)",
+      Specification = specification,
       `VW mean` = mean(ret_excess_vw) * 12,
-      `VW $t$~statistic` = mean(ret_excess_vw) / (sd(ret_excess_vw) / sqrt(n()))
-    ),
-  factor_returns_bivariate |>
-    drop_na() |>
-    summarize(
-      Specification = "Bivariate only (size-controlled, no filters)",
-      `VW mean` = mean(ret_excess_vw) * 12,
-      `VW $t$~statistic` = mean(ret_excess_vw) / (sd(ret_excess_vw) / sqrt(n()))
-    ),
-  factor_returns_customized |>
-    drop_na() |>
-    summarize(
-      Specification = "Customized (size-controlled, filtered)",
-      `VW mean` = mean(ret_excess_vw) * 12,
-      `VW $t$~statistic` = mean(ret_excess_vw) / (sd(ret_excess_vw) / sqrt(n()))
+      `VW $t$` = mean(ret_excess_vw) / (sd(ret_excess_vw) / sqrt(n())),
+      `VWC mean` = mean(ret_excess_vw_capped) * 12,
+      `VWC $t$` = mean(ret_excess_vw_capped) /
+        (sd(ret_excess_vw_capped) / sqrt(n()))
     )
+}
+customized_comparison_table <- bind_rows(
+  summarize_spread(factor_returns_ag, "Baseline (univariate, no filters)"),
+  summarize_spread(
+    factor_returns_bivariate, "Bivariate only (size-controlled, no filters)"
+  ),
+  summarize_spread(
+    factor_returns_customized, "Customized (size-controlled, filtered)"
+  ),
+  summarize_spread(factor_returns_window, "Baseline, 7-to-18-month window"),
+  summarize_spread(factor_returns_all_cap, "Baseline, all-stock cap")
 )
 ```
 
-Table \@ref(tab:customized-comparison) decomposes the customized premium into two layers. Adding the size-controlled bivariate sort alone (the bivariate-only row) barely moves the annualized premium, from `r round(customized_comparison_table[[2]][1] * 100, 1)`% to `r round(customized_comparison_table[[2]][2] * 100, 1)`%, but raises the $t$~statistic from `r round(customized_comparison_table[[3]][1], 2)` to `r round(customized_comparison_table[[3]][2], 2)`, because the size-controlled spread is less volatile. Layering the filter set and the 20% breakpoint threshold on top lowers the premium to `r round(customized_comparison_table[[2]][3] * 100, 1)`% with a $t$~statistic of `r round(customized_comparison_table[[3]][3], 2)`, which is no longer significant at the 5% level: removing financials, utilities, and loss-making firms and computing breakpoints without the smallest 20% of NYSE firms weakens the spread. Across all three specifications, the spread has the sign of the negative AG premium in @cooper.2008, but is considerably smaller than their annual value-weighted long-short premium of about 12.6% over July 1968 to June 2003, which is based on deciles rather than quintiles.[^cooper-deciles]
+Table \@ref(tab:customized-comparison) decomposes the customized premium into two layers. Adding the size-controlled bivariate sort alone (the bivariate-only row) barely moves the annualized premium, from `r sprintf("%.1f", customized_comparison_table[[2]][1] * 100)`% to `r sprintf("%.1f", customized_comparison_table[[2]][2] * 100)`%, but raises the $t$~statistic from `r sprintf("%.2f", customized_comparison_table[[3]][1])` to `r sprintf("%.2f", customized_comparison_table[[3]][2])`, because the size-controlled spread is less volatile. Layering the filter set and the 20% breakpoint threshold on top lowers the premium to `r sprintf("%.1f", customized_comparison_table[[2]][3] * 100)`% with a $t$~statistic of `r sprintf("%.2f", customized_comparison_table[[3]][3])`, which is no longer significant at the 5% level: removing financials, utilities, and loss-making firms and computing breakpoints without the smallest 20% of NYSE firms weakens the spread. In the sensitivity checks, the plain lag window gives a value-weighted premium of `r sprintf("%.1f", customized_comparison_table[[2]][4] * 100)`% ($t$~statistic of `r sprintf("%.2f", customized_comparison_table[[3]][4])`) instead of `r sprintf("%.1f", customized_comparison_table[[2]][1] * 100)`%, and capping at the all-stock percentile changes the capped value-weighted premium from `r sprintf("%.1f", customized_comparison_table[[4]][1] * 100)`% ($t$~statistic of `r sprintf("%.2f", customized_comparison_table[[5]][1])`) to `r sprintf("%.1f", customized_comparison_table[[4]][5] * 100)`% ($t$~statistic of `r sprintf("%.2f", customized_comparison_table[[5]][5])`). Across the three main specifications, the spread has the sign of the negative AG premium in @cooper.2008, but is considerably smaller than their annual value-weighted long-short premium of about 12.6% over July 1968 to June 2003, which is based on deciles rather than quintiles.[^cooper-deciles]
 
 [^cooper-deciles]: @cooper.2008 sorts into deciles.
 
@@ -1391,7 +1424,7 @@ Table \@ref(tab:customized-comparison) decomposes the customized premium into tw
 customized_comparison_table |>
   knitr::kable(
     caption = paste0(
-      "Comparison of long-short asset growth returns across three specifications. The baseline is a univariate sort with NYSE breakpoints and no filters. The bivariate-only specification adds a dependent bivariate sort on size to the baseline but otherwise keeps the same universe and breakpoints. The customized specification adds the filter set (financials, utilities, non-positive earnings) and a 20\\% size threshold on the breakpoints. All rows use annual July rebalancing; means are annualized value-weighted excess returns. Sample: ",
+      "Comparison of long-short asset growth returns across three specifications and two sensitivity checks of the baseline. The baseline is a univariate sort with NYSE breakpoints and no filters. The bivariate-only specification adds a dependent bivariate sort on size to the baseline but otherwise keeps the same universe and breakpoints. The customized specification adds the filter set (financials, utilities, non-positive earnings) and a 20\\% size threshold on the breakpoints. The last two rows change one choice of the baseline: a 7-to-18-month lag window instead of the Fama-French timing, and a cap at the 80th percentile of all stocks instead of NYSE stocks. All rows use annual July rebalancing; means are annualized value-weighted (VW) and capped value-weighted (VWC) excess returns. Sample: ",
       sample_years(drop_na(factor_returns_ag)),
       "."
     ),
@@ -1408,6 +1441,102 @@ customized_comparison_table |>
 ```
 
 Researchers who want finer-grained control can call the lower-level portfolio-sorting functions in Table \@ref(tab:functions) directly. They share signatures and semantics with `implement_portfolio_sort()`, so an analysis prototyped against the wrapper can be unrolled into its components without rewriting the pipeline. This separation matters when custom logic applies at one stage only, for example, computing breakpoints separately within each industry, or from a trailing window of past data rather than the contemporaneous cross-section.
+
+### Staggered rebalancing {#sec:staggered}
+
+Some factors are built with *staggered* rebalancing instead of a single annual or monthly formation date: portfolios are formed every month, and each cohort is held for $K$ months, so that $K$ overlapping cohorts are held at any time. @jegadeesh.1993 construct momentum this way. Their $J$/$K$ strategies sort stocks on the past $J$-month return and hold each cohort for $K$ months. In \CRANpkg{tidyfinance}, the `holding_period` argument of `implement_portfolio_sort()` sets $K$ and averages the returns of the $K$ cohorts held in each month, and `skip` delays the first holding month. We compute the six-month momentum signal on calendar months and lag it by one month, so that the signal of month $t$ uses returns up to month $t-1$ only.
+
+```{r momentum-signal}
+momentum_data <- crsp_monthly |>
+  arrange(permno, date) |>
+  group_by(permno) |>
+  mutate(
+    momentum = slider::slide_index_dbl(
+      ret,
+      date,
+      \(x) if (length(x) == 6) prod(1 + x) - 1 else NA_real_,
+      .before = months(5)
+    )
+  ) |>
+  ungroup() |>
+  add_lagged_columns(cols = "momentum", lag = months(1), by = "permno")
+```
+
+We then form decile portfolios on NYSE breakpoints and vary the holding period over $K \in \{1, 3, 6, 12\}$ months, where $K = 1$ is plain monthly rebalancing.
+
+```{r momentum-sorts}
+options_momentum <- portfolio_sort_options(
+  breakpoint_options_main = breakpoint_options(
+    n_portfolios = 10,
+    breakpoints_exchanges = "NYSE"
+  )
+)
+momentum_returns <- tibble(holding_period = c(1, 3, 6, 12)) |>
+  mutate(
+    factor_returns = purrr::map(
+      holding_period,
+      \(k) {
+        implement_portfolio_sort(
+          data = momentum_data,
+          sorting_variables = "momentum_lag",
+          sorting_method = "univariate",
+          holding_period = k,
+          portfolio_sort_options = options_momentum,
+          quiet = TRUE
+        ) |>
+          compute_long_short_returns(direction = "top_minus_bottom")
+      }
+    )
+  )
+```
+
+```{r momentum-stats, echo=FALSE}
+momentum_table <- momentum_returns |>
+  mutate(
+    stats = purrr::map(
+      factor_returns,
+      \(x) {
+        x |>
+          drop_na(ret_excess_ew, ret_excess_vw) |>
+          summarize(
+            `EW mean` = mean(ret_excess_ew) * 12,
+            `EW $t$` = mean(ret_excess_ew) / (sd(ret_excess_ew) / sqrt(n())),
+            `VW mean` = mean(ret_excess_vw) * 12,
+            `VW $t$` = mean(ret_excess_vw) / (sd(ret_excess_vw) / sqrt(n()))
+          )
+      }
+    )
+  ) |>
+  select(`Holding period $K$` = holding_period, stats) |>
+  unnest(stats)
+```
+
+```{=latex}
+\begingroup
+\small
+```
+
+```{r momentum, echo=FALSE}
+momentum_table |>
+  knitr::kable(
+    caption = paste0(
+      "Long-short momentum returns with staggered rebalancing. Stocks are sorted into deciles on their lagged six-month return ($J = 6$) using NYSE breakpoints, and each monthly cohort is held for $K$ months; $K = 1$ is monthly rebalancing. The long-short portfolio buys the top decile (winners) and sells the bottom decile (losers). Means are annualized equal-weighted (EW) and value-weighted (VW) excess returns. Sample: ",
+      sample_years(drop_na(momentum_returns$factor_returns[[1]])),
+      "."
+    ),
+    digits = 3,
+    escape = FALSE,
+    format = "latex",
+    booktabs = TRUE,
+    linesep = ""
+  )
+```
+
+```{=latex}
+\endgroup
+```
+
+Table \@ref(tab:momentum) shows that the holding period matters. With monthly rebalancing ($K = 1$), the equal-weighted momentum spread is `r sprintf("%.1f", momentum_table[["EW mean"]][1] * 100)`% per year ($t$~statistic of `r sprintf("%.2f", momentum_table[["EW $t$"]][1])`). Holding six overlapping cohorts, as in the 6/6 strategy of @jegadeesh.1993, raises it to `r sprintf("%.1f", momentum_table[["EW mean"]][3] * 100)`% ($t$~statistic of `r sprintf("%.2f", momentum_table[["EW $t$"]][3])`), and the value-weighted spread to `r sprintf("%.1f", momentum_table[["VW mean"]][3] * 100)`% ($t$~statistic of `r sprintf("%.2f", momentum_table[["VW $t$"]][3])`). The signal, the breakpoints, and the rest of the call are identical across rows; only `holding_period` changes.
 
 ### Asset pricing tests {#sec:fama-macbeth}
  
@@ -1495,7 +1624,7 @@ r_version <- renv_lock$R$Version
 
 We obtained the results in this paper using \proglang{R} `r r_version` with the following packages: \CRANpkg{tidyfinance} `r pkg_version("tidyfinance")`, \CRANpkg{dplyr} `r pkg_version("dplyr")` [@dplyr], \CRANpkg{tidyr} `r pkg_version("tidyr")` [@tidyr], \CRANpkg{ggplot2} `r pkg_version("ggplot2")` [@ggplot2], and \CRANpkg{lubridate} `r pkg_version("lubridate")` [@lubridate]. We install development versions of \CRANpkg{tidyfinance} with \CRANpkg{remotes} `r pkg_version("remotes")` [@remotes]. Figures additionally use \CRANpkg{ggforce} `r pkg_version("ggforce")` [@ggforce], \CRANpkg{scales} `r pkg_version("scales")` [@scales], and \CRANpkg{patchwork} `r pkg_version("patchwork")` [@patchwork]. CRAN hosts \proglang{R} and all packages at [https://CRAN.R-project.org/](https://CRAN.R-project.org/). \CRANpkg{renv} `r pkg_version("renv")` [@renv] ensures full reproducibility of the computational environment. Reproducing the factor return data requires an institutional subscription to WRDS, as the underlying CRSP and Compustat data are proprietary and cannot be redistributed. A pseudo-data path with identical schema is available via `download_data(domain = "Pseudo Data", ...)` for readers without WRDS access; see Section \@ref(sec:data-download).
 
-Running the code of this manuscript took `r render_minutes <- ceiling(as.numeric(difftime(Sys.time(), render_start, units = "mins"))); paste(render_minutes, if (render_minutes == 1) "minute" else "minutes")` or less in the last render: `rmarkdown::render("tidyfinance.Rmd")` uses the WRDS subset described in Section \@ref(sec:data-download), or pseudo data of identical schema for readers without WRDS access. Timings reported here are obtained on `r sessionInfo()$running` with a `r parallel::detectCores()`-core processor running \proglang{R} `r r_version`; WRDS extracts are not pre-cached, so this figure includes the time to download the underlying CRSP and Compustat panels.
+The manuscript renders with `rmarkdown::render("tidyfinance.Rmd")`, using the WRDS subset described in Section \@ref(sec:data-download) or pseudo data of identical schema for readers without WRDS access. In the last render, running its code took `r render_minutes <- ceiling(as.numeric(difftime(Sys.time(), render_start, units = "mins"))); paste(render_minutes, if (render_minutes == 1) "minute" else "minutes")` or less. Timings reported here are obtained on `r sessionInfo()$running` with a `r parallel::detectCores()`-core processor running \proglang{R} `r r_version`; WRDS extracts are not pre-cached, so this figure includes the time to download the underlying CRSP and Compustat panels.
 
 We publish all code, data workflows, and documentation at [https://github.com/tidy-finance/paper-factor-construction](https://github.com/tidy-finance/paper-factor-construction). The code is released under the MIT License, which is compatible with the GNU General Public License (GPL).
 
