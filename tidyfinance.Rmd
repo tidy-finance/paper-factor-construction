@@ -983,7 +983,8 @@ crsp_monthly <- download_data(
   version = "v2",
   start_date = date_start,
   end_date = date_end,
-  add_ccm_links = TRUE
+  add_ccm_links = TRUE,
+  quiet = TRUE
 )
 ```
 
@@ -998,7 +999,8 @@ compustat_annual <- download_data(
   start_date = date_start,
   end_date = date_end,
   additional_columns = c("at", "ib"),
-  only_usd = TRUE
+  only_usd = TRUE,
+  quiet = TRUE
 ) |>
   select(gvkey, date, at, ib)
 ```
@@ -1283,7 +1285,7 @@ structure(
 \endgroup
 ```
 
-The value-weighted long-short portfolio earns `r round(mean(factor_returns_ag$ret_excess_vw, na.rm = TRUE) * 12 * 100, 1)`% per year ($t$~statistic of `r round(mean(factor_returns_ag$ret_excess_vw, na.rm = TRUE) / (sd(factor_returns_ag$ret_excess_vw, na.rm = TRUE) / sqrt(sum(!is.na(factor_returns_ag$ret_excess_vw)))), 2)`). The sign matches @cooper.2008; we compare magnitudes in Section \@ref(sec:customized-sorts). The equal-weighted spread is considerably larger, which indicates that the effect is stronger among the small stocks that equal weighting emphasizes. Mean returns decline from the lowest to the highest AG quintile under all three weighting schemes, monotonically for equal and capped value weights and with nearly equal third and fourth quintiles for value weights. A single function call thus recovers the negative relation between asset growth and subsequent returns from raw WRDS data.
+The value-weighted long-short portfolio earns `r round(mean(factor_returns_ag$ret_excess_vw, na.rm = TRUE) * 12 * 100, 1)`% per year ($t$-statistic of `r round(mean(factor_returns_ag$ret_excess_vw, na.rm = TRUE) / (sd(factor_returns_ag$ret_excess_vw, na.rm = TRUE) / sqrt(sum(!is.na(factor_returns_ag$ret_excess_vw)))), 2)`). The sign matches @cooper.2008; we compare magnitudes in Section \@ref(sec:customized-sorts). The equal-weighted spread is considerably larger, which indicates that the effect is stronger among the small stocks that equal weighting emphasizes. Mean returns decline from the lowest to the highest AG quintile under all three weighting schemes, monotonically for equal and capped value weights and with nearly equal third and fourth quintiles for value weights. A single function call thus recovers the negative relation between asset growth and subsequent returns from raw WRDS data.
 
 ### Customized specification (bivariate sorts) {#sec:customized-sorts}
 
@@ -1410,7 +1412,7 @@ customized_comparison_table <- bind_rows(
 )
 ```
 
-Table \@ref(tab:customized-comparison) decomposes the customized premium into two layers. Adding the size-controlled bivariate sort alone (the bivariate-only row) barely moves the annualized premium, from `r sprintf("%.1f", customized_comparison_table[[2]][1] * 100)`% to `r sprintf("%.1f", customized_comparison_table[[2]][2] * 100)`%, but raises the $t$~statistic from `r sprintf("%.2f", customized_comparison_table[[3]][1])` to `r sprintf("%.2f", customized_comparison_table[[3]][2])`, because the size-controlled spread is less volatile. Layering the filter set and the 20% breakpoint threshold on top lowers the premium to `r sprintf("%.1f", customized_comparison_table[[2]][3] * 100)`% with a $t$~statistic of `r sprintf("%.2f", customized_comparison_table[[3]][3])`, which is no longer significant at the 5% level: removing financials, utilities, and loss-making firms and computing breakpoints without the smallest 20% of NYSE firms weakens the spread. In the sensitivity checks, the plain lag window gives a value-weighted premium of `r sprintf("%.1f", customized_comparison_table[[2]][4] * 100)`% ($t$~statistic of `r sprintf("%.2f", customized_comparison_table[[3]][4])`) instead of `r sprintf("%.1f", customized_comparison_table[[2]][1] * 100)`%, and capping at the all-stock percentile changes the capped value-weighted premium from `r sprintf("%.1f", customized_comparison_table[[4]][1] * 100)`% ($t$~statistic of `r sprintf("%.2f", customized_comparison_table[[5]][1])`) to `r sprintf("%.1f", customized_comparison_table[[4]][5] * 100)`% ($t$~statistic of `r sprintf("%.2f", customized_comparison_table[[5]][5])`). Across the three main specifications, the spread has the sign of the negative AG premium in @cooper.2008, but is considerably smaller than their annual value-weighted long-short premium of about 12.6% over July 1968 to June 2003, which is based on deciles rather than quintiles.[^cooper-deciles]
+Table \@ref(tab:customized-comparison) decomposes the customized premium into two layers. Adding the size-controlled bivariate sort alone (the bivariate-only row) barely moves the annualized premium, from `r sprintf("%.1f", customized_comparison_table[[2]][1] * 100)`% to `r sprintf("%.1f", customized_comparison_table[[2]][2] * 100)`%, but raises the $t$-statistic from `r sprintf("%.2f", customized_comparison_table[[3]][1])` to `r sprintf("%.2f", customized_comparison_table[[3]][2])`, because the size-controlled spread is less volatile. Layering the filter set and the 20% breakpoint threshold on top lowers the premium to `r sprintf("%.1f", customized_comparison_table[[2]][3] * 100)`% with a $t$-statistic of `r sprintf("%.2f", customized_comparison_table[[3]][3])`, which is no longer significant at the 5% level: removing financials, utilities, and loss-making firms and computing breakpoints without the smallest 20% of NYSE firms weakens the spread. In the sensitivity checks, the plain lag window gives a value-weighted premium of `r sprintf("%.1f", customized_comparison_table[[2]][4] * 100)`% ($t$-statistic of `r sprintf("%.2f", customized_comparison_table[[3]][4])`) instead of `r sprintf("%.1f", customized_comparison_table[[2]][1] * 100)`%, and capping at the all-stock percentile changes the capped value-weighted premium from `r sprintf("%.1f", customized_comparison_table[[4]][1] * 100)`% ($t$-statistic of `r sprintf("%.2f", customized_comparison_table[[5]][1])`) to `r sprintf("%.1f", customized_comparison_table[[4]][5] * 100)`% ($t$-statistic of `r sprintf("%.2f", customized_comparison_table[[5]][5])`). Across the three main specifications, the spread has the sign of the negative AG premium in @cooper.2008, but is considerably smaller than their annual value-weighted long-short premium of about 12.6% over July 1968 to June 2003, which is based on deciles rather than quintiles.[^cooper-deciles]
 
 [^cooper-deciles]: @cooper.2008 sorts into deciles.
 
@@ -1536,7 +1538,7 @@ momentum_table |>
 \endgroup
 ```
 
-Table \@ref(tab:momentum) shows that the holding period matters. With monthly rebalancing ($K = 1$), the equal-weighted momentum spread is `r sprintf("%.1f", momentum_table[["EW mean"]][1] * 100)`% per year ($t$~statistic of `r sprintf("%.2f", momentum_table[["EW $t$"]][1])`). Holding six overlapping cohorts, as in the 6/6 strategy of @jegadeesh.1993, raises it to `r sprintf("%.1f", momentum_table[["EW mean"]][3] * 100)`% ($t$~statistic of `r sprintf("%.2f", momentum_table[["EW $t$"]][3])`), and the value-weighted spread to `r sprintf("%.1f", momentum_table[["VW mean"]][3] * 100)`% ($t$~statistic of `r sprintf("%.2f", momentum_table[["VW $t$"]][3])`). The signal, the breakpoints, and the rest of the call are identical across rows; only `holding_period` changes.
+Table \@ref(tab:momentum) shows that the holding period matters. With monthly rebalancing ($K = 1$), the equal-weighted momentum spread is `r sprintf("%.1f", momentum_table[["EW mean"]][1] * 100)`% per year ($t$-statistic of `r sprintf("%.2f", momentum_table[["EW $t$"]][1])`). Holding six overlapping cohorts, as in the 6/6 strategy of @jegadeesh.1993, raises it to `r sprintf("%.1f", momentum_table[["EW mean"]][3] * 100)`% ($t$-statistic of `r sprintf("%.2f", momentum_table[["EW $t$"]][3])`), and the value-weighted spread to `r sprintf("%.1f", momentum_table[["VW mean"]][3] * 100)`% ($t$-statistic of `r sprintf("%.2f", momentum_table[["VW $t$"]][3])`). The signal, the breakpoints, and the rest of the call are identical across rows; only `holding_period` changes.
 
 ### Asset pricing tests {#sec:fama-macbeth}
  
@@ -1593,7 +1595,7 @@ fm_results |>
   )
 ```
 
-The negative slope on `asset_growth` in Table \@ref(tab:fama-macbeth) lines up with the long-short evidence in Table \@ref(tab:univariate-sort-ag) and Table \@ref(tab:customized-comparison): high-AG firms earn lower subsequent returns, conditional on size. As an external benchmark, @cooper.2008 [Table III, Panel A, Model 1] reports a Fama-MacBeth slope on annual asset growth of -0.0922 ($t$~statistic of -6.52). Dividing by 12 gives a rough monthly counterpart of `r round(-0.0922 / 12, 4)` $(=-0.0922/12)$. The comparison is only indicative, because @cooper.2008 regress annual returns and include additional controls.[^cooper-fm-controls] Switching to `vcov = "iid"` or supplying `vcov_options = list(lag = 6, prewhite = FALSE)` would change the standard-error treatment without altering the rest of the call, and adding additional regressors (e.g., a beta estimate from `estimate_betas()`, a profitability measure, an idiosyncratic-volatility control) is a one-line extension to the model formula. The same function therefore covers the standard cross-sectional asset-pricing test that complements the portfolio-sort evidence used throughout the rest of the paper.
+The negative slope on `asset_growth` in Table \@ref(tab:fama-macbeth) lines up with the long-short evidence in Table \@ref(tab:univariate-sort-ag) and Table \@ref(tab:customized-comparison): high-AG firms earn lower subsequent returns, conditional on size. As an external benchmark, @cooper.2008 [Table III, Panel A, Model 1] reports a Fama-MacBeth slope on annual asset growth of -0.0922 ($t$-statistic of -6.52). Dividing by 12 gives a rough monthly counterpart of `r round(-0.0922 / 12, 4)` $(=-0.0922/12)$. The comparison is only indicative, because @cooper.2008 regress annual returns and include additional controls.[^cooper-fm-controls] Switching to `vcov = "iid"` or supplying `vcov_options = list(lag = 6, prewhite = FALSE)` would change the standard-error treatment without altering the rest of the call, and adding additional regressors (e.g., a beta estimate from `estimate_betas()`, a profitability measure, an idiosyncratic-volatility control) is a one-line extension to the model formula. The same function therefore covers the standard cross-sectional asset-pricing test that complements the portfolio-sort evidence used throughout the rest of the paper.
 
 [^cooper-fm-controls]: @cooper.2008 additionally control for book-to-market and 6- and 36-month past returns.
 

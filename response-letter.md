@@ -77,3 +77,7 @@ Thank you, the referee is right that the phrase was misleading. We meant that us
 > Pg 1, Sec 1, Par 2: Remove comma before 'covers' in 'the Open Source Bond Asset Pricing project (Dickerson et, 2024), covers'
 
 Done, thank you.
+
+> Pg 9, just before Sec 4: Bad one-line LaTeX orphan. I supposed final editing will take care of that.
+
+Thank you. After the revision, the paragraph before Section 4 no longer ends in a one-line orphan. We will check the layout again during final editing.
