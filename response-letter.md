@@ -13,6 +13,8 @@ Thank you for pointing this out. We now document the WRDS account prerequisites 
 
 **Additional change.** Since the submitted version (tidyfinance 0.8.0), the package has gained two data sources, which Table 2 now lists: the FRED-MD and FRED-QD macroeconomic panels of McCracken and Ng (2016, 2021), including their real-time vintages (`download_data("FRED", "FRED-MD")`), and Aswath Damodaran's cost of capital by industry and region (`download_data("Damodaran", "wacc")`). The number of supported providers and datasets in the text is now computed from the package catalog.
 
+**Length.** To stay within the journal's 20-page limit despite the new material (the momentum table, the sensitivity checks, and the new data sources), we shortened the manuscript. Table 2 now lists one-line `download_data()` arguments instead of full code examples, all tables use the body font size, and the figures are smaller. We also removed the Dow Jones constituents and Yahoo Finance example, shortened the description of the Goyal and Welch (2008) predictors, condensed the description of the pseudo-data path, and cut passages that repeated the related work in the introduction, the summary, and the computational details.
+
 ## Referee 1
 
 > **3.** [...] The note to Table 6 names Newey and West (1987), but the estimator is prewhitened with the bandwidth of Newey and West (1994). Fix. Rerun Table 6 with 0.9.0, remove the extra √T with a test, and describe the estimator correctly.
