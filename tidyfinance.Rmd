@@ -136,11 +136,11 @@ You can install the released version of \CRANpkg{tidyfinance} [from CRAN](https:
 install.packages("tidyfinance")
 ```
 
-To install the development version of \CRANpkg{tidyfinance} from [GitHub](https://github.com/tidy-finance/r-tidyfinance), first install \CRANpkg{pak}, then run:
+To install the development version of \CRANpkg{tidyfinance} from [GitHub](https://github.com/tidy-finance/r-tidyfinance), first install \CRANpkg{remotes}, then run:
 
 ```{r install-tidyfinance-dev, eval=FALSE, purl=FALSE}
-install.packages("pak")
-pak::pak("tidy-finance/r-tidyfinance")
+install.packages("remotes")
+remotes::install_github("tidy-finance/r-tidyfinance")
 ```
 
 Once installed, load the package with: 
@@ -1491,7 +1491,7 @@ pkg_version <- function(pkg) {
 r_version <- renv_lock$R$Version
 ```
 
-We obtained the results in this paper using \proglang{R} `r r_version` with the following packages: \CRANpkg{tidyfinance} `r pkg_version("tidyfinance")`, \CRANpkg{dplyr} `r pkg_version("dplyr")` [@dplyr], \CRANpkg{tidyr} `r pkg_version("tidyr")` [@tidyr], \CRANpkg{ggplot2} `r pkg_version("ggplot2")` [@ggplot2], and \CRANpkg{lubridate} `r pkg_version("lubridate")` [@lubridate]. We install development versions of \CRANpkg{tidyfinance} with \CRANpkg{pak} `r pkg_version("pak")` [@pak]. Figures additionally use \CRANpkg{ggforce} `r pkg_version("ggforce")` [@ggforce], \CRANpkg{scales} `r pkg_version("scales")` [@scales], and \CRANpkg{patchwork} `r pkg_version("patchwork")` [@patchwork]. CRAN hosts \proglang{R} and all packages at [https://CRAN.R-project.org/](https://CRAN.R-project.org/). \CRANpkg{renv} `r pkg_version("renv")` [@renv] ensures full reproducibility of the computational environment. Reproducing the factor return data requires an institutional subscription to WRDS, as the underlying CRSP and Compustat data are proprietary and cannot be redistributed. A pseudo-data path with identical schema is available via `download_data(domain = "Pseudo Data", ...)` for readers without WRDS access; see Section \@ref(sec:data-download).
+We obtained the results in this paper using \proglang{R} `r r_version` with the following packages: \CRANpkg{tidyfinance} `r pkg_version("tidyfinance")`, \CRANpkg{dplyr} `r pkg_version("dplyr")` [@dplyr], \CRANpkg{tidyr} `r pkg_version("tidyr")` [@tidyr], \CRANpkg{ggplot2} `r pkg_version("ggplot2")` [@ggplot2], and \CRANpkg{lubridate} `r pkg_version("lubridate")` [@lubridate]. We install development versions of \CRANpkg{tidyfinance} with \CRANpkg{remotes} `r pkg_version("remotes")` [@remotes]. Figures additionally use \CRANpkg{ggforce} `r pkg_version("ggforce")` [@ggforce], \CRANpkg{scales} `r pkg_version("scales")` [@scales], and \CRANpkg{patchwork} `r pkg_version("patchwork")` [@patchwork]. CRAN hosts \proglang{R} and all packages at [https://CRAN.R-project.org/](https://CRAN.R-project.org/). \CRANpkg{renv} `r pkg_version("renv")` [@renv] ensures full reproducibility of the computational environment. Reproducing the factor return data requires an institutional subscription to WRDS, as the underlying CRSP and Compustat data are proprietary and cannot be redistributed. A pseudo-data path with identical schema is available via `download_data(domain = "Pseudo Data", ...)` for readers without WRDS access; see Section \@ref(sec:data-download).
 
 Reproducing this manuscript takes about 15 minutes: `rmarkdown::render("tidyfinance.Rmd")` uses the WRDS subset described in Section \@ref(sec:data-download), or pseudo data of identical schema for readers without WRDS access. Timings reported here are obtained on `r sessionInfo()$running` with a `r parallel::detectCores()`-core processor running \proglang{R} `r r_version`; WRDS extracts are not pre-cached, so the 15-minute figure includes the time to download the underlying CRSP and Compustat panels.
 
