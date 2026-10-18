@@ -16,3 +16,7 @@ Thank you for pointing this out. We now document the WRDS account prerequisites 
 > Pg 20, Stefan Voigt: Maybe add a linebreak, or comma, between U of C and DFI.
 
 Thank you. The two affiliations now appear separated by a comma: "University of Copenhagen, Danish Finance Institute".
+
+> Pg 4, Sec 3, Table 2: Would the table be more legible if it had another column with 'D', 'W', 'M', 'Q', 'A' (or alike) for daily, weekly, monthly, quarterly, annual, ... data frequencies? In order to make the resolution more easily detectable?
+
+Thank you for this suggestion. Table 2 now has a "Freq." column that lists the available frequencies of each source (D, W, M, Q, A, and I for intraday data), with the legend in the table caption. We removed the frequency wording from the descriptions accordingly.

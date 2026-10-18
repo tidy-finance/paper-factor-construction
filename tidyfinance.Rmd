@@ -228,139 +228,139 @@ Table: (\#tab:functions) User-facing functions in \CRANpkg{tidyfinance}, grouped
 \setlength{\tabcolsep}{4pt}
 \renewcommand{\arraystretch}{1.0}
 ```
-+----------------+------------------------------------+-----------------------------------------+
-| Source         | Description                        | Example                                 |
-+================+====================================+=========================================+
-| *Public data sources*                                                                         |
-+----------------+------------------------------------+-----------------------------------------+
-| Ken French's   | Fama-French 169+ factor            | ```                                     |
-| Data Library   | models, portfolios, industry       | download_data(                          |
-|                | classifications                    |   domain = "Fama-French",               |
-|                |                                    |   dataset = "Fama/French 3 Factors")    |
-|                |                                    | ```                                     |
-+----------------+------------------------------------+-----------------------------------------+
-| Global Q       | @hou.2021 q5 factor model          | ```                                     |
-|                | (market, size, investment, ROE,    | download_data(                          |
-|                | expected growth) at multiple       |   domain = "Global Q",                  |
-|                | frequencies                        |   dataset = "factors_q5_monthly"        |
-|                |                                    | )                                       |
-|                |                                    | ```                                     |
-+----------------+------------------------------------+-----------------------------------------+
-| Stambaugh-Yuan | @stambaugh.2017 mispricing         | ```                                     |
-|                | factors (MGMT, PERF) at daily      | download_data(                          |
-|                | and monthly frequency              |   domain = "Stambaugh-Yuan",            |
-|                |                                    |   dataset = "monthly"                   |
-|                |                                    | )                                       |
-|                |                                    | ```                                     |
-+----------------+------------------------------------+-----------------------------------------+
-| Pastor-        | @pastor.2003 traded and            | ```                                     |
-| Stambaugh      | non-traded liquidity factors       | download_data(                          |
-|                |                                    |   domain = "Pastor-Stambaugh"           |
-|                |                                    | )                                       |
-|                |                                    | ```                                     |
-+----------------+------------------------------------+-----------------------------------------+
-| Global Factor  | @jensen.2023 hundreds of           | ```                                     |
-| Data           | long-short factors across          | download_data(                          |
-|                | many countries and asset classes   |   domain = "Global Factor Data",        |
-|                |                                    |   dataset = "factors"                   |
-|                |                                    | )                                       |
-|                |                                    | ```                                     |
-+----------------+------------------------------------+-----------------------------------------+
-| Goyal-Welch    | Macroeconomic return predictors    | ```                                     |
-| Predictors     |                                    | download_data(                          |
-|                |                                    |   domain = "Goyal-Welch",               |
-|                |                                    |   dataset = "monthly"                   |
-|                |                                    | )                                       |
-|                |                                    | ```                                     |
-+----------------+------------------------------------+-----------------------------------------+
-| FRED           | St. Louis Fed economic time        | ```                                     |
-|                | series (GDP, CPI, etc.)            | download_data(                          |
-|                |                                    |   domain = "FRED",                      |
-|                |                                    |   series = "GDP"                        |
-|                |                                    | )                                       |
-|                |                                    | ```                                     |
-+----------------+------------------------------------+-----------------------------------------+
-| Yahoo Finance  | Historical price data with         | ```                                     |
-|                | adjusted close for any ticker      | download_data(                          |
-|                |                                    |   domain = "Stock Prices",              |
-|                |                                    |   symbols = "AAPL"                      |
-|                |                                    | )                                       |
-|                |                                    | ```                                     |
-+----------------+------------------------------------+-----------------------------------------+
-| Index          | Current members of major           | ```                                     |
-| Constituents   | equity indexes (S&P 500,           | download_data(                          |
-|                | Russell, etc.)                     |   domain = "Index Constituents",        |
-|                |                                    |   index = "DAX"                         |
-|                |                                    | )                                       |
-|                |                                    | ```                                     |
-+----------------+------------------------------------+-----------------------------------------+
-| Open Source    | 213+ monthly asset pricing         | ```                                     |
-| Asset Pricing  | signals and anomalies              | download_data(                          |
-|                |                                    |   domain = "Open Source Asset Pricing"  |
-|                |                                    | )                                       |
-|                |                                    | ```                                     |
-+----------------+------------------------------------+-----------------------------------------+
-| High-Frequency | 5-second frequency data            | ```                                     |
-|                | for S&P 500 constituents           | download_data(                          |
-|                | constructed by @menkveld.2026      |   domain = "Tidy Finance",              |
-|                |                                    |   dataset = "high_frequency_sp500"      |
-|                |                                    | )                                       |
-|                |                                    | ```                                     |
-+----------------+------------------------------------+-----------------------------------------+
-| Risk-Free Rate | Daily and monthly risk-free        | ```                                     |
-|                | rates (derived from FRED           | download_data(                          |
-|                | T-bill series by                   |   domain = "Tidy Finance",              |
-|                | \CRANpkg{tidyfinance})             |   dataset = "risk_free"                 |
-|                |                                    | )                                       |
-|                |                                    | ```                                     |
-+----------------+------------------------------------+-----------------------------------------+
-| Factor Library | Precomputed factor returns         | ```                                     |
-|                | hosted on Hugging Face Hub         | download_data(                          |
-|                |                                    |   domain = "Tidy Finance",              |
-|                |                                    |   dataset = "factor_library",           |
-|                |                                    |   sorting_variable = "ag"               |
-|                |                                    | )                                       |
-|                |                                    | ```                                     |
-+----------------+------------------------------------+-----------------------------------------+
-| *WRDS (subscription required)*                                                                |
-+----------------+------------------------------------+-----------------------------------------+
-| CRSP           | Daily and monthly stock returns,   | ```                                     |
-|                | market cap, listing exchange,      | download_data(                          |
-|                | industry information               |   domain = "WRDS",                      |
-|                |                                    |   dataset = "crsp_monthly"              |
-|                |                                    | )                                       |
-|                |                                    | ```                                     |
-+----------------+------------------------------------+-----------------------------------------+
-| Compustat      | Annual and quarterly financial     | ```                                     |
-|                | statements                         | download_data(                          |
-|                |                                    |   domain = "WRDS",                      |
-|                |                                    |   dataset = "compustat_annual"          |
-|                |                                    | )                                       |
-|                |                                    | ```                                     |
-+----------------+------------------------------------+-----------------------------------------+
-| CCM Links      | CRSP-Compustat linking table       | ```                                     |
-|                | (`permno` to `gvkey`)              | download_data(                          |
-|                |                                    |   domain = "WRDS",                      |
-|                |                                    |   dataset = "ccm_links"                 |
-|                |                                    | )                                       |
-|                |                                    | ```                                     |
-+----------------+------------------------------------+-----------------------------------------+
-| FISD           | Mergent Fixed Income               | ```                                     |
-|                | Securities Database                | download_data(                          |
-|                |                                    |   domain = "WRDS",                      |
-|                |                                    |   dataset = "fisd"                      |
-|                |                                    | )                                       |
-|                |                                    | ```                                     |
-+----------------+------------------------------------+-----------------------------------------+
-| TRACE          | Corporate bond transactions        | ```                                     |
-|                | @dicknielsen.2009 cleaned          | download_data(                          |
-|                |                                    |   domain = "WRDS",                      |
-|                |                                    |   dataset = "trace_enhanced",           |
-|                |                                    |   cusips = "655844CJ5"                  |
-|                |                                    | )                                       |
-|                |                                    | ```                                     |
-+----------------+------------------------------------+-----------------------------------------+
-Table: (\#tab:data-sources) Data sources available via `download_data()` in \CRANpkg{tidyfinance}. For every dataset with a time dimension, the same `start_date` and `end_date` arguments subset the returned panel to a user-specified window.
++----------------+---------------------------+---------+-----------------------------------------+
+| Source         | Description               | Freq.   | Example                                 |
++================+===========================+=========+=========================================+
+| *Public data sources*                                                                          |
++----------------+---------------------------+---------+-----------------------------------------+
+| Ken French's   | Fama-French 169+ factor   | D/W/M   | ```                                     |
+| Data Library   | models, portfolios,       |         | download_data(                          |
+|                | industry classifications  |         |   domain = "Fama-French",               |
+|                |                           |         |   dataset = "Fama/French 3 Factors")    |
+|                |                           |         | ```                                     |
++----------------+---------------------------+---------+-----------------------------------------+
+| Global Q       | @hou.2021 q5 factor model | D/W/M/  | ```                                     |
+|                | (market, size,            | Q/A     | download_data(                          |
+|                | investment, ROE, expected |         |   domain = "Global Q",                  |
+|                | growth)                   |         |   dataset = "factors_q5_monthly"        |
+|                |                           |         | )                                       |
+|                |                           |         | ```                                     |
++----------------+---------------------------+---------+-----------------------------------------+
+| Stambaugh-Yuan | @stambaugh.2017           | D/M     | ```                                     |
+|                | mispricing factors (MGMT, |         | download_data(                          |
+|                | PERF)                     |         |   domain = "Stambaugh-Yuan",            |
+|                |                           |         |   dataset = "monthly"                   |
+|                |                           |         | )                                       |
+|                |                           |         | ```                                     |
++----------------+---------------------------+---------+-----------------------------------------+
+| Pastor-        | @pastor.2003 traded and   | M       | ```                                     |
+| Stambaugh      | non-traded liquidity      |         | download_data(                          |
+|                | factors                   |         |   domain = "Pastor-Stambaugh"           |
+|                |                           |         | )                                       |
+|                |                           |         | ```                                     |
++----------------+---------------------------+---------+-----------------------------------------+
+| Global Factor  | @jensen.2023 hundreds of  | D/M     | ```                                     |
+| Data           | long-short factors across |         | download_data(                          |
+|                | many countries and asset  |         |   domain = "Global Factor Data",        |
+|                | classes                   |         |   dataset = "factors"                   |
+|                |                           |         | )                                       |
+|                |                           |         | ```                                     |
++----------------+---------------------------+---------+-----------------------------------------+
+| Goyal-Welch    | Macroeconomic return      | M/Q/A   | ```                                     |
+| Predictors     | predictors                |         | download_data(                          |
+|                |                           |         |   domain = "Goyal-Welch",               |
+|                |                           |         |   dataset = "monthly"                   |
+|                |                           |         | )                                       |
+|                |                           |         | ```                                     |
++----------------+---------------------------+---------+-----------------------------------------+
+| FRED           | St. Louis Fed economic    | D--A    | ```                                     |
+|                | time series (GDP, CPI,    |         | download_data(                          |
+|                | etc.)                     |         |   domain = "FRED",                      |
+|                |                           |         |   series = "GDP"                        |
+|                |                           |         | )                                       |
+|                |                           |         | ```                                     |
++----------------+---------------------------+---------+-----------------------------------------+
+| Yahoo Finance  | Historical price data     | D       | ```                                     |
+|                | with adjusted close for   |         | download_data(                          |
+|                | any ticker                |         |   domain = "Stock Prices",              |
+|                |                           |         |   symbols = "AAPL"                      |
+|                |                           |         | )                                       |
+|                |                           |         | ```                                     |
++----------------+---------------------------+---------+-----------------------------------------+
+| Index          | Current members of major  | --      | ```                                     |
+| Constituents   | equity indexes (S&P 500,  |         | download_data(                          |
+|                | Russell, etc.)            |         |   domain = "Index Constituents",        |
+|                |                           |         |   index = "DAX"                         |
+|                |                           |         | )                                       |
+|                |                           |         | ```                                     |
++----------------+---------------------------+---------+-----------------------------------------+
+| Open Source    | 213+ monthly asset        | M       | ```                                     |
+| Asset Pricing  | pricing signals and       |         | download_data(                          |
+|                | anomalies                 |         |   domain = "Open Source Asset Pricing"  |
+|                |                           |         | )                                       |
+|                |                           |         | ```                                     |
++----------------+---------------------------+---------+-----------------------------------------+
+| High-Frequency | Aggregated order book     | I       | ```                                     |
+|                | snapshots for S&P 500     |         | download_data(                          |
+|                | constituents constructed  |         |   domain = "Tidy Finance",              |
+|                | by @menkveld.2026         |         |   dataset = "high_frequency_sp500"      |
+|                |                           |         | )                                       |
+|                |                           |         | ```                                     |
++----------------+---------------------------+---------+-----------------------------------------+
+| Risk-Free Rate | Risk-free rates derived   | D/M     | ```                                     |
+|                | from FRED T-bill series   |         | download_data(                          |
+|                | by \CRANpkg{tidyfinance}  |         |   domain = "Tidy Finance",              |
+|                |                           |         |   dataset = "risk_free"                 |
+|                |                           |         | )                                       |
+|                |                           |         | ```                                     |
++----------------+---------------------------+---------+-----------------------------------------+
+| Factor Library | Precomputed factor        | M       | ```                                     |
+|                | returns hosted on Hugging |         | download_data(                          |
+|                | Face Hub                  |         |   domain = "Tidy Finance",              |
+|                |                           |         |   dataset = "factor_library",           |
+|                |                           |         |   sorting_variable = "ag"               |
+|                |                           |         | )                                       |
+|                |                           |         | ```                                     |
++----------------+---------------------------+---------+-----------------------------------------+
+| *WRDS (subscription required)*                                                                 |
++----------------+---------------------------+---------+-----------------------------------------+
+| CRSP           | Stock returns, market     | D/M     | ```                                     |
+|                | cap, listing exchange,    |         | download_data(                          |
+|                | industry information      |         |   domain = "WRDS",                      |
+|                |                           |         |   dataset = "crsp_monthly"              |
+|                |                           |         | )                                       |
+|                |                           |         | ```                                     |
++----------------+---------------------------+---------+-----------------------------------------+
+| Compustat      | Financial statements      | Q/A     | ```                                     |
+|                |                           |         | download_data(                          |
+|                |                           |         |   domain = "WRDS",                      |
+|                |                           |         |   dataset = "compustat_annual"          |
+|                |                           |         | )                                       |
+|                |                           |         | ```                                     |
++----------------+---------------------------+---------+-----------------------------------------+
+| CCM Links      | CRSP-Compustat linking    | --      | ```                                     |
+|                | table (`permno` to        |         | download_data(                          |
+|                | `gvkey`)                  |         |   domain = "WRDS",                      |
+|                |                           |         |   dataset = "ccm_links"                 |
+|                |                           |         | )                                       |
+|                |                           |         | ```                                     |
++----------------+---------------------------+---------+-----------------------------------------+
+| FISD           | Mergent Fixed Income      | --      | ```                                     |
+|                | Securities Database       |         | download_data(                          |
+|                |                           |         |   domain = "WRDS",                      |
+|                |                           |         |   dataset = "fisd"                      |
+|                |                           |         | )                                       |
+|                |                           |         | ```                                     |
++----------------+---------------------------+---------+-----------------------------------------+
+| TRACE          | Corporate bond            | I       | ```                                     |
+|                | transactions              |         | download_data(                          |
+|                | @dicknielsen.2009 cleaned |         |   domain = "WRDS",                      |
+|                |                           |         |   dataset = "trace_enhanced",           |
+|                |                           |         |   cusips = "655844CJ5"                  |
+|                |                           |         | )                                       |
+|                |                           |         | ```                                     |
++----------------+---------------------------+---------+-----------------------------------------+
+Table: (\#tab:data-sources) Data sources available via `download_data()` in \CRANpkg{tidyfinance}. For every dataset with a time dimension, the same `start_date` and `end_date` arguments subset the returned panel to a user-specified window. Freq. lists the available data frequencies: D = daily, W = weekly, M = monthly, Q = quarterly, A = annual, I = intraday (trade-level or 5-second snapshots), D--A = native frequency of each series, -- = no time dimension.
 ```{=latex}
 \endgroup
 ```
