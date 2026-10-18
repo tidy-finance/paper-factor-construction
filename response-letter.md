@@ -11,6 +11,17 @@ Thank you for pointing this out. We now document the WRDS account prerequisites 
 - **Package.** The help pages `?get_wrds_connection` and `?set_wrds_credentials`, the package vignette, and the README now contain a WRDS account setup checklist: obtain an account, enroll in two-factor authentication (Duo), accept the WRDS terms of use on the WRDS website, store credentials with `set_wrds_credentials()`, and approve the Duo push notification when connecting. In addition, `get_wrds_connection()` now catches failed connection attempts and rethrows them with these hints instead of the raw database error.
 - **Paper.** The WRDS paragraph in the data section now states that credentials alone do not suffice, that users must enroll in 2FA and accept the WRDS terms of use before the first connection, and refers readers to `?get_wrds_connection` for the full checklist.
 
+## Referee 1
+
+> **7. Cite existing factor-construction software.** Problem. Pages 1 and 2 say that no widely adopted tool covers factor construction and that none of the existing projects exposes it as a callable API. PyBondLab (Rossetti and Dickerson, 2026), a Python package on PyPI since July 2024, does exactly this. [...] Fix. Cite it, and state how the two packages differ.
+
+Thank you for pointing us to PyBondLab, which we had overlooked. We now cite it (version 0.3.0) and have revised the text accordingly:
+
+- **Introduction.** We qualify the claim to "no widely adopted tool covers this upstream workflow end to end" and add that PyBondLab exposes portfolio sorts for corporate bonds as a callable API but leaves data acquisition and cleaning to the user.
+- **Related work.** We restrict the statement that no project exposes its pipeline as a callable API to the factor data releases, and add a new paragraph on factor-construction software. It states that PyBondLab, like tidyfinance, offers single and double sorts with staggered rebalancing. It credits PyBondLab with within-firm sorts, batched sorts on many signals, banding, and portfolio turnover, none of which tidyfinance offers. It then lists where tidyfinance differs: integrated data acquisition and cleaning from raw WRDS panels, equity-specific construction choices such as capped value weights and industry and earnings screens, and Fama-MacBeth regressions. We describe the two packages as complementary across asset classes and languages.
+
+We also note that the development version of tidyfinance now supports staggered rebalancing with overlapping holding periods (arguments `holding_period` and `skip` of `implement_portfolio_sort()`), which we use in the new Jegadeesh and Titman (1993) case study (see our response to comment 6).
+
 ## Referee 2
 
 > Pg 20, Stefan Voigt: Maybe add a linebreak, or comma, between U of C and DFI.
