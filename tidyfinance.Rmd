@@ -207,8 +207,8 @@ The empirical asset pricing workflow decomposes into three stages: data acquisit
 | *Asset pricing tests*                    |                                                                     |
 +------------------------------------------+---------------------------------------------------------------------+
 | `estimate_fama_macbeth()`                | Runs cross-sectional ordinary least squares (OLS) regressions each  |
-|                                          | period and aggregates into average risk premia with @newey.1987     |
-|                                          | standard errors.                                                    |
+|                                          | period and aggregates into average risk premia with prewhitened     |
+|                                          | @newey.1987 standard errors and the @newey.1994 bandwidth.          |
 +------------------------------------------+---------------------------------------------------------------------+
 | `estimate_betas()`                       | Estimates rolling-window CAPM betas for each asset.                 |
 +------------------------------------------+---------------------------------------------------------------------+
@@ -1411,7 +1411,7 @@ Researchers who want finer-grained control can call the lower-level portfolio-so
 
 ### Asset pricing tests {#sec:fama-macbeth}
  
-A long-short return is one summary of whether asset growth predicts the cross-section of returns. A complementary view comes from Fama-MacBeth regressions [@fama.1973], which estimate the average risk premium associated with a characteristic after running cross-sectional regressions period by period. \CRANpkg{tidyfinance} implements the standard procedure in `estimate_fama_macbeth()`, which takes a panel and a model formula, fits one cross-sectional ordinary least squares (OLS) regression per period, and aggregates the period-level coefficients into average risk premia with Newey-West standard errors and automatic lag selection.
+A long-short return is one summary of whether asset growth predicts the cross-section of returns. A complementary view comes from Fama-MacBeth regressions [@fama.1973], which estimate the average risk premium associated with a characteristic after running cross-sectional regressions period by period. \CRANpkg{tidyfinance} implements the standard procedure in `estimate_fama_macbeth()`, which takes a panel and a model formula, fits one cross-sectional ordinary least squares (OLS) regression per period, and aggregates the period-level coefficients into average risk premia with @newey.1987 standard errors. By default, these are the standard errors of `NeweyWest()` from \CRANpkg{sandwich} [@zeileis.2004]: the time series of coefficients is prewhitened with a first-order vector autoregression, and the bandwidth is selected automatically following @newey.1994.
 
 Here, we winsorize the AG signal at the 1st and 99th percentiles to keep extreme observations from dominating the cross-sectional regressions and pair it with log market capitalization as a size control.
  
@@ -1452,7 +1452,7 @@ fm_results |>
   ) |>
   knitr::kable(
     caption = paste0(
-      "Fama-MacBeth regression of monthly excess returns on lagged asset growth and lagged log market capitalization. Coefficients are time-series averages of monthly cross-sectional OLS estimates; standard errors are Newey and West (1987) with automatic lag selection. The intercept and slopes on the right-hand-side variables are reported on the monthly scale. Sample: ",
+      "Fama-MacBeth regression of monthly excess returns on lagged asset growth and lagged log market capitalization. Coefficients are time-series averages of monthly cross-sectional OLS estimates; standard errors are Newey and West (1987) with first-order vector autoregressive prewhitening and the automatic bandwidth of Newey and West (1994). The intercept and slopes on the right-hand-side variables are reported on the monthly scale. Sample: ",
       sample_years(fm_data),
       "."
     ),
