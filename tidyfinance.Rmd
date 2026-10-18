@@ -32,9 +32,7 @@ author:
     orcid: 0009-0004-0423-6819
     email: christoph.scheuch@hu-berlin.de
   - name: Stefan Voigt
-    affiliation:
-    - University of Copenhagen
-    - Danish Finance Institute
+    affiliation: University of Copenhagen, Danish Finance Institute
     address:
     - Department of Economics, Øster Farimagsgade 5
     - 1353 Copenhagen K, Denmark
