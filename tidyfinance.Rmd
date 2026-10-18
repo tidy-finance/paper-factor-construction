@@ -1108,8 +1108,6 @@ options_baseline <- portfolio_sort_options(
 )
 ```
 
-The `breakpoint_options()` call specifies that breakpoints come only from NYSE-listed stocks, a common convention that avoids the influence of small AMEX and NASDAQ firms on portfolio cutoffs. We then pass these options to `implement_portfolio_sort()`.
-
 ```{r baseline-sort}
 portfolio_returns <- implement_portfolio_sort(
   data = sorting_data,
@@ -1120,9 +1118,9 @@ portfolio_returns <- implement_portfolio_sort(
 )
 ```
 
-Apart from setting `rebalancing_month = 7`, every other choice point falls back to the package default: a cap-weight cutoff at the 80th percentile of NYSE market capitalization for the capped value-weighted return, no minimum portfolio size, and no smooth bunching. The standard CRSP/Compustat column names (`permno`, `date`, `ret_excess`, `mktcap_lag`, `exchange`) are picked up automatically through the default `data_options()`. Setting `rebalancing_month = 7` reforms the portfolios each July and holds them for the following twelve months, in line with the standard Fama-French rebalancing convention. This schedule pairs with `ff_adjustment = TRUE` in `join_lagged_values()`: the signal is locked in at the June/July boundary, so July is the first month in which a fresh fiscal-year update is available.
+Apart from setting `rebalancing_month = 7`, every other choice point falls back to the package default: a cap-weight cutoff at the 80th percentile of NYSE market capitalization for the capped value-weighted return, no minimum portfolio size, and no smooth bunching. Setting `rebalancing_month = 7` reforms the portfolios each July and holds them for twelve months, the month in which `ff_adjustment = TRUE` makes a new fiscal-year value available.
 
-`compute_portfolio_returns()`, called internally, returns a long data frame with one row per portfolio-month and the three weighting columns introduced in Section \@ref(sec:portfolio-sorting): `ret_excess_vw` (value-weighted, VW), `ret_excess_ew` (equal-weighted, EW), and `ret_excess_vw_capped` (capped value-weighted, VWC). Piping the result through `compute_long_short_returns()` gives the long-short portfolio. The `direction = "bottom_minus_top"` argument means the factor is long low-AG stocks and short high-AG stocks.
+`implement_portfolio_sort()` returns one row per portfolio-month with the value-weighted (VW), equal-weighted (EW), and capped value-weighted (VWC) returns of Section \@ref(sec:portfolio-sorting). With `direction = "bottom_minus_top"`, `compute_long_short_returns()` turns them into the factor, long low-AG and short high-AG stocks.
 
 ```{r long-short-ag}
 factor_returns_ag <- portfolio_returns |>
@@ -1244,7 +1242,7 @@ factor_returns_customized <- portfolio_returns_customized |>
   compute_long_short_returns(direction = "bottom_minus_top")
 ```
 
-A single options object (`options_customized`) bundles every methodological choice that distinguishes this specification from the baseline; nothing in the surrounding pipeline changes. Switching from a univariate to a size-controlled dependent bivariate sort is a one-word change in `sorting_method`, and the secondary breakpoint object is supplied alongside the primary one without any additional work. Setting `quiet = TRUE` suppresses the diagnostic messages from `filter_sorting_data()`, which report how many observations each filter drops; setting `quiet = FALSE` (the default) is useful when iterating to track sample-construction effects. With annual rebalancing, the screens apply in the formation month only, so a stock that, for example, reports a loss after formation keeps its returns until the portfolios are reformed. `filter_options(timing = "every_period")` applies the screens in every month instead, but this uses information that is not available at formation and the package warns about it.
+A single options object (`options_customized`) bundles every methodological choice that distinguishes this specification from the baseline; nothing in the surrounding pipeline changes. Setting `quiet = TRUE` suppresses the messages that report how many observations each filter drops. With annual rebalancing, the screens apply in the formation month only, so a stock that, for example, reports a loss after formation keeps its returns until the portfolios are reformed. `filter_options(timing = "every_period")` applies the screens in every month instead, but this uses information that is not available at formation and the package warns about it.
 
 For comparison, we also include a bivariate-dependent sort that uses the default filters and breakpoint conventions, so the only difference from the baseline is the addition of size control. The long-short returns from that specification are appended to the customized one in Table \@ref(tab:customized-comparison).
 
@@ -1349,11 +1347,11 @@ customized_comparison_table |>
   )
 ```
 
-Researchers who want finer-grained control can call the lower-level portfolio-sorting functions in Table \@ref(tab:functions) directly. They share signatures and semantics with `implement_portfolio_sort()`, so an analysis prototyped against the wrapper can be unrolled into its components without rewriting the pipeline. This separation matters when custom logic applies at one stage only, for example, computing breakpoints separately within each industry, or from a trailing window of past data rather than the contemporaneous cross-section.
+The lower-level functions in Table \@ref(tab:functions) share their arguments with `implement_portfolio_sort()`, so researchers can unroll the wrapper when custom logic applies at one stage only, for example, breakpoints computed within each industry or from a trailing window.
 
 ### Staggered rebalancing {#sec:staggered}
 
-Some factors are built with *staggered* rebalancing instead of a single annual or monthly formation date: portfolios are formed every month, and each cohort is held for $K$ months, so that $K$ overlapping cohorts are held at any time. @jegadeesh.1993 construct momentum this way. Their $J$/$K$ strategies sort stocks on the past $J$-month return and hold each cohort for $K$ months. In \CRANpkg{tidyfinance}, the `holding_period` argument of `implement_portfolio_sort()` sets $K$ and averages the returns of the $K$ cohorts held in each month, and `skip` delays the first holding month. We compute the six-month momentum signal on calendar months and lag it by one month, so that the signal of month $t$ uses returns up to month $t-1$ only.
+Some factors are built with *staggered* rebalancing instead of a single annual or monthly formation date: portfolios are formed every month, and each cohort is held for $K$ months, so that $K$ overlapping cohorts are held at any time. @jegadeesh.1993 construct momentum this way. Their $J$/$K$ strategies sort stocks on the past $J$-month return and hold each cohort for $K$ months. In \CRANpkg{tidyfinance}, the `holding_period` argument sets $K$. We compute the six-month momentum signal on calendar months and lag it by one month, so that the signal of month $t$ uses returns up to month $t-1$ only.
 
 ```{r momentum-signal}
 momentum_data <- crsp_monthly |>
