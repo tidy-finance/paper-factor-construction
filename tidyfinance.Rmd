@@ -28,7 +28,7 @@ author:
     affiliation: Humboldt University of Berlin
     address:
     - School of Business and Economics, Dorotheenstraße 1
-    - 10099 Berlin, Germany
+    - 10117 Berlin, Germany
     orcid: 0009-0004-0423-6819
     email: christoph.scheuch@hu-berlin.de
   - name: Stefan Voigt
@@ -344,7 +344,7 @@ The second mode, enabled by `ff_adjustment = TRUE` and shown in Panel B of Figur
 
 `join_lagged_values()` is a related helper that merges lagged values from one data frame into another using the same windowing logic. It is useful when the target panel and the source panel are at different frequencies, for example, when joining monthly accounting data into a quarterly target panel. The function takes the same `ff_adjustment` argument as `add_lagged_columns()`, so the Fama-French convention can be applied at the join step rather than as a separate transformation.
 
-```{r lagging-illustration, fig.alt="Schematic comparing two lagging modes. Panel A returns the most recent observed value within a window bounded by the minimum and maximum lag; Panel B implements the Fama-French convention, in which the lagged value updates only at the June-to-July boundary and is held constant for twelve months.", fig.cap="Two lagging mechanisms in add\\_lagged\\_columns(). Each row represents a data series with observed (filled) and missing (hollow) cells. The dashed rectangle marks the search window from the perspective of the most recent observation (the top row); arrows show which value gets matched to each target month. Panel A (ff\\_adjustment = FALSE) returns the most recent observed value within a window bounded by lag and max\\_lag. Panel B (ff\\_adjustment = TRUE) implements the Fama-French convention, where the lagged value updates only at the June/July boundary and is held constant for the next twelve months.", fig.width=6.5, fig.height=4, out.width="75%", echo=FALSE}
+```{r lagging-illustration, fig.alt="Schematic comparing two lagging modes. Panel A returns the most recent observed value within a window bounded by the minimum and maximum lag; Panel B implements the Fama-French convention, in which the lagged value updates once a year in July, whatever the fiscal year-end, and is held constant for twelve months.", fig.cap="Two lagging mechanisms in add\\_lagged\\_columns(). Each row represents a data series with observed (filled) and missing (hollow) cells; arrows show which value gets matched to each target month. Panel A (ff\\_adjustment = FALSE) returns the most recent observed value within the window bounded by lag and max\\_lag, marked by the dashed rectangle for the most recent target month. Panel B (ff\\_adjustment = TRUE) implements the Fama-French convention: the value of the fiscal year ending in calendar year t is used from July of t + 1 through June of t + 2, whatever the month of the fiscal year-end, and lag and max\\_lag are ignored.", fig.width=6.5, fig.height=4.3, fig.align="center", out.width="75%", echo=FALSE}
 ts <- 0.94
 corner <- unit(4, "pt")
 
@@ -397,8 +397,6 @@ target <- 21
 
 std_matched <- 14
 
-ff_win_left <- 3
-ff_win_right <- 14
 ff_matched <- 14
 
 tiles <- function(rows, cx, grp_offset = 0, xsize = ts) {
@@ -571,28 +569,6 @@ ggplot() +
     linewidth = 0.35
   ) +
   annotate(
-    "rect",
-    xmin = x_ff - ts / 2 - win_pad,
-    xmax = x_ff + ts / 2 + win_pad,
-    ymin = ff_win_left - ts / 2 - win_pad,
-    ymax = ff_win_right + ts / 2 + win_pad,
-    fill = NA,
-    color = tf_yellow,
-    linewidth = 0.9,
-    linetype = "dashed"
-  ) +
-  annotate(
-    "text",
-    x = x_ff - ts / 2 - win_pad - 0.2,
-    y = c(ff_win_left - ts / 2 - win_pad, ff_win_right + ts / 2 + win_pad),
-    label = c("max_lag", "lag"),
-    color = tf_yellow,
-    size = 3.4,
-    fontface = "italic",
-    hjust = -0.2,
-    vjust = 0.5
-  ) +
-  annotate(
     "curve",
     x = x_ff + ts / 2,
     xend = x_ff + ts / 2,
@@ -605,14 +581,17 @@ ggplot() +
   ) +
   annotate(
     "text",
-    x = max(x_std, x_ff) + ts / 2 + 1.0,
-    y = n / 2,
-    label = "data |> add_lagged_columns(lag = months(7), max_lag = months(18))",
+    x = max(x_std, x_ff) + ts / 2 + c(1.4, 1.0),
+    y = 0.1,
+    label = c(
+      "Panel A: data |> add_lagged_columns(lag = months(7), max_lag = months(18))",
+      "Panel B: data |> add_lagged_columns(ff_adjustment = TRUE)"
+    ),
     color = "black",
     size = 3.2,
     family = "mono",
     fontface = "bold",
-    hjust = 0.5
+    hjust = 0
   ) +
   annotate(
     "text",
@@ -722,7 +701,7 @@ ggplot() +
   ) +
   scale_alpha_identity() +
   scale_x_continuous(
-    limits = c(x_labels - 1.15, max(x_std, x_ff) + ts / 2 + 1.3),
+    limits = c(x_labels - 1.15, max(x_std, x_ff) + ts / 2 + 1.7),
     expand = c(0, 0)
   ) +
   scale_y_continuous(
@@ -818,7 +797,7 @@ portfolios_dependent <- cross_section |>
   dplyr::ungroup()
 ```
 
-```{r illustrate-portfolio-helper, fig.alt="Three scatterplots of a simulated cross-section showing univariate, independent bivariate, and dependent bivariate portfolio assignments, with asset-growth rank on the horizontal axis and size rank on the vertical axis.", echo=FALSE, fig.cap=paste0("Portfolio sort approaches illustrated on a simulated cross-section. Each panel plots simulated observations assigned to ", n_portfolio, " × ", n_portfolio, " portfolios based on asset growth rank (x-axis) and size rank (y-axis), both expressed as percentiles. Colors indicate portfolio cell assignment. The univariate sort (left) assigns portfolios on asset growth alone; the independent bivariate sort (center) assigns each dimension independently; the dependent bivariate sort (right) sorts on size first, then on asset growth within size groups."), fig.width=6.5, fig.height=3, out.width="90%"}
+```{r illustrate-portfolio-helper, fig.alt="Three scatterplots of a simulated cross-section showing univariate, independent bivariate, and dependent bivariate portfolio assignments, with asset-growth rank on the horizontal axis and size rank on the vertical axis.", echo=FALSE, fig.cap=paste0("Portfolio sort approaches illustrated on a simulated cross-section. Each panel plots simulated observations assigned to ", n_portfolio, " × ", n_portfolio, " portfolios based on asset growth rank (x-axis) and size rank (y-axis), both expressed as percentiles. Colors indicate portfolio cell assignment. The univariate sort (left) assigns portfolios on asset growth alone; the independent bivariate sort (center) assigns each dimension independently; the dependent bivariate sort (right) sorts on size first, then on asset growth within size groups."), fig.width=6.5, fig.height=3, fig.align="center", out.width="90%"}
 common_theme <- list(
   scale_x_continuous(
     labels = scales::percent,
@@ -994,25 +973,27 @@ data.frame(
     function(s) fmt_val(s, pooled_stats[[s]]),
     character(1)
   ),
-  `Yearly avg` = vapply(
+  `Yearly Mean` = vapply(
     stat_cols,
     function(s) fmt_val(s, mean(yearly_stats[[s]])),
     character(1)
   ),
-  `Yearly min` = vapply(
+  `Yearly Min` = vapply(
     stat_cols,
     function(s) fmt_val(s, min(yearly_stats[[s]])),
     character(1)
   ),
-  `Yearly max` = vapply(
+  `Yearly Max` = vapply(
     stat_cols,
     function(s) fmt_val(s, max(yearly_stats[[s]])),
     character(1)
-  )
+  ),
+  row.names = NULL,
+  check.names = FALSE
 ) |>
   knitr::kable(
     caption = paste0(
-      "Cross-sectional summary statistics for asset growth (winsorized at the 1st and 99th percentiles). The 'Pooled' column reports the statistic computed on the entire firm-year sample. The 'Yearly' columns summarize the time series of statistic values computed cross-sectionally year by year, taking the average, minimum, and maximum across calendar years. N is the count of firm-year observations (pooled) or per-year observations (yearly columns). Sample: ",
+      "Cross-sectional summary statistics for asset growth (winsorized at the 1st and 99th percentiles). The 'Pooled' column reports the statistic computed on the entire firm-year sample. The 'Yearly' columns summarize the time series of statistic values computed cross-sectionally year by year, taking the mean, minimum, and maximum across calendar years. N is the count of firm-year observations (pooled) or per-year observations (yearly columns). Sample: ",
       sample_years(drop_na(sorting_variable_data, asset_growth)),
       "."
     ),
