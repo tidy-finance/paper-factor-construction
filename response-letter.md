@@ -11,6 +11,8 @@ Thank you for pointing this out. We now document the WRDS account prerequisites 
 - **Package.** The help pages `?get_wrds_connection` and `?set_wrds_credentials`, the package vignette, and the README now contain a WRDS account setup checklist: obtain an account, enroll in two-factor authentication (Duo), accept the WRDS terms of use on the WRDS website, store credentials with `set_wrds_credentials()`, and approve the Duo push notification when connecting. In addition, `get_wrds_connection()` now catches failed connection attempts and rethrows them with these hints instead of the raw database error.
 - **Paper.** The WRDS paragraph in the data section now states that credentials alone do not suffice, that users must enroll in 2FA and accept the WRDS terms of use before the first connection, and refers readers to `?get_wrds_connection` for the full checklist.
 
+**Additional change.** Since the submitted version (tidyfinance 0.8.0), the package has gained two data sources, which Table 2 now lists: the FRED-MD and FRED-QD macroeconomic panels of McCracken and Ng (2016, 2021), including their real-time vintages (`download_data("FRED", "FRED-MD")`), and Aswath Damodaran's cost of capital by industry and region (`download_data("Damodaran", "wacc")`). The number of supported providers and datasets in the text is now computed from the package catalog.
+
 ## Referee 1
 
 > **3.** [...] The note to Table 6 names Newey and West (1987), but the estimator is prewhitened with the bandwidth of Newey and West (1994). Fix. Rerun Table 6 with 0.9.0, remove the extra √T with a test, and describe the estimator correctly.
