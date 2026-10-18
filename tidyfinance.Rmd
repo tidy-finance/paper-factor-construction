@@ -64,6 +64,7 @@ header-includes:
 ---
 
 ```{r setup, include=FALSE, echo=FALSE, message=FALSE, cache=FALSE}
+render_start <- Sys.time()
 library("ggforce")
 library("ggplot2")
 library("scales")
@@ -1494,7 +1495,7 @@ r_version <- renv_lock$R$Version
 
 We obtained the results in this paper using \proglang{R} `r r_version` with the following packages: \CRANpkg{tidyfinance} `r pkg_version("tidyfinance")`, \CRANpkg{dplyr} `r pkg_version("dplyr")` [@dplyr], \CRANpkg{tidyr} `r pkg_version("tidyr")` [@tidyr], \CRANpkg{ggplot2} `r pkg_version("ggplot2")` [@ggplot2], and \CRANpkg{lubridate} `r pkg_version("lubridate")` [@lubridate]. We install development versions of \CRANpkg{tidyfinance} with \CRANpkg{remotes} `r pkg_version("remotes")` [@remotes]. Figures additionally use \CRANpkg{ggforce} `r pkg_version("ggforce")` [@ggforce], \CRANpkg{scales} `r pkg_version("scales")` [@scales], and \CRANpkg{patchwork} `r pkg_version("patchwork")` [@patchwork]. CRAN hosts \proglang{R} and all packages at [https://CRAN.R-project.org/](https://CRAN.R-project.org/). \CRANpkg{renv} `r pkg_version("renv")` [@renv] ensures full reproducibility of the computational environment. Reproducing the factor return data requires an institutional subscription to WRDS, as the underlying CRSP and Compustat data are proprietary and cannot be redistributed. A pseudo-data path with identical schema is available via `download_data(domain = "Pseudo Data", ...)` for readers without WRDS access; see Section \@ref(sec:data-download).
 
-Reproducing this manuscript takes about 15 minutes: `rmarkdown::render("tidyfinance.Rmd")` uses the WRDS subset described in Section \@ref(sec:data-download), or pseudo data of identical schema for readers without WRDS access. Timings reported here are obtained on `r sessionInfo()$running` with a `r parallel::detectCores()`-core processor running \proglang{R} `r r_version`; WRDS extracts are not pre-cached, so the 15-minute figure includes the time to download the underlying CRSP and Compustat panels.
+Running the code of this manuscript took `r render_minutes <- ceiling(as.numeric(difftime(Sys.time(), render_start, units = "mins"))); paste(render_minutes, if (render_minutes == 1) "minute" else "minutes")` or less in the last render: `rmarkdown::render("tidyfinance.Rmd")` uses the WRDS subset described in Section \@ref(sec:data-download), or pseudo data of identical schema for readers without WRDS access. Timings reported here are obtained on `r sessionInfo()$running` with a `r parallel::detectCores()`-core processor running \proglang{R} `r r_version`; WRDS extracts are not pre-cached, so this figure includes the time to download the underlying CRSP and Compustat panels.
 
 We publish all code, data workflows, and documentation at [https://github.com/tidy-finance/paper-factor-construction](https://github.com/tidy-finance/paper-factor-construction). The code is released under the MIT License, which is compatible with the GNU General Public License (GPL).
 
