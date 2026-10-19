@@ -1241,5 +1241,5 @@ sessionInfo()
 
 # Acknowledgments {-}
 
-Stefan Voigt is grateful to the Danish Finance Institute for financial support.
+We thank the editor, Emi Tanaka, and two anonymous referees for their thoughtful comments. Stefan Voigt is grateful to the Danish Finance Institute for financial support.
 
