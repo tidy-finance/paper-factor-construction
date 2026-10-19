@@ -67,7 +67,6 @@ header-includes:
 
 ```{r setup, include=FALSE, echo=FALSE, message=FALSE, cache=FALSE}
 render_start <- Sys.time()
-library("ggforce")
 library("ggplot2")
 library("scales")
 library("patchwork")
@@ -338,379 +337,89 @@ Across `download_data()`, every returned panel exposes a single `date` column of
 
 ## Variable construction {#sec:variable-construction}
 
-Most predictive variables in asset pricing studies use lagged information so that, for example, portfolio formation in month $t$ uses only data observable at the end of month $t-1$. `add_lagged_columns()` automates the required lagging procedure. For each row in the data, it looks back over a configurable window and attaches the most recent observed value of the chosen columns. Figure \@ref(fig:lagging-illustration) illustrates the two modes the function supports. By default (`ff_adjustment = FALSE`), shown in Panel A, the window is bounded by `lag` (the minimum delay between observation and use) and `max_lag` (the maximum delay before a stale value is treated as missing). Within this window (the dashed rectangle), the function picks the most recent non-missing value; if no observation falls in the window, the lagged column takes `NA`.
+Most predictive variables in asset pricing studies use lagged information so that, for example, portfolio formation in month $t$ uses only data observable at the end of month $t-1$. `add_lagged_columns()` automates the required lagging procedure. For each row in the data, it looks back over a configurable window and attaches the most recent observed value of the chosen columns. Figure \@ref(fig:lagging-illustration) illustrates the two modes the function supports. By default (`ff_adjustment = FALSE`), shown in Panel A, the window is bounded by `lag` (the minimum delay between observation and use) and `max_lag` (the maximum delay before a stale value is treated as missing). Within this window, the function picks the most recent non-missing value; if no observation falls in the window, the lagged column takes `NA`.
 
-The second mode, enabled by `ff_adjustment = TRUE` and shown in Panel B of Figure \@ref(fig:lagging-illustration), implements the Fama-French convention [@fama.1993]. The convention assumes accounting variables for fiscal year $t-1$ become public information by June of year $t$, then uses them for portfolio formation from July of $t$ through June of $t+1$. This timing produces a step-function lag that updates once per year at the June/July boundary, regardless of the underlying fiscal year-end: all months from July through June share the value locked in at the previous rebalancing.
+The second mode, enabled by `ff_adjustment = TRUE` and shown in Panel B of Figure \@ref(fig:lagging-illustration), implements the Fama-French convention [@fama.1993]. The convention assumes accounting variables for fiscal year $t-1$ become public information by June of year $t$, then uses them for portfolio formation from July of $t$ through June of $t+1$. This timing produces a step-function lag that updates once per year at the June/July boundary, regardless of the underlying fiscal year-end, and ignores `lag` and `max_lag`. Figure \@ref(fig:lagging-illustration) contrasts the two modes: with a 7-month lag, a firm with a June year-end updates in January, but under the convention it updates in July, like a firm with a December year-end.
 
 `join_lagged_values()` is a related helper that merges lagged values from one data frame into another using the same windowing logic. It is useful when the target panel and the source panel are at different frequencies, for example, when joining monthly accounting data into a quarterly target panel. The function takes the same `ff_adjustment` argument as `add_lagged_columns()`, so the Fama-French convention can be applied at the join step rather than as a separate transformation.
 
-```{r lagging-illustration, fig.alt="Schematic comparing two lagging modes. Panel A returns the most recent observed value within a window bounded by the minimum and maximum lag; Panel B implements the Fama-French convention, in which the lagged value updates once a year in July, whatever the fiscal year-end, and is held constant for twelve months.", fig.cap="Two lagging mechanisms in add\\_lagged\\_columns(). Each row represents a data series with observed (filled) and missing (hollow) cells; arrows show which value gets matched to each target month. Panel A (ff\\_adjustment = FALSE) returns the most recent observed value within the window bounded by lag and max\\_lag, marked by the dashed rectangle for the most recent target month. Panel B (ff\\_adjustment = TRUE) implements the Fama-French convention: the value of the fiscal year ending in calendar year t is used from July of t + 1 through June of t + 2, whatever the month of the fiscal year-end, and lag and max\\_lag are ignored.", fig.width=6.5, fig.height=4.3, fig.align="center", out.width="75%", echo=FALSE}
-ts <- 0.94
-corner <- unit(4, "pt")
-
-win_pad <- 0.15
-
-month_labels <- month.abb[c(11, 12, 1:12, 1:7)]
-n <- length(month_labels)
-
-x_labels <- -0.8
-x_ff <- 0.55
-x_std <- 3.0
-
-obs_pattern <- c(
-  FALSE,
-  TRUE,
-  FALSE,
-  FALSE,
-  FALSE,
-  FALSE,
-  TRUE,
-  FALSE,
-  FALSE,
-  TRUE,
-  FALSE,
-  TRUE,
-  FALSE,
-  TRUE,
-  TRUE,
-  FALSE,
-  TRUE,
-  FALSE,
-  TRUE,
-  FALSE,
-  TRUE
+```{r lagging-illustration, fig.alt="Two panels of horizontal bars for a firm with a June and a firm with a December fiscal year-end, from July of year T-1 to December of year T. With a 7-to-18-month lag window, the June firm switches to its new fiscal-year value in January of T and the December firm in July of T; with the Fama-French convention, both switch in July of T.", fig.cap="Two lagging modes of add\\_lagged\\_columns() for a firm with a June and a firm with a December fiscal year-end. Bars show which fiscal year's value each month receives; diamonds mark the fiscal year-ends in year T-1, and arrows point to the first month that uses them. Panel A (ff\\_adjustment = FALSE) uses the most recent value observed 7 to 18 months earlier, so each firm updates seven months after its own fiscal year-end. Panel B (ff\\_adjustment = TRUE) implements the Fama-French convention: the value of the fiscal year ending in calendar year T-1 is used from July of T through June of T+1, so both firms update in July, and lag and max\\_lag are ignored.", fig.width=6.5, fig.height=2.6, fig.align="center", out.width="90%", echo=FALSE}
+# Months are indexed from 0 (June of T-1) to 18 (December of T)
+lag_bars <- data.frame(
+  panel = rep(
+    c(
+      "Panel A: add_lagged_columns(lag = months(7), max_lag = months(18))",
+      "Panel B: add_lagged_columns(ff_adjustment = TRUE)"
+    ),
+    each = 4
+  ),
+  firm = rep(rep(c("June year-end", "December year-end"), each = 2), 2),
+  fiscal_year = rep(c("Ending in T-2", "Ending in T-1"), 4),
+  start = c(1, 7, 1, 13, 1, 13, 1, 13),
+  end = c(6, 18, 12, 18, 12, 18, 12, 18)
 )
+lag_bars$y <- ifelse(lag_bars$firm == "June year-end", 2, 1)
 
-df_data <- data.frame(
-  y = 1:n,
-  label = month_labels,
-  observed = obs_pattern,
-  alpha = 0.35 + 0.65 * ((1:n) / n)
-)
-
-obs <- df_data[df_data$observed, ]
-miss <- df_data[!df_data$observed, ]
-
-std_win_left <- 3
-std_win_right <- 14
-target <- 21
-
-std_matched <- 14
-
-ff_matched <- 14
-
-tiles <- function(rows, cx, grp_offset = 0, xsize = ts) {
-  do.call(
-    rbind,
-    lapply(seq_len(nrow(rows)), function(i) {
-      data.frame(
-        x = cx + c(-1, 1, 1, -1) * xsize / 2,
-        y = rows$y[i] + c(-1, -1, 1, 1) * ts / 2,
-        group = grp_offset + i,
-        alpha = if ("alpha" %in% names(rows)) rows$alpha[i] else NA_real_
-      )
-    })
-  )
-}
-
-grp_obs1 <- n
-grp_miss1 <- n + nrow(obs)
-grp_obs2 <- n + nrow(obs) + nrow(miss)
-grp_miss2 <- n + nrow(obs) + nrow(miss) + nrow(obs)
-
-obs1_poly <- tiles(obs, x_std, grp_obs1)
-miss1_poly <- tiles(miss, x_std, grp_miss1)
-obs2_poly <- tiles(obs, x_ff, grp_obs2)
-miss2_poly <- tiles(miss, x_ff, grp_miss2)
-
-std_grey <- data.frame(
-  y = c(20, 19, 18, 17, 16, 15, 14, 13, 12),
-  yend = c(12, 12, 10, 10, 7, 7, 7, 2, 2)
-)
-
-ff_grey <- data.frame(
-  y = c(20, 19, 18, 17, 16, 15, 14, 13, 12),
-  yend = c(2, 2, 2, 2, 2, 2, 2, 2, 2)
+fiscal_year_ends <- data.frame(
+  panel = rep(unique(lag_bars$panel), each = 2),
+  y = rep(c(2, 1), 2),
+  month = rep(c(0, 6), 2),
+  switch = c(7, 13, 13, 13)
 )
 
 ggplot() +
-  annotate(
-    "segment",
-    x = x_labels,
-    xend = x_labels,
-    y = 0.5,
-    yend = n + 0.5,
-    color = "grey40",
-    linewidth = 0.5
-  ) +
-  annotate(
-    "segment",
-    x = x_labels - 0.08,
-    xend = x_labels + 0.08,
-    y = 1:n,
-    yend = 1:n,
-    color = "grey40",
-    linewidth = 0.4
-  ) +
-  geom_text(
-    data = df_data[df_data$y %in% c(2, 5, 8, 11, 14, 17, 20, 21), ],
-    aes(x = x_labels - 0.2, y = y, label = label),
-    size = 4,
-    color = "grey40",
-    hjust = 0.5
-  ) +
-  geom_shape(
-    data = obs1_poly,
-    aes(x = x, y = y, group = group, alpha = alpha),
-    fill = tf_dark_blue,
-    color = "white",
-    linewidth = 0.8,
-    radius = corner
-  ) +
-  geom_shape(
-    data = miss1_poly,
-    aes(x = x, y = y, group = group),
-    fill = "grey97",
-    color = "grey80",
-    linewidth = 0.8,
-    radius = corner
-  ) +
-  geom_text(
-    data = miss,
-    aes(x = x_std, y = y),
-    label = "NA",
-    size = 3.2,
-    color = "grey65",
-    fontface = "italic"
-  ) +
-  geom_shape(
-    data = obs2_poly,
-    aes(x = x, y = y, group = group, alpha = alpha),
-    fill = tf_dark_blue,
-    color = "white",
-    linewidth = 0.8,
-    radius = corner
-  ) +
-  geom_shape(
-    data = miss2_poly,
-    aes(x = x, y = y, group = group),
-    fill = "grey97",
-    color = "grey80",
-    linewidth = 0.8,
-    radius = corner
-  ) +
-  geom_text(
-    data = miss,
-    aes(x = x_ff, y = y),
-    label = "NA",
-    size = 3.2,
-    color = "grey65",
-    fontface = "italic"
-  ) +
-  geom_curve(
-    data = data.frame(
-      x = x_std + ts / 2,
-      xend = x_std + ts / 2,
-      y = std_grey$y,
-      yend = std_grey$yend + 0.15
+  geom_rect(
+    data = lag_bars,
+    aes(
+      xmin = start - 0.5,
+      xmax = end + 0.5,
+      ymin = y - 0.3,
+      ymax = y + 0.3,
+      fill = fiscal_year
     ),
-    aes(x = x, y = y, xend = xend, yend = yend),
-    curvature = -0.2,
-    color = "grey70",
-    alpha = 0.5,
-    arrow = arrow(length = unit(0.08, "cm"), type = "closed"),
-    linewidth = 0.35
+    color = "white"
   ) +
-  annotate(
-    "rect",
-    xmin = x_std - ts / 2 - win_pad,
-    xmax = x_std + ts / 2 + win_pad,
-    ymin = std_win_left - ts / 2 - win_pad,
-    ymax = std_win_right + ts / 2 + win_pad,
-    fill = NA,
-    color = tf_yellow,
-    linewidth = 0.9,
-    linetype = "dashed"
-  ) +
-  annotate(
-    "text",
-    x = x_std - ts / 2 - win_pad - 0.2,
-    y = c(std_win_left - ts / 2 - win_pad, std_win_right + ts / 2 + win_pad),
-    label = c("max_lag", "lag"),
-    color = tf_yellow,
-    size = 3.4,
-    fontface = "italic",
-    hjust = -0.2,
-    vjust = 0.5
-  ) +
-  annotate(
-    "curve",
-    x = x_std + ts / 2,
-    xend = x_std + ts / 2,
-    y = target,
-    yend = std_matched + 0.2,
-    curvature = -0.2,
-    color = tf_dark_blue,
-    linewidth = 0.9,
-    arrow = arrow(length = unit(0.14, "cm"), type = "closed")
-  ) +
-  geom_curve(
-    data = data.frame(
-      x = x_ff + ts / 2,
-      xend = x_ff + ts / 2,
-      y = ff_grey$y,
-      yend = ff_grey$yend + 0.15
-    ),
-    aes(x = x, y = y, xend = xend, yend = yend),
-    curvature = -0.2,
-    color = "grey70",
-    alpha = 0.5,
-    arrow = arrow(length = unit(0.08, "cm"), type = "closed"),
-    linewidth = 0.35
-  ) +
-  annotate(
-    "curve",
-    x = x_ff + ts / 2,
-    xend = x_ff + ts / 2,
-    y = target,
-    yend = ff_matched + 0.2,
-    curvature = -0.2,
-    color = tf_dark_blue,
-    linewidth = 0.9,
-    arrow = arrow(length = unit(0.14, "cm"), type = "closed")
-  ) +
-  annotate(
-    "text",
-    x = max(x_std, x_ff) + ts / 2 + c(1.4, 1.0),
-    y = 0.1,
-    label = c(
-      "Panel A: data |> add_lagged_columns(lag = months(7), max_lag = months(18))",
-      "Panel B: data |> add_lagged_columns(ff_adjustment = TRUE)"
-    ),
-    color = "black",
-    size = 3.2,
-    family = "mono",
-    fontface = "bold",
-    hjust = 0
-  ) +
-  annotate(
-    "text",
-    x = x_std + ts / 2 + 0.35,
-    y = 0.1,
-    label = "Panel A",
+  geom_vline(xintercept = 12.5, linetype = "dashed", color = "grey50") +
+  geom_segment(
+    data = fiscal_year_ends,
+    aes(x = month, y = y + 0.42, xend = switch - 0.5, yend = y + 0.42),
     color = "grey30",
-    size = 3.6,
-    fontface = "bold",
-    hjust = 0
+    linewidth = 0.4,
+    arrow = arrow(length = unit(0.12, "cm"), type = "closed")
   ) +
-  annotate(
-    "text",
-    x = x_ff + ts / 2 + 0.35,
-    y = 0.1,
-    label = "Panel B",
-    color = "grey30",
-    size = 3.6,
-    fontface = "bold",
-    hjust = 0
+  geom_point(
+    data = fiscal_year_ends,
+    aes(x = month, y = y),
+    shape = 23,
+    size = 2.5,
+    fill = tf_yellow,
+    color = "grey30"
   ) +
-  annotate(
-    "text",
-    x = x_std,
-    y = -0.1,
-    label = "FALSE",
-    color = "grey30",
-    size = 4.0,
-    family = "mono",
-    fontface = "bold",
-    angle = 90,
-    hjust = 0.5,
-    vjust = 0.5
+  facet_wrap(~panel, ncol = 1) +
+  scale_fill_manual(
+    values = c("Ending in T-2" = "#78B7C5", "Ending in T-1" = tf_dark_blue),
+    breaks = c("Ending in T-2", "Ending in T-1"),
+    name = "Fiscal year"
   ) +
-  annotate(
-    "text",
-    x = x_ff,
-    y = -0.1,
-    label = "TRUE",
-    color = "grey30",
-    size = 4.0,
-    family = "mono",
-    fontface = "bold",
-    angle = 90,
-    hjust = 0.5,
-    vjust = 0.5
-  ) +
-  annotate(
-    "text",
-    x = (x_std + x_ff) / 2,
-    y = -0.8,
-    label = "ff_adjustment",
-    color = "grey30",
-    size = 4.0,
-    family = "mono",
-    fontface = "bold",
-    angle = 90,
-    hjust = 0.5,
-    vjust = 0.5
-  ) +
-  annotate(
-    "segment",
-    x = x_labels - 0.55,
-    xend = x_std + ts / 2 + 0.7,
-    y = 2.5,
-    yend = 2.5,
-    color = "grey30",
-    linewidth = 0.5,
-    linetype = "dashed"
-  ) +
-  annotate(
-    "segment",
-    x = x_labels - 0.55,
-    xend = x_std + ts / 2 + 0.7,
-    y = 14.5,
-    yend = 14.5,
-    color = "grey30",
-    linewidth = 0.5,
-    linetype = "dashed"
-  ) +
-  annotate(
-    "segment",
-    x = x_labels - 0.55,
-    xend = x_labels - 0.55,
-    y = c(1, 3, 15),
-    yend = c(2, 14, 21),
-    color = "grey30",
-    linewidth = 0.4
-  ) +
-  annotate(
-    "segment",
-    x = x_labels - 0.50,
-    xend = x_labels - 0.60,
-    y = c(1, 2, 3, 14, 15, 21),
-    yend = c(1, 2, 3, 14, 15, 21),
-    color = "grey30",
-    linewidth = 0.4
-  ) +
-  annotate(
-    "text",
-    x = x_labels - 0.75,
-    y = c(1.5, 8.5, 18),
-    label = c("Year T-2", "Year T-1", "Year T"),
-    color = "grey30",
-    size = 4.0,
-    fontface = "bold"
-  ) +
-  scale_alpha_identity() +
   scale_x_continuous(
-    limits = c(x_labels - 1.15, max(x_std, x_ff) + ts / 2 + 1.7),
-    expand = c(0, 0)
+    breaks = c(0, 6, 12, 18),
+    labels = c("Jun T-1", "Dec T-1", "Jun T", "Dec T"),
+    minor_breaks = 0:18,
+    expand = c(0.01, 0)
   ) +
   scale_y_continuous(
-    limits = c(-1.0, n + 0.55),
-    expand = c(0, 0)
+    breaks = c(1, 2),
+    labels = c("December year-end", "June year-end"),
+    limits = c(0.6, 2.55)
   ) +
-  coord_flip() +
-  theme_void() +
-  theme(plot.margin = margin(5, 10, 5, 10))
+  labs(x = NULL, y = NULL) +
+  theme_minimal(base_size = 9) +
+  theme(
+    panel.grid.major.y = element_blank(),
+    panel.grid.minor.y = element_blank(),
+    strip.text = element_text(family = "mono", hjust = 0, face = "bold"),
+    legend.position = "bottom"
+  )
 ```
 
 A handful of additional helpers cover routine operations that recur across empirical studies. `winsorize()` and `trim()` handle outliers in cross-sectional variables: the former symmetrically replaces values below the $q$-th and above the $(1-q)$-th percentile with the corresponding quantile values, while the latter sets them to `NA`. `estimate_model()` fits a linear model from a formula string and returns the coefficients as a tidy one-row data frame, which composes naturally with `group_by()` for grouped or rolling regressions such as estimating time-series factor exposures stock by stock via `estimate_betas()`. `compute_rolling_value()` applies an arbitrary aggregation function over a rolling window defined in calendar time rather than row counts, accommodating irregular observation frequencies and missing periods. `filter_sorting_data()` screens a panel before sorting, dropping observations that fail the sample filters bundled in a `filter_options()` object, such as financial or utility firms or stocks below a minimum price or size; by default it reports how many observations each filter removes, which `quiet = TRUE` suppresses. 
@@ -1501,7 +1210,7 @@ pkg_version <- function(pkg) {
 r_version <- renv_lock$R$Version
 ```
 
-We obtained the results in this paper using \proglang{R} `r r_version` with the following packages: \CRANpkg{tidyfinance} `r pkg_version("tidyfinance")`, \CRANpkg{dplyr} `r pkg_version("dplyr")` [@dplyr], \CRANpkg{tidyr} `r pkg_version("tidyr")` [@tidyr], \CRANpkg{ggplot2} `r pkg_version("ggplot2")` [@ggplot2], and \CRANpkg{lubridate} `r pkg_version("lubridate")` [@lubridate]. We install development versions of \CRANpkg{tidyfinance} with \CRANpkg{remotes} `r pkg_version("remotes")` [@remotes]. Figures additionally use \CRANpkg{ggforce} `r pkg_version("ggforce")` [@ggforce], \CRANpkg{scales} `r pkg_version("scales")` [@scales], and \CRANpkg{patchwork} `r pkg_version("patchwork")` [@patchwork]. CRAN hosts \proglang{R} and all packages at [https://CRAN.R-project.org/](https://CRAN.R-project.org/). \CRANpkg{renv} `r pkg_version("renv")` [@renv] ensures full reproducibility of the computational environment. Reproducing the factor return data requires an institutional subscription to WRDS, as the underlying CRSP and Compustat data are proprietary and cannot be redistributed.
+We obtained the results in this paper using \proglang{R} `r r_version` with the following packages: \CRANpkg{tidyfinance} `r pkg_version("tidyfinance")`, \CRANpkg{dplyr} `r pkg_version("dplyr")` [@dplyr], \CRANpkg{tidyr} `r pkg_version("tidyr")` [@tidyr], \CRANpkg{ggplot2} `r pkg_version("ggplot2")` [@ggplot2], and \CRANpkg{lubridate} `r pkg_version("lubridate")` [@lubridate]. We install development versions of \CRANpkg{tidyfinance} with \CRANpkg{remotes} `r pkg_version("remotes")` [@remotes]. Figures additionally use \CRANpkg{scales} `r pkg_version("scales")` [@scales] and \CRANpkg{patchwork} `r pkg_version("patchwork")` [@patchwork]. CRAN hosts \proglang{R} and all packages at [https://CRAN.R-project.org/](https://CRAN.R-project.org/). \CRANpkg{renv} `r pkg_version("renv")` [@renv] ensures full reproducibility of the computational environment. Reproducing the factor return data requires an institutional subscription to WRDS, as the underlying CRSP and Compustat data are proprietary and cannot be redistributed.
 
 Calling `rmarkdown::render("tidyfinance.Rmd")` renders the manuscript with WRDS data or pseudo data (Section \@ref(sec:data-download)). In the last render, running its code took `r render_minutes <- ceiling(as.numeric(difftime(Sys.time(), render_start, units = "mins"))); paste(render_minutes, if (render_minutes == 1) "minute" else "minutes")` or less. Timings reported here are obtained on `r sessionInfo()$running` with a `r parallel::detectCores()`-core processor running \proglang{R} `r r_version`; WRDS extracts are not pre-cached, so this figure includes the time to download the underlying CRSP and Compustat panels.
 
