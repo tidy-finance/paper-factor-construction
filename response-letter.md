@@ -23,15 +23,19 @@ Thank you for pointing this out. We now document the WRDS account prerequisites 
 
 > **1.** [...] Keep delisting returns in the CRSP download.
 
+We corrected the bug in the package accordingly. 
+
 - **Package.** `download_data_wrds_crsp()` with `version = "v2"` now keeps the month and the day that carry a stock's delisting return ([PR #316](https://github.com/tidy-finance/r-tidyfinance/pull/316)). CIZ includes the delisting return in `mthret` and `dlyret`, but `stksecurityinfohist` holds no active record after a stock's last trading day, so the common-stock filters were evaluated at month end (or on the delisting day) and dropped these observations. Their security information is now looked up on the last trading day (`securityenddt`).
 
 > **2.** [...] Apply sample screens only when portfolios are formed.
+
+We adjusted the default logc in the package accordingly. 
 
 - **Package.** With annual rebalancing (`rebalancing_month`), `implement_portfolio_sort()` and `filter_sorting_data()` now apply the screens of `filter_options()` in the formation month only and keep every stock that passes them for the whole holding period (ex-ante screens). The previous behaviour is still available with `filter_options(timing = "every_period")` and issues a warning. `filter_sorting_data()` gains a `rebalancing_month` argument ([PR #330](https://github.com/tidy-finance/r-tidyfinance/pull/330)).
 
 > **3.** [...] The note to Table 6 names Newey and West (1987), but the estimator is prewhitened with the bandwidth of Newey and West (1994). Fix. Rerun Table 6 with 0.9.0, remove the extra √T with a test, and describe the estimator correctly.
 
-Thank you for catching both points.
+We corrected the errors in the package and paper.
 
 - **Package.** `estimate_fama_macbeth(vcov = "iid")` no longer multiplies the $t$-statistic by $\sqrt{T}$ a second time, and a new unit test checks that the `"iid"` risk premium, standard error, and $t$-statistic match a one-sample $t$-test on the time series of cross-sectional slopes. The documentation of `vcov_options` now states that the default uses `sandwich::NeweyWest()` with VAR(1) prewhitening and the automatic bandwidth of Newey and West (1994).
 - **Paper.** The function overview (Table 1), the text of the asset pricing test section, and the note to Table 7 now describe the estimator as Newey and West (1987) standard errors with first-order VAR prewhitening and the Newey and West (1994) automatic bandwidth, as implemented in `sandwich::NeweyWest()` (Zeileis, 2004). We add both references.
@@ -47,7 +51,7 @@ We reran the full case study with the development version of tidyfinance (0.9.0.
 
 > **5. Correct the statements that the tables do not fully support.** [...]
 
-Thank you for this careful reading. We reran all tables with the current package version (see also our response to comment 4) and revised each statement against the new numbers.
+We reran all tables with the current package version (see also our response to comment 4) and revised each statement against the new numbers.
 
 - **Monotonicity (Table 4).** We no longer call the value-weighted means monotone. The text now says that mean returns decline from the lowest to the highest asset growth quintile under all three weighting schemes, monotonically for equal and capped value weights, and with nearly equal third and fourth quintiles for value weights.
 - **Significance (Table 5).** We dropped "borderline" and "significant at conventional levels" and now report the $t$-statistics directly in the text. With the rerun, the baseline spread has $t = 2.32$, the size-controlled spread $t = 3.06$, and the customized spread $t = 1.89$, which we now describe as no longer significant at the 5% level.
@@ -58,14 +62,14 @@ Thank you for this careful reading. We reran all tables with the current package
 
 > **6. Offer staggered rebalancing, and replicate Jegadeesh and Titman (1993) as a second case study.** [...] Fix. Add holding_period, skip and rebalancing_frequency arguments (tested code in the companion), and a second case study that replicates Table I of Jegadeesh and Titman (1993).
 
-Thank you for this suggestion, which closes a real gap in the package.
+This suggestion closes a real gap in the package.
 
 - **Package.** `implement_portfolio_sort()` and `compute_portfolio_returns()` gain the arguments `holding_period` and `skip`. With `holding_period = K`, portfolios are formed every period, each cohort is held for $K$ periods starting `skip` periods after formation, and the returns of the overlapping cohorts are averaged as in Jegadeesh and Titman (1993). Screens apply at formation, so a stock stays in its earlier cohorts until their holding period ends. We did not add a separate `rebalancing_frequency` argument: monthly formation with `holding_period` and annual formation with `rebalancing_month` cover the cases in the paper. The package vignette contains a worked six-month momentum example.
 - **Paper.** Given the page budget, we added a compact extension of the case study rather than a full second case study (new subsection "Staggered rebalancing" and Table 6). It computes the six-month momentum signal on calendar months, lags it by one month, and sorts stocks into NYSE deciles with holding periods $K \in \{1, 3, 6, 12\}$, each a one-argument change. On the case-study sample (1972 to 2024, all exchanges), the equal-weighted winner-minus-loser spread is $-1.0\%$ per year ($t = -0.31$) with monthly rebalancing and 6.9% ($t = 2.51$) with six overlapping cohorts, the 6/6 strategy of Jegadeesh and Titman (1993); the value-weighted 6/6 spread is 8.8% ($t = 3.10$). We do not replicate their Table I exactly, because their sample (1965 to 1989, NYSE and AMEX) predates most of our CRSP panel. The paper also mentions staggered rebalancing in the function overview (Table 1) and the description of `compute_portfolio_returns()`, and in the comparison with PyBondLab.
 
 > **7. Cite existing factor-construction software.** Problem. Pages 1 and 2 say that no widely adopted tool covers factor construction and that none of the existing projects exposes it as a callable API. PyBondLab (Rossetti and Dickerson, 2026), a Python package on PyPI since July 2024, does exactly this. [...] Fix. Cite it, and state how the two packages differ.
 
-Thank you for pointing us to PyBondLab, which we had overlooked. We now cite it (version 0.3.0) and have revised the text accordingly:
+We had indeed overlooked PyBondLab. We now cite it (version 0.3.0) and have revised the text accordingly:
 
 - **Introduction.** We qualify the claim to "no widely adopted tool covers this upstream workflow end to end" and add that PyBondLab exposes portfolio sorts for corporate bonds as a callable API but leaves data acquisition and cleaning to the user.
 - **Related work.** We restrict the statement that no project exposes its pipeline as a callable API to the factor data releases, and add a new paragraph on factor-construction software. It states that PyBondLab, like tidyfinance, offers single and double sorts with staggered rebalancing. It credits PyBondLab with within-firm sorts, batched sorts on many signals, banding, and portfolio turnover, none of which tidyfinance offers. It then lists where tidyfinance differs: integrated data acquisition and cleaning from raw WRDS panels, equity-specific construction choices such as capped value weights and industry and earnings screens, and Fama-MacBeth regressions. We describe the two packages as complementary across asset classes and languages.
@@ -76,24 +80,24 @@ We also note that tidyfinance now supports staggered rebalancing with overlappin
 
 > Pg 20, Stefan Voigt: Maybe add a linebreak, or comma, between U of C and DFI.
 
-Thank you. The two affiliations now appear separated by a comma: "University of Copenhagen, Danish Finance Institute".
+The two affiliations now appear separated by a comma: "University of Copenhagen, Danish Finance Institute".
 
 > Pg 4, Sec 3, Table 2: Would the table be more legible if it had another column with 'D', 'W', 'M', 'Q', 'A' (or alike) for daily, weekly, monthly, quarterly, annual, ... data frequencies? In order to make the resolution more easily detectable?
 
-Thank you for this suggestion. Table 2 now has a "Freq." column that lists the available frequencies of each source (D, W, M, Q, A, and I for intraday data), with the legend in the table caption. We removed the frequency wording from the descriptions accordingly.
+Table 2 now has a "Freq." column that lists the available frequencies of each source (D, W, M, Q, A, and I for intraday data), with the legend in the table caption. We removed the frequency wording from the descriptions accordingly.
 
 > Pg 3, Sec 3, Par 1: Why not remotes::install_github()? It is lighter than `pak` and works well enough.
 
-We agree. The installation section now installs the development version with `remotes::install_github("tidy-finance/r-tidyfinance")`, and the computational details section cites `remotes` instead of `pak`.
+The installation section now installs the development version with `remotes::install_github("tidy-finance/r-tidyfinance")`, and the computational details section cites `remotes` instead of `pak`.
 
 > Pg 1, Sec 1, Par 4: 'a single dependency': really? Isn't that too narrow a view? I get 17 when looking at non-recursive strong dependencies via `length(tools::package_dependencies("tidyfinance", which="strong")[[1]])`
 
-Thank you, the referee is right that the phrase was misleading. We meant that users add one package to their project, not that the package itself has no dependencies. The sentence now reads "the package supplies it as a single package that researchers can install, call, audit, and reuse". The 17 strong dependencies are mostly established infrastructure: tidyverse and r-lib packages for data manipulation and programming (`cli`, `dplyr`, `dbplyr`, `lifecycle`, `lubridate`, `purrr`, `rlang`, `slider`, `tibble`, `tidyr`, `httr2`), the database interface for WRDS (`DBI`, `RPostgres`), file parsers for the data providers (`jsonlite`, `nanoparquet`), and `stats` and `sandwich` for the estimation functions.
+The phrase was indeed misleading. We meant that users add one package to their project, not that the package itself has no dependencies. The sentence now reads "the package supplies it as a single package that researchers can install, call, audit, and reuse". The 17 strong dependencies are mostly established infrastructure: tidyverse and r-lib packages for data manipulation and programming (`cli`, `dplyr`, `dbplyr`, `lifecycle`, `lubridate`, `purrr`, `rlang`, `slider`, `tibble`, `tidyr`, `httr2`), the database interface for WRDS (`DBI`, `RPostgres`), file parsers for the data providers (`jsonlite`, `nanoparquet`), and `stats` and `sandwich` for the estimation functions.
 
 > Pg 1, Sec 1, Par 2: Remove comma before 'covers' in 'the Open Source Bond Asset Pricing project (Dickerson et, 2024), covers'
 
-Done, thank you.
+Done.
 
 > Pg 9, just before Sec 4: Bad one-line LaTeX orphan. I supposed final editing will take care of that.
 
-Thank you. After the revision, the paragraph before Section 4 no longer ends in a one-line orphan. We will check the layout again during final editing.
+After the revision, the paragraph before Section 4 no longer ends in a one-line orphan. 
