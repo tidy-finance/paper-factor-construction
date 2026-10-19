@@ -28,7 +28,7 @@ author:
     affiliation: Humboldt University of Berlin
     address:
     - School of Business and Economics, Dorotheenstraße 1
-    - 10117 Berlin, Germany
+    - 10099 Berlin, Germany
     orcid: 0009-0004-0423-6819
     email: christoph.scheuch@hu-berlin.de
   - name: Stefan Voigt
