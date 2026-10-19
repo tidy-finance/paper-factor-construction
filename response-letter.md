@@ -1,19 +1,33 @@
 # Response to the editor and referees
 
-We thank the handling editor and the referees for their careful reading and constructive comments. Below we reply to each comment in turn. Comments are quoted, followed by our response. Table numbers in our responses refer to the revised manuscript. The new momentum table is Table 6, so the Fama-MacBeth table of the original submission (Table 6) is now Table 7.
+We thank the editor and the referees for their careful reading and constructive comments. Below we reply to each comment in turn. Comments are quoted, followed by our response. Table numbers in our responses refer to the revised manuscript.
 
-## Handling editor
+## Editor
 
 > Just getting a WRDS account alone was not sufficient, I needed to enable 2FA and also accept terms and conditions. [...] You may like to document this somewhere -- it doesn't necessary have to be in the paper (or you may already do).
 
 Thank you for pointing this out. We now document the WRDS account prerequisites in both the package and the paper:
 
-- **Package.** The help pages `?get_wrds_connection` and `?set_wrds_credentials`, the package vignette, and the README now contain a WRDS account setup checklist: obtain an account, enroll in two-factor authentication (Duo), accept the WRDS terms of use on the WRDS website, store credentials with `set_wrds_credentials()`, and approve the Duo push notification when connecting. In addition, `get_wrds_connection()` now catches failed connection attempts and rethrows them with these hints instead of the raw database error.
+- **Package.** The help pages `?get_wrds_connection` and `?set_wrds_credentials`, the package vignette, and the README now contain a WRDS account setup checklist. In addition, `get_wrds_connection()` now catches failed connection attempts and rethrows them with these hints instead of the raw database error.
 - **Paper.** The WRDS paragraph in the data section now states that credentials alone do not suffice, that users must enroll in 2FA and accept the WRDS terms of use before the first connection, and refers readers to `?get_wrds_connection` for the full checklist.
 
-**Additional change.** Since the submitted version (tidyfinance 0.8.0), the package has gained two data sources, which Table 2 now lists: the FRED-MD and FRED-QD macroeconomic panels of McCracken and Ng (2016, 2021), including their real-time vintages (`download_data("FRED", "FRED-MD")`), and Aswath Damodaran's cost of capital by industry and region (`download_data("Damodaran", "wacc")`). The number of supported providers and datasets in the text is now computed from the package catalog.
+> Downloading data can take a few minutes, but function doesn't provide any alert. Perhaps it will be useful to have some alert or spinner regarding this?
+
+- **Package.** We added status messages to the WRDS downloads and a `quiet` parameter to optionally suppress them. 
+
+**Additional change.** Since the submitted version (tidyfinance 0.8.0), the package has gained two data sources, which Table 2 now lists: the FRED-MD and FRED-QD macroeconomic panels of McCracken and Ng (2016, 2021) and Aswath Damodaran's cost of capital by industry and region.
+
+**Length.** To stay within the journal's 20-page limit despite the new material (the momentum table, the sensitivity checks, and the new data sources), we shortened the manuscript on a few occasions: Table 2 now lists one-line `download_data()` arguments instead of full code examples, all tables use the body font size, and the figure heights are reduced smaller. We also removed the Dow Jones constituents and Yahoo Finance example, shortened the description of the Goyal and Welch (2008) predictors, condensed the description of the pseudo-data path, and cut passages that repeated the related work in the introduction, the summary, and the computational details.
 
 ## Referee 1
+
+> **1.** [...] Keep delisting returns in the CRSP download.
+
+- **Package.** `download_data_wrds_crsp()` with `version = "v2"` now keeps the month and the day that carry a stock's delisting return ([PR #316](https://github.com/tidy-finance/r-tidyfinance/pull/316)). CIZ includes the delisting return in `mthret` and `dlyret`, but `stksecurityinfohist` holds no active record after a stock's last trading day, so the common-stock filters were evaluated at month end (or on the delisting day) and dropped these observations. Their security information is now looked up on the last trading day (`securityenddt`).
+
+> **2.** [...] Apply sample screens only when portfolios are formed.
+
+- **Package.** With annual rebalancing (`rebalancing_month`), `implement_portfolio_sort()` and `filter_sorting_data()` now apply the screens of `filter_options()` in the formation month only and keep every stock that passes them for the whole holding period (ex-ante screens). The previous behaviour is still available with `filter_options(timing = "every_period")` and issues a warning. `filter_sorting_data()` gains a `rebalancing_month` argument ([PR #330](https://github.com/tidy-finance/r-tidyfinance/pull/330)).
 
 > **3.** [...] The note to Table 6 names Newey and West (1987), but the estimator is prewhitened with the bandwidth of Newey and West (1994). Fix. Rerun Table 6 with 0.9.0, remove the extra √T with a test, and describe the estimator correctly.
 
