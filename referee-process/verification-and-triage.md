@@ -91,19 +91,23 @@ single-column fix); full test suite passes. N3, N9, N11, N12, N18, N22, N23 fixe
 - `N18` — the breakpoint-offset test passes whether or not the offset exists; strengthen it.
 - `C2`/`N13` — month-end dates: `date - months(1)` is NA on month-end panels. Floor to first-of-month or error.
 
-### 3c. Document the convention rather than change the code — OPEN (not yet documented)
-`H9`/`H1` (signal must be pre-lagged; tie direction), `C1` (breakpoints over surviving stocks),
-`H5` (one missing return → NA portfolio), `H4` (bivariate cell averaging), `N7`/`N8`/`N28`
-(missing-value handling in lags, holding months, earnings screen), `N26`/`N27` (pseudo-data realism and
-RNG reset), `N14`/`N15`/`N16`/`N30`/`N31` (risk-free splice, download row order, CCM link timing,
-book-equity deferred taxes), `H8b` (v1 legacy delisting — does not affect the v2-based paper).
+### 3c. Document the convention rather than change the code — DONE
+
+Documented in a new "Construction conventions" section of the vignette (which feeds the pkgdown site and
+the generated `llms.txt`, so it also closes U1) plus `@details` notes on `compute_breakpoints()`,
+`compute_portfolio_returns()`, and `filter_sorting_data()`. Committed on `r-tidyfinance` as `740a417`.
+Covered: `H9`/`H1` (signal pre-lagged; tie direction), `C1` (breakpoints at formation), `H5` (missing
+return → NA portfolio), `N7`/`N8`/`N28` (missing-value handling), `N14`/`N15`/`N31` (risk-free splice,
+download row order, book-equity deferred taxes), `N27` (pseudo data), and the CRSP v2 delisting default.
+Lightly or not covered (note if a referee presses): `H4` (bivariate cell averaging), `N26` (pseudo-data
+RNG reset), `N16`/`N30` (CCM link timing), `H8b` (v1 legacy delisting — does not affect the v2 paper).
 
 ### 3d. Features — DECLINED in the letter ("left to future releases")
 - `F2` (portfolio turnover) and `F3` (constituent counts / characteristics) — already acknowledged in
   the related-work paragraph as PyBondLab strengths tidyfinance does not offer.
 - `H10`/`D1` — `implement_portfolio_sorts()` (plural, many signals in one call) + WRDS download cache.
 - `F4` — add the public OSBAP corporate-bond panels to `download_data()`.
-- `U1` — an agent-oriented guide in `llms.txt`.
+- `U1` — agent-oriented guide: ✓ DONE via the §3c vignette conventions, which feed the generated `llms.txt`.
 
 ### 3e. Paper-text minor — mostly DONE
 - `P5` ✓ reference errors fixed: Akey DOI + volume/pages, Welch–Goyal author order, Fama-French title
@@ -132,8 +136,8 @@ book-equity deferred taxes), `H8b` (v1 legacy delisting — does not affect the 
 - Decline the §3d features with a one-line cost-benefit note; `F2`/`F3` are already positioned as
   PyBondLab's complementary strengths.
 
-**Status (2026-10-22):** §2 closed; §3b done (committed in r-tidyfinance); §3e paper-text done except the
-author-side reference checks; §3c not yet documented; §3d declined in the letter. See §5 for the log.
+**Status (2026-10-22):** §2 closed; §3b and §3c done and U1 closed (committed in r-tidyfinance); §3e
+paper-text done except the author-side reference checks; §3d features declined in the letter. See §5.
 
 ---
 
@@ -232,5 +236,12 @@ uncommitted on `rr-letter-and-triage`):
 
 **Still open (author-side):** the remaining external reference checks (Rblpapi/fPortfolio authors,
 highfrequency year, Dick-Nielsen 2014, Davis 2000, SSRN ids/URLs); the `@Manual` year fields (may trail
-the bumped versions); the §3c convention documentation; the §3d features (declined in the letter); and a
-re-render of the manuscript PDF before submission.
+the bumped versions); the §3d features (declined in the letter); and a re-render of the manuscript PDF
+before submission.
+
+**2026-10-22 — §3c construction conventions documented (closes U1).** Added a "Construction conventions"
+section to `vignettes/tidyfinance.Rmd` and `@details` notes to `compute_breakpoints()` (tie rule +
+formation cross-section), `compute_portfolio_returns()` (missing return → NA), and `filter_sorting_data()`
+(threshold/sign screens drop missing values; industry exclusions keep a missing SIC). Regenerated `man/`;
+documentation only. Committed on `r-tidyfinance` as `740a417`. Because the vignette is a pkgdown article,
+the conventions reach the generated `llms.txt` — closing U1.
