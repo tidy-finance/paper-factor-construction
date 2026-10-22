@@ -25,22 +25,24 @@ We have reviewed the submission against the R Journal guidelines for papers abou
 
 ## Referee 1
 
+We thank the referee for the companion to the report. Its record-by-record findings, runnable examples, and tested code were very useful, and we drew on them throughout the revision. We address the seven required changes below and, at the end of this section, list the recommended changes from the supplement that we also adopted.
+
 > **1.** [...] Keep delisting returns in the CRSP download.
 
-We corrected the bug in the package accordingly. 
+The companion's example (record H8a) reproduced the dropped delisting months and pinpointed the cause, which we fixed in the package: 
 
 - **Package.** `download_data_wrds_crsp()` with `version = "v2"` now keeps the month and the day that carry a stock's delisting return ([PR #316](https://github.com/tidy-finance/r-tidyfinance/pull/316)). CIZ includes the delisting return in `mthret` and `dlyret`, but `stksecurityinfohist` holds no active record after a stock's last trading day, so the common-stock filters were evaluated at month end (or on the delisting day) and dropped these observations. Their security information is now looked up on the last trading day (`securityenddt`).
 
 > **2.** [...] Apply sample screens only when portfolios are formed.
 
-We adjusted the default logic in the package accordingly. 
+The companion's examples (records H7 and N5) showed that the screens looked ahead and that the default price column did not exist in the CRSP v2 download. Following your recommendation, we make ex-ante screens the default and keep the ex-post option behind a warning, without taking a side in the nonstandard-errors debate: 
 
 - **Package.** With annual rebalancing (`rebalancing_month`), `implement_portfolio_sort()` and `filter_sorting_data()` now apply the screens of `filter_options()` in the formation month only and keep every stock that passes them for the whole holding period (ex-ante screens). The previous behaviour is still available with `filter_options(timing = "every_period")` and issues a warning. `filter_sorting_data()` gains a `rebalancing_month` argument ([PR #330](https://github.com/tidy-finance/r-tidyfinance/pull/330)).
 - **Package.** Following your suggestion, the default price column is now `prc_lag`, the nominal price at the end of the previous month, instead of `prc_adj`, which the default CRSP v2 download does not return (so the `min_stock_price` screen previously failed on downloaded data). The help page of `filter_sorting_data()` now states when each screen applies: in the formation month only under annual rebalancing, and in every month otherwise.
 
 > **3.** [...] The note to Table 6 names Newey and West (1987), but the estimator is prewhitened with the bandwidth of Newey and West (1994). Fix. Rerun Table 6 with 0.9.0, remove the extra √T with a test, and describe the estimator correctly.
 
-We corrected the errors in the package and paper.
+The companion isolated both errors with runnable examples (records N1 and N2). We corrected them in the package and the paper:
 
 - **Package.** `estimate_fama_macbeth(vcov = "iid")` no longer multiplies the $t$-statistic by $\sqrt{T}$ a second time, and a new unit test checks that the `"iid"` risk premium, standard error, and $t$-statistic match a one-sample $t$-test on the time series of cross-sectional slopes. The documentation of `vcov_options` now states that the default uses `sandwich::NeweyWest()` with VAR(1) prewhitening and the automatic bandwidth of Newey and West (1994).
 - **Paper.** The function overview (Table 1), the text of the asset pricing test section, and the note to Table 7 now describe the estimator as Newey and West (1987) standard errors with first-order VAR prewhitening and the Newey and West (1994) automatic bandwidth, as implemented in `sandwich::NeweyWest()` (Zeileis, 2004). We add both references.
@@ -48,7 +50,7 @@ We corrected the errors in the package and paper.
 
 > **4. Rerun Tables 4 to 6 with these fixes.** [...] Fix. Report Tables 4 to 6 with delisting returns and fix standard errors. If the screens move to formation (point 2), rerun the customized row of Table 5 with them. Show the once-a-year timing of point 5 and the NYSE cap of point 8 of the supplement as sensitivity checks.
 
-We reran the full case study with the development version of tidyfinance (0.9.0.9007), which `renv.lock` now pins, so the computational details report the version actually used. This version includes all corrections from your report: delisting months in the CRSP download, screens at formation, the corrected $t$-statistics of `estimate_fama_macbeth()`, the Fama-French July timing of `ff_adjustment`, and the NYSE-based cap with the corrected dependent-sort size cutoff. All numbers in the text are now computed inline from the results, so the text and tables cannot drift apart in future renders.
+Following the companion's combined-impact table (record C0), we reran the full case study with the development version of tidyfinance (0.9.0.9007), which `renv.lock` now pins, so the computational details report the version actually used. This version includes all corrections from your report: delisting months in the CRSP download, screens at formation, the corrected $t$-statistics of `estimate_fama_macbeth()`, the Fama-French July timing of `ff_adjustment`, and the NYSE-based cap with the corrected dependent-sort size cutoff. All numbers in the text are now computed inline from the results, so the text and tables cannot drift apart in future renders.
 
 - **Tables 4, 5, and 7** (Tables 4 to 6 of the original submission) are reported with delisting returns and the corrected standard errors. The asset growth slope in Table 7 is now $-0.0046$ ($t = -6.04$) and the size slope $-0.0011$ ($t = -2.49$).
 - **Screens at formation.** The customized row of Table 5 uses the new default, ex-ante screens: with annual rebalancing, the screens apply in the formation month only, so a stock that fails a screen later keeps its holding-month returns. The text now says so and notes that `filter_options(timing = "every_period")` restores per-month screens with a warning.
@@ -80,6 +82,10 @@ We had indeed overlooked PyBondLab. We now cite it (version 0.3.0) and have revi
 - **Related work.** We restrict the statement that no project exposes its pipeline as a callable API to the factor data releases, and add a new paragraph on factor-construction software. It states that PyBondLab, like tidyfinance, offers single and double sorts with staggered rebalancing. It credits PyBondLab with within-firm sorts, batched sorts on many signals, banding, and portfolio turnover, none of which tidyfinance offers. It then lists where tidyfinance differs: integrated data acquisition and cleaning from raw WRDS panels, equity-specific construction choices such as capped value weights and industry and earnings screens, and Fama-MacBeth regressions. We describe the two packages as complementary across asset classes and languages.
 
 We also note that tidyfinance now supports staggered rebalancing with overlapping holding periods (arguments `holding_period` and `skip` of `implement_portfolio_sort()`), which we illustrate with Jegadeesh and Titman (1993) momentum in the new Table 6 (see our response to comment 6).
+
+> **Recommended changes (supplement).** The supplement lists further changes you recommend but do not require.
+
+Beyond the seven required changes, we adopted several of the companion's recommendations. We validate the `direction` argument of `compute_long_short_returns()` and let it accept the same `data_options` as `compute_portfolio_returns()` (records N3 and N22); the option constructors now warn on a misspelled option name (N12); `compute_portfolio_returns()` reports the actual cause of a missing or empty result instead of always citing insufficient observations (N11); we corrected the `trim()` documentation (N9) and the intercept-only $t$-statistic name in `estimate_model()` (N23, together with a related failure on a single-column data frame); we replaced a vacuous breakpoint test with one that checks the tie rule (N18); and we document that the lagging functions expect first-of-month dates for month-based lags (records C2 and N13). We leave the larger feature requests---portfolio turnover, batched multi-signal sorts, and the public corporate-bond panels---and the behavioural month-end-date change to future releases.
 
 ## Referee 2
 

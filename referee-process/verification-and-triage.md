@@ -49,20 +49,20 @@ briefly confused. No action required, but worth being aware of.
 
 ---
 
-## 2. Points from the letters not yet fully closed
+## 2. Points from the letters — all now closed
 
-1. **Editor — "comply with the R Journal package guidelines."** Not acknowledged in the response
-   letter. Add one sentence confirming compliance (ideally noting `R CMD check` / `urlchecker` pass).
-2. **Referee 1, point 6 — full replication of JT (1993) Table I.** Explicitly *declined* with a
-   page-budget + sample-period justification (`response-letter.md` comment 6). Defensible, but the editor
-   must accept the scope reduction; keep the justification crisp.
-3. **`prc_lag` default price column** (referee point 2's "make the previous month's nominal price the
-   default"). Implemented in the package (`data_options()` default `price = "prc_lag"`) but **not
-   mentioned** in the letter. Add a sentence so the referee sees it.
-4. **Paper wording, finding N20.** `tidyfinance.Rmd:575` still states that `implement_portfolio_sort()`
-   "returns the long-short factor return series alongside the underlying portfolio returns," but the
-   function returns only portfolio returns; the case study calls `compute_long_short_returns()`
-   separately (`:835`). The referee flagged exactly this. Quick wording fix.
+All four are resolved in the current working tree (uncommitted on `rr-letter-and-triage`):
+
+1. **Editor — R Journal package guidelines.** ✓ Added a response mapped to the actual package-paper
+   requirements (CRAN, VCS link, value-checking tests, documented functions + examples, vignette,
+   comparison with competitors, reproducibility, `rjtools`). Authors still to run the `rjtools` article
+   checks and confirm the coverage / `R CMD check` claims.
+2. **Referee 1, point 6 — full JT (1993) Table I.** ✓ Justification tightened into an explicit
+   cost-benefit argument (page limit + differing universe/period). Still a scope reduction the editor
+   must accept.
+3. **`prc_lag` default price column.** ✓ Added a bullet in the point-2 response.
+4. **Paper wording (N20).** ✓ The `implement_portfolio_sort()` sentence now says it returns the
+   portfolio-return panel, with the long-short produced by `compute_long_short_returns()`.
 
 ---
 
@@ -77,7 +77,11 @@ behaviour is defensible and the referee asks mainly that it be documented.
 cutoff), `N1`/`N2` (Fama-MacBeth √T and row order), `N32` (`add_lagged_columns` `by`+`ff_adjustment`),
 `N25` (index-constituents 404, PR #311).
 
-### 3b. Cheap, high-goodwill package fixes — recommend doing
+### 3b. Cheap, high-goodwill package fixes — DONE
+
+Committed on `r-tidyfinance` branch `referee-companion-minor-fixes` (`c52a5d9`, plus `a18a83e` for the
+single-column fix); full test suite passes. N3, N9, N11, N12, N18, N22, N23 fixed; C2/N13 documented
+(behavioural fix deferred — see §5). The problems addressed:
 - `N3` — `compute_long_short_returns()` accepts any `direction` string; validate it.
 - `N12` — option constructors swallow misspelled names via `...` (e.g. `exclude_finacials`); reject unknown names.
 - `N11` — `compute_portfolio_returns()` message blames "insufficient observations" for the wrong cause.
@@ -87,26 +91,32 @@ cutoff), `N1`/`N2` (Fama-MacBeth √T and row order), `N32` (`add_lagged_columns
 - `N18` — the breakpoint-offset test passes whether or not the offset exists; strengthen it.
 - `C2`/`N13` — month-end dates: `date - months(1)` is NA on month-end panels. Floor to first-of-month or error.
 
-### 3c. Document the convention rather than change the code (defensible design choices)
+### 3c. Document the convention rather than change the code — OPEN (not yet documented)
 `H9`/`H1` (signal must be pre-lagged; tie direction), `C1` (breakpoints over surviving stocks),
 `H5` (one missing return → NA portfolio), `H4` (bivariate cell averaging), `N7`/`N8`/`N28`
 (missing-value handling in lags, holding months, earnings screen), `N26`/`N27` (pseudo-data realism and
 RNG reset), `N14`/`N15`/`N16`/`N30`/`N31` (risk-free splice, download row order, CCM link timing,
 book-equity deferred taxes), `H8b` (v1 legacy delisting — does not affect the v2-based paper).
 
-### 3d. Features — defer or decline with a one-line cost-benefit note
+### 3d. Features — DECLINED in the letter ("left to future releases")
 - `F2` (portfolio turnover) and `F3` (constituent counts / characteristics) — already acknowledged in
   the related-work paragraph as PyBondLab strengths tidyfinance does not offer.
 - `H10`/`D1` — `implement_portfolio_sorts()` (plural, many signals in one call) + WRDS download cache.
 - `F4` — add the public OSBAP corporate-bond panels to `download_data()`.
 - `U1` — an agent-oriented guide in `llms.txt`.
 
-### 3e. Paper-text minor
-- `N17` — `additional_columns = c("at", "ib")` is redundant (both are default columns); harmless, optional.
-- `P5` — references: Akey et al. (2026) DOI, Welch–Goyal author order, unsourced "213+".
-- `P6` — dead cross-reference ("Section 2.3.4"), footnote 1 claim.
-- `P7` — the replication-repository URL returned HTTP 404 on 2026-10-05; confirm it resolves.
-- `P9`/`P10` — optional citations: Menkveld et al. (2024) on nonstandard errors; Dickerson et al. (2026).
+### 3e. Paper-text minor — mostly DONE
+- `P5` ✓ reference errors fixed: Akey DOI + volume/pages, Welch–Goyal author order, Fama-French title
+  capitals, Schwarz pages (1–37), version notes synced to `renv.lock`, removed the uncited `ggforce`
+  entry, PyBondLab GitHub URL, and the "213+"→212 / "169+"→297 counts. Still **author-side**: the other
+  external reference checks (Rblpapi/fPortfolio authors, highfrequency year, Dick-Nielsen 2014,
+  Davis 2000, SSRN ids/URLs) and the `@Manual` **year** fields (may trail the bumped versions).
+- `P6` ✓ fully closed: cross-references (already `\@ref`), footnote 1, the line-830 default claim, the
+  counts, the dynamic provider count, and both prose sentences (sample window, Figure 3 cyclicality).
+- `P7` ✓ repo is now **public**; the other P7 items were already resolved in the revision.
+- Characterizations ✓ Hou-Xue-Zhang (microcap-driven, not out-of-sample/undocumented) and Akey
+  ("silently" dropped) rewritten.
+- `N17` (redundant `additional_columns`) left as-is; `P9`/`P10` optional citations not applied — author's call.
 
 ---
 
@@ -121,6 +131,9 @@ book-equity deferred taxes), `H8b` (v1 legacy delisting — does not affect the 
 - Document the §3c conventions (a short help-page paragraph each) rather than change behaviour.
 - Decline the §3d features with a one-line cost-benefit note; `F2`/`F3` are already positioned as
   PyBondLab's complementary strengths.
+
+**Status (2026-10-22):** §2 closed; §3b done (committed in r-tidyfinance); §3e paper-text done except the
+author-side reference checks; §3c not yet documented; §3d declined in the letter. See §5 for the log.
 
 ---
 
@@ -185,6 +198,39 @@ Decisions and caveats:
   legitimate daily-data + month-lag use. A correct fix needs an opt-in `period`/frequency argument and
   validation against the OSBAP bond panels — a deliberate change, recommended as its own task. The
   first-of-month convention is now documented, which is the zero-risk part.
-- **Bonus finding (not in the batch).** `estimate_model(df, "y ~ 1")` errors when `df` has a single
-  column, because `df[complete, ]` drops to a vector before `lm()`. Out of scope here; worth a separate
-  one-line fix (`drop = FALSE`).
+- **Bonus finding — now fixed.** `estimate_model(df, "y ~ 1")` previously errored when `df` had a single
+  column, because `df[complete, ]` dropped to a vector before `lm()`. Fixed with `drop = FALSE` and a
+  regression test (r-tidyfinance commit `a18a83e`).
+
+**2026-10-22 — response-letter companion acknowledgment.** Added a thank-you for the companion to the
+Referee 1 section, updated the openers of points 1/3/4 to cite the companion records (H8a; N1, N2; C0),
+rewrote the point-2 opener (records H7/N5; ex-ante default, no stance in the nonstandard-errors debate),
+and added a closing "Recommended changes (supplement)" paragraph listing the adopted recommendations.
+
+**2026-10-22 — P5/P6/P7 reference, count, and prose fixes** (`tidyfinance.bib` and `tidyfinance.Rmd`,
+uncommitted on `rr-letter-and-triage`):
+
+- **Bib (P5):** Akey DOI (removed leading slash) + volume/issue/pages 30(5):1437–1485; Welch–Goyal
+  author order; Fama-French (2023) title capitals brace-protected; Schwarz et al. pages 1–60 → 1–37;
+  version notes synced to `renv.lock` (tidyr 1.3.2, lubridate 1.9.5, scales 1.4.0, patchwork 1.3.2,
+  renv 1.2.3 + year 2026); removed the uncited `ggforce` entry (bib now 46 entries, all cited);
+  PyBondLab `url` → the GitHub repository.
+- **Counts:** OSAP "213+" → 212 (October 2025 release); Fama-French "169+" → 297 (the count
+  `list_supported_datasets()` returns), with Table 2 grid borders re-aligned.
+- **Prose (P6):** footnote 1 rewritten to explain the full firm-year gap; the line-830 "every other
+  choice point" sentence now names the five portfolios and NYSE breakpoints; the sample-window sentence
+  (1972 start reason softened, inaccurate "most recent full calendar year" dropped); the Figure 3
+  "cyclical nature of corporate investment" claim replaced with a descriptive statement.
+- **Characterizations:** Hou-Xue-Zhang rewritten (microcap-driven replication failure, not out-of-sample
+  / undocumented construction); "silently" dropped from the Akey sentence.
+- **Already resolved in the revision (verified, no change needed):** dead cross-references (`\@ref`), the
+  "seven/nine providers" count (computed inline), the risk-free "tracks WRDS" wording, "pak NA", and the
+  render-time figure.
+
+**2026-10-22 — P7 repository.** `github.com/tidy-finance/paper-factor-construction` is now **public**
+(was 404), closing the main reproducibility blocker.
+
+**Still open (author-side):** the remaining external reference checks (Rblpapi/fPortfolio authors,
+highfrequency year, Dick-Nielsen 2014, Davis 2000, SSRN ids/URLs); the `@Manual` year fields (may trail
+the bumped versions); the §3c convention documentation; the §3d features (declined in the letter); and a
+re-render of the manuscript PDF before submission.
