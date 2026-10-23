@@ -935,10 +935,12 @@ summarize_spread <- function(data, specification) {
 customized_comparison_table <- bind_rows(
   summarize_spread(factor_returns_ag, "Baseline (univariate, no filters)"),
   summarize_spread(
-    factor_returns_bivariate, "Bivariate only (size-controlled, no filters)"
+    factor_returns_bivariate,
+    "Bivariate only (size-controlled, no filters)"
   ),
   summarize_spread(
-    factor_returns_customized, "Customized (size-controlled, filtered)"
+    factor_returns_customized,
+    "Customized (size-controlled, filtered)"
   ),
   summarize_spread(factor_returns_window, "Baseline, 7-to-18-month window"),
   summarize_spread(factor_returns_all_cap, "Baseline, all-stock cap")
