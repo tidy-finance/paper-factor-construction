@@ -2,7 +2,7 @@
 
 Dear Emi,
 
-Thank you very much — and please pass on our thanks to both referees — for the careful reading and the genuinely constructive comments, which have made the revision considerably stronger; we were glad to act on essentially every point. Below we reply to each comment in turn; each comment is shown *in italics*, followed by our response. Table numbers refer to the revised manuscript.
+Thank you very much — and please pass on our thanks to both referees — for the careful reading and the genuinely constructive comments, which have made the revision considerably stronger. We were glad to act on essentially every point. Below we reply to each comment in turn: each comment is shown *in italics*, followed by our response. Table numbers refer to the revised manuscript.
 
 ## Editor
 
@@ -11,7 +11,7 @@ Thank you very much — and please pass on our thanks to both referees — for t
 Thank you for pointing this out. We now document the WRDS account prerequisites in both the package and the paper:
 
 - **Package.** The help pages `?get_wrds_connection` and `?set_wrds_credentials`, the package vignette, and the README now contain a WRDS account setup checklist. In addition, `get_wrds_connection()` now catches failed connection attempts and rethrows them with these hints instead of the raw database error.
-- **Paper.** The WRDS paragraph in the data section now states that credentials alone do not suffice, that users must enroll in 2FA and accept the WRDS terms of use before the first connection, and that with push notifications each connection triggers a 2FA push, while without push a 2FA login on the WRDS website authorizes connections from the same IP address for 30 days. It refers readers to `?get_wrds_connection` for the full checklist.
+- **Paper.** The WRDS paragraph in the data section now states that credentials alone do not suffice, that users must enroll in 2FA and accept the WRDS terms of use before the first connection, and that with push notifications each connection triggers a 2FA push. It refers readers to `?get_wrds_connection` for the full checklist.
 
 *Downloading data can take a few minutes, but function doesn't provide any alert. Perhaps it will be useful to have some alert or spinner regarding this?*
 
@@ -27,7 +27,7 @@ We have reviewed the submission against the R Journal guidelines for papers abou
 
 ## Referee 1
 
-We are very grateful for the companion to the report: its record-by-record findings, runnable examples, and tested code were exceptionally useful, and we relied on them throughout the revision, checking every change extremely carefully. We agree with all seven required changes and have made each of them. We address them below and, at the end of this section, list the recommended changes from the supplement that we were glad to adopt as well.
+We are very grateful for the companion to the report: its record-by-record findings, runnable examples, and tested code were exceptionally useful, and we relied on them throughout the revision, checking every change carefully. We agree with all seven required changes and have made each of them. We address them below and, at the end of this section, list the recommended changes from the supplement that we were glad to adopt as well.
 
 *1. [...] Keep delisting returns in the CRSP download.*
 
@@ -66,7 +66,7 @@ We reran all tables with the current package version (see also our response to c
 - **Significance (Table 5).** We dropped "borderline" and "significant at conventional levels" and now report the $t$-statistics directly in the text. With the rerun, the baseline spread has $t = 2.32$, the size-controlled spread $t = 3.06$, and the customized spread $t = 1.89$, which we now describe as no longer significant at the 5% level.
 - **Size.** We removed the claim that size masked the signal. The text now says that the size-controlled sort barely moves the premium (3.5% to 3.6% per year) but raises the $t$-statistic because the spread is less volatile. We also removed the attribution of the larger equal-weighted spread to a correlation with size; the text now only notes that the effect is stronger among the small stocks that equal weighting emphasizes.
 - **Comparison with Cooper et al. (2008).** We no longer call our premium consistent with theirs. The text says that the sign matches, that our spread is considerably smaller than their decile spread of about 12.6% per year, and that their spread is based on deciles. For the Fama-MacBeth slope, we replaced "directly comparable" with a statement that dividing their slope by 12 gives only a rough monthly counterpart, because they regress annual returns and include additional controls. We removed the incorrect statement about past returns from the footnote.
-- **Fama-French timing.** We changed the package so that `ff_adjustment = TRUE` implements the Fama and French (1993) convention: the accounting data of a fiscal year ending in calendar year $t$ are used from July of $t+1$ through June of $t+2$, whatever the month of the fiscal year-end, so every firm updates in July. `min_lag` and `max_lag` are ignored in this mode, and new tests cover December and June fiscal year-ends. The text now describes both lagging modes in line with the code; to save space, we removed the figure that illustrated them. In the case study, we removed the `min_lag`/`max_lag` arguments and the "12-to-18-month window" text. With the corrected timing, the asset growth slope in Table 7 is $-0.0050$ ($t = -6.55$).
+- **Fama-French timing.** We changed the package so that `ff_adjustment = TRUE` implements the Fama and French (1993) convention: the accounting data of a fiscal year ending in calendar year $t$ are used from July of $t+1$ through June of $t+2$, whatever the month of the fiscal year-end, so every firm updates in July. `min_lag` and `max_lag` are ignored in this mode, and new tests cover December and June fiscal year-ends. The text now describes both lagging modes in line with the code; to save space, we removed the outdated figure that illustrated them. In the case study, we removed the `min_lag`/`max_lag` arguments and the "12-to-18-month window" text. With the corrected timing, the asset growth slope in Table 7 is $-0.0050$ ($t = -6.55$).
 - **Jensen et al. (2023).** We now report 153 factors in 93 countries instead of "hundreds of signals across many countries" (Introduction, related work, and Table 2), and no longer describe them as spanning asset classes. The package's capped value weights now cap at the 80th percentile of NYSE stocks, as in Jensen et al. (2023), and the text and the note to Table 4 say so. We no longer cite Jensen et al. (2023) for NYSE breakpoints and cite Fama and French (1993) instead.
 
 *6. Offer staggered rebalancing, and replicate Jegadeesh and Titman (1993) as a second case study. [...] Fix. Add holding_period, skip and rebalancing_frequency arguments (tested code in the companion), and a second case study that replicates Table I of Jegadeesh and Titman (1993).*
