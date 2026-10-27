@@ -79,7 +79,7 @@ No standalone codebook is bundled because all data are obtained through `tidyfin
 - R 4.6.1 (package versions are pinned in `renv.lock`)
 - `renv` package, used to restore the locked package environment
 - `rmarkdown` and `rjtools` to render the article, together with `pandoc` (bundled with RStudio, or installed separately) and a working TeX distribution (e.g., TinyTeX or TeX Live) for PDF output
-- `tidyfinance` version 0.6.0.9003, as recorded in `renv.lock`
+- `tidyfinance` version 1.0.0, as recorded in `renv.lock`
 - An institutional WRDS account, unless rendering with `data_domain <- "Pseudo Data"`
 
 The file `renv.lock` lists every package and the exact version used. Running `renv::restore()` once from the project root installs the full set of **R packages**. Pandoc and a TeX distribution are not R packages and must be installed separately (see "Instructions to Replicators").
@@ -116,6 +116,7 @@ The manuscript was last compiled on an **Apple MacBook Air (M1, 16 GB RAM, 8 cor
 | `_Rpackages.txt`                      | List of R packages needed to reproduce the submission.                |
 | `motivation-letter.md` | Cover letter accompanying the submission.                         |
 | `renv.lock`                           | Pins every R package to an exact version.                             |
+| `_dependencies.R`                     | Declares packages renv cannot detect from the Rmd (e.g., `remotes`).  |
 | `LICENSE`                             | MIT license for the code (see below).                                 |
 
 `tidyfinance.Rmd` is the single entry point. It pulls CRSP/Compustat extracts from WRDS and the Fama-French factors from Ken French's Data Library (or generates pseudo data on the pseudo path), and renders the complete manuscript. Code chunks execute top-to-bottom in document order; the `set-data-domain` chunk near the top of the case study must run before any data chunk, which document order guarantees.
