@@ -1,11 +1,11 @@
 dplyr
-ggforce
 ggplot2
 jsonlite
 knitr
 lubridate
-pak
 patchwork
+purrr
+remotes
 renv
 rjtools
 rmarkdown
