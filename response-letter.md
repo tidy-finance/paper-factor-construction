@@ -2,7 +2,7 @@
 
 Dear Emi,
 
-Thank you very much — and please pass on our thanks to both referees — for the careful reading and the genuinely constructive comments, which have made the revision considerably stronger; we were glad to act on essentially every point. Below we reply to each comment in turn; each comment is shown *in italics*, followed by our response. Table numbers refer to the revised manuscript.
+Thank you very much — and please pass on our thanks to both referees — for the careful reading and the genuinely constructive comments, which have made the revision considerably stronger. We were glad to act on essentially every point. Below we reply to each comment in turn. Each comment is shown *in italics*, followed by our response. Table numbers refer to the revised manuscript. A detailed [diff](https://github.com/tidy-finance/paper-factor-construction/compare/3d7e8a039dacb5ba666b236c751852c2f897b5cb...4814956a1937f003e6e0e2d1a5f3b589b0d33eeb) between the original submission and the resubmission is available on GitHub.
 
 ## Editor
 
@@ -19,7 +19,7 @@ Thank you for pointing this out. We now document the WRDS account prerequisites 
 
 *In addition, please ensure that your submission complies with our guidelines at https://rjournal.github.io/R_package_guidelines.html.*
 
-We have reviewed the submission against the R Journal guidelines for papers about R packages. `tidyfinance` is on CRAN; its `DESCRIPTION` links to the GitHub repository and issue tracker; every user-facing function is documented with explained arguments and runnable examples; the package ships a vignette that walks through a full workflow; and its unit tests verify output values (not only class or structure), with 100% coverage reported by Codecov. The article is prepared with the `rjtools` template.
+We have reviewed the submission against the R Journal guidelines for papers about R packages. `tidyfinance` 1.0.0 is on CRAN; its `DESCRIPTION` links to the GitHub repository and issue tracker; every user-facing function is documented with explained arguments and runnable examples; the package ships a vignette that walks through a full workflow; and its unit tests verify output values (not only class or structure), with 100% coverage reported by Codecov. The article is prepared with the `rjtools` template.
 
 **Additional change.** Since the submitted version (tidyfinance 0.8.0), the package has gained two data sources, which Table 2 now lists: the FRED-MD and FRED-QD macroeconomic panels of McCracken and Ng (2016, 2021) and Aswath Damodaran's cost of capital by industry and region.
 
@@ -52,7 +52,7 @@ The companion isolated both errors with runnable examples (records N1 and N2). W
 
 *4. Rerun Tables 4 to 6 with these fixes. [...] Fix. Report Tables 4 to 6 with delisting returns and fix standard errors. If the screens move to formation (point 2), rerun the customized row of Table 5 with them. Show the once-a-year timing of point 5 and the NYSE cap of point 8 of the supplement as sensitivity checks.*
 
-Following the companion's combined-impact table (record C0), we reran the full case study with the development version of tidyfinance (0.9.0.9007), which `renv.lock` now pins, so the computational details report the version actually used. This version includes all corrections from your report: delisting months in the CRSP download, screens at formation, the corrected $t$-statistics of `estimate_fama_macbeth()`, the Fama-French July timing of `ff_adjustment`, and the NYSE-based cap with the corrected dependent-sort size cutoff. All numbers in the text are now computed inline from the results, so the text and tables cannot drift apart in future renders.
+Following the companion's combined-impact table (record C0), we reran the full case study with the newly released tidyfinance 1.0.0, which `renv.lock` now pins, so the computational details report the version actually used. This version includes all corrections from your report: delisting months in the CRSP download, screens at formation, the corrected $t$-statistics of `estimate_fama_macbeth()`, the Fama-French July timing of `ff_adjustment`, and the NYSE-based cap with the corrected dependent-sort size cutoff. All numbers in the text are now computed inline from the results, so the text and tables cannot drift apart in future renders.
 
 - **Tables 4, 5, and 7** (Tables 4 to 6 of the original submission) are reported with delisting returns and the corrected standard errors. Table 7 now also controls for the six-month momentum signal of Table 6. The asset growth slope is $-0.0050$ ($t = -6.55$) and the size slope $-0.0010$ ($t = -2.34$); without the momentum control, they are $-0.0046$ ($t = -6.04$) and $-0.0011$ ($t = -2.49$).
 - **Screens at formation.** The customized row of Table 5 uses the new default, ex-ante screens: with annual rebalancing, the screens apply in the formation month only, so a stock that fails a screen later keeps its holding-month returns. The text now says so and notes that `filter_options(timing = "every_period")` restores per-month screens with a warning.
@@ -107,7 +107,7 @@ The installation section now installs the development version with `remotes::ins
 
 *Pg 1, Sec 1, Par 4: 'a single dependency': really? Isn't that too narrow a view? I get 17 when looking at non-recursive strong dependencies via `length(tools::package_dependencies("tidyfinance", which="strong")[[1]])`*
 
-The phrase was indeed misleading. We meant that users add one package to their project, not that the package itself has no dependencies. The sentence now reads "the package supplies it as a single package that researchers can install, call, audit, and reuse". The 17 strong dependencies are mostly established infrastructure: tidyverse and r-lib packages for data manipulation and programming (`cli`, `dplyr`, `dbplyr`, `lifecycle`, `lubridate`, `purrr`, `rlang`, `slider`, `tibble`, `tidyr`, `httr2`), the database interface for WRDS (`DBI`, `RPostgres`), file parsers for the data providers (`jsonlite`, `nanoparquet`), and `stats` and `sandwich` for the estimation functions.
+The phrase was indeed misleading. We meant that users add one package to their project, not that the package itself has no dependencies. The sentence now reads "the package supplies it as a single package that researchers can install, call, audit, and reuse". 
 
 *Pg 1, Sec 1, Par 2: Remove comma before 'covers' in 'the Open Source Bond Asset Pricing project (Dickerson et, 2024), covers'*
 
